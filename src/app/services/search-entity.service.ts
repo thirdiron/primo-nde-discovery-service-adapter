@@ -8,29 +8,46 @@ import { EntityType } from '../shared/entity-type.enum';
 export class SearchEntityService {
   constructor() {}
 
-  shouldEnhance = (result: SearchEntity): boolean => {
-    // console.log('shouldEnhance');
-    var validation = false;
+  isFiltered = (result: SearchEntity): boolean => {
+    let validation = false;
 
-    // if (!isFiltered(scope)) {
-    if (this.isJournal(result) && this.getIssn(result)) {
-      validation = true;
-    }
+    // On new result object is it:
+    // result.pnx.delivery.delcategory[0] !== "Remote Search Resource"
 
-    if (this.isArticle(result) && this.getDoi(result)) {
-      validation = true;
-    }
+    // if (result && result.delivery) {
+    //   if (result.delivery.deliveryCategory && result.delivery.deliveryCategory.length > 0) {
+    //     var deliveryCategory = result.delivery.deliveryCategory[0].trim().toLowerCase();
 
-    if (
-      this.isArticle(result) &&
-      !this.getDoi(result) &&
-      this.getIssn(result)
-    ) {
-      validation = true;
-    }
+    //     if (deliveryCategory === "alma-p" && !showPrintRecords()) {
+    //       validation = true;
+    //     }
+    //   }
     // }
 
-    // console.log('return shouldEnhance value');
+    return validation;
+  };
+
+  shouldEnhance = (result: SearchEntity): boolean => {
+    var validation = false;
+
+    if (!this.isFiltered(result)) {
+      if (this.isJournal(result) && this.getIssn(result)) {
+        validation = true;
+      }
+
+      if (this.isArticle(result) && this.getDoi(result)) {
+        validation = true;
+      }
+
+      if (
+        this.isArticle(result) &&
+        !this.getDoi(result) &&
+        this.getIssn(result)
+      ) {
+        validation = true;
+      }
+    }
+
     return validation;
   };
 
@@ -39,9 +56,9 @@ export class SearchEntityService {
 
     if (result && result.pnx) {
       if (result.pnx.display && result.pnx.display.type) {
-        var contentType = result.pnx.display.type[0].trim().toLowerCase();
+        var contentType = result.pnx.display.type[0]?.trim().toLowerCase();
 
-        if (contentType.indexOf('article') > -1) {
+        if (contentType?.indexOf('article') > -1) {
           validation = true;
         }
       }
@@ -55,9 +72,9 @@ export class SearchEntityService {
 
     if (result && result.pnx) {
       if (result.pnx.display && result.pnx.display.type) {
-        var contentType = result.pnx.display.type[0].trim().toLowerCase();
+        var contentType = result.pnx.display.type[0]?.trim().toLowerCase();
 
-        if (contentType.indexOf('journal') > -1) {
+        if (contentType?.indexOf('journal') > -1) {
           validation = true;
         }
       }

@@ -194,10 +194,13 @@ export class ButtonInfoService {
       linkUrl = documentDeliveryUrl;
     }
 
+    // Secondary button
     if (
       !this.isAlertButton(buttonType) &&
       buttonType !== ButtonType.ArticleLink &&
-      this.configService.showFormatChoice()
+      this.configService.showFormatChoice() &&
+      articleLinkUrl &&
+      articleLinkUrl !== ''
     ) {
       // If we don't have an alert type button and we aren't already going to
       // display an Article Link button, then
@@ -262,7 +265,6 @@ export class ButtonInfoService {
     }
 
     if (type === EntityType.Article) {
-      console.log('article type, browzineEnabled:', journal?.browzineEnabled);
       if (journal?.browzineEnabled) {
         browzineEnabled = journal.browzineEnabled;
       }
@@ -394,10 +396,8 @@ export class ButtonInfoService {
         !shouldAvoidUnpaywall &&
         isUnpaywallUsable)
     ) {
-      // console.log('SHOULD MAKE UNPAYWALL CALL');
       return true;
     }
-    // console.log('DO NOT MAKE UNPAYWALL CALL');
     return false;
   }
 
@@ -430,14 +430,7 @@ export class ButtonInfoService {
   }
 
   private isUnpaywallEnabled() {
-    return (
-      // TODO - load from config
-      // browzine.articlePDFDownloadViaUnpaywallEnabled ||
-      // browzine.articleLinkViaUnpaywallEnabled ||
-      // browzine.articleAcceptedManuscriptPDFViaUnpaywallEnabled ||
-      // browzine.articleAcceptedManuscriptArticleLinkViaUnpaywallEnabled
-      true
-    );
+    return this.configService.getIsUnpaywallEnabled();
   }
 
   private makeUnpaywallCall(

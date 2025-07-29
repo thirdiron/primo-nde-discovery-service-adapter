@@ -4,6 +4,7 @@ import { UnpaywallData } from '../types/unpaywall.types';
 import { ButtonType } from '../shared/button-type.enum';
 import { DisplayWaterfallResponse } from '../types/displayWaterfallResponse.types';
 import { DEFAULT_DISPLAY_WATERFALL_RESPONSE } from './button-info.service';
+import { ConfigService } from './config.service';
 
 /**
  * This Service is responsible for initiating the call to the Unpaywall endpoint
@@ -14,7 +15,7 @@ import { DEFAULT_DISPLAY_WATERFALL_RESPONSE } from './button-info.service';
   providedIn: 'root',
 })
 export class UnpaywallService {
-  constructor() {}
+  constructor(private configService: ConfigService) {}
 
   unpaywallWaterfall(
     unpaywallResponse: any,
@@ -22,6 +23,7 @@ export class UnpaywallService {
   ): DisplayWaterfallResponse {
     let buttonType: ButtonType = ButtonType.None;
     let unpaywallUrl = '';
+    let entityType: EntityType = EntityType.Unknown;
 
     if (unpaywallResponse.status == 200) {
       const data: UnpaywallData = unpaywallResponse.body;
@@ -40,34 +42,38 @@ export class UnpaywallService {
         this.getUnpaywallManuscriptArticleLinkUrl(data);
 
       if (
-        unpaywallArticlePDFUrl
-        // TODO load config: && browzine.articlePDFDownloadViaUnpaywallEnabled
+        unpaywallArticlePDFUrl &&
+        this.configService.showUnpaywallDirectToPDFLink()
       ) {
         buttonType = ButtonType.UnpaywallDirectToPDF;
         unpaywallUrl = unpaywallArticlePDFUrl;
+        entityType = EntityType.Article;
       } else if (
-        unpaywallArticleLinkUrl
-        // TODO load config: && browzine.articleLinkViaUnpaywallEnabled
+        unpaywallArticleLinkUrl &&
+        this.configService.showUnpaywallArticleLink()
       ) {
         buttonType = ButtonType.UnpaywallArticleLink;
         unpaywallUrl = unpaywallArticleLinkUrl;
+        entityType = EntityType.Article;
       } else if (
-        unpaywallManuscriptArticlePDFUrl
-        // TODO load config: && browzine.articleAcceptedManuscriptPDFViaUnpaywallEnabled
+        unpaywallManuscriptArticlePDFUrl &&
+        this.configService.showUnpaywallManuscriptPDFLink()
       ) {
         buttonType = ButtonType.UnpaywallManuscriptPDF;
         unpaywallUrl = unpaywallManuscriptArticlePDFUrl;
+        entityType = EntityType.Article;
       } else if (
-        unpaywallManuscriptArticleLinkUrl
-        // TODO load config: && browzine.articleAcceptedManuscriptArticleLinkViaUnpaywallEnabled
+        unpaywallManuscriptArticleLinkUrl &&
+        this.configService.showUnpaywallManuscriptArticleLink()
       ) {
         buttonType = ButtonType.UnpaywallManuscriptLink;
         unpaywallUrl = unpaywallManuscriptArticleLinkUrl;
+        entityType = EntityType.Article;
       }
 
       return {
         mainButtonType: buttonType,
-        entityType: EntityType.Article,
+        entityType: entityType,
         mainUrl: unpaywallUrl,
       };
     }

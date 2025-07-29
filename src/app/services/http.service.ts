@@ -6,6 +6,7 @@ import {
 } from '@angular/common/http';
 import { catchError, Observable, throwError } from 'rxjs';
 import { ApiResult, ArticleData, JournalData } from '../types/tiData.types';
+import { ConfigService } from './config.service';
 
 /**
  * This Service is responsible for all HTTP requests and includes some
@@ -16,11 +17,13 @@ import { ApiResult, ArticleData, JournalData } from '../types/tiData.types';
   providedIn: 'root',
 })
 export class HttpService {
-  // TODO load dynamically from config
-  private apiUrl = 'https://public-api.thirdiron.com/public/v1/libraries/222'; //'https://public-api.thirdiron.com/public/v1/libraries/322';
-  private apiKey = '826ba44a-4e48-48df-bbd2-cf8ee7bbb67d'; //'dc14dee7-f4f3-4617-bd84-be027c3830c0';
+  private apiUrl = this.configService.getApiUrl();
+  private apiKey = this.configService.getApiKey();
 
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient, private configService: ConfigService) {
+    console.log('apiUrl', this.apiUrl);
+    console.log('apiKey', this.apiKey);
+  }
 
   getArticle(doi: string): Observable<any> {
     const endpoint = `${
@@ -42,12 +45,9 @@ export class HttpService {
   }
 
   getUnpaywall(doi: string): Observable<HttpResponse<Object>> {
-    // TODO - load from config
-    // var email = browzine.unpaywallEmailAddressKey;
-    const email = 'info@thirdiron.com';
+    const email = this.configService.getEmailAddressKey();
 
     const endpoint = `https://api.unpaywall.org/v2/${doi}?email=${email}`;
-    console.log('http getUnpaywall', endpoint);
     return this.http
       .get(endpoint, { observe: 'response' })
       .pipe(catchError(this.handleError));
@@ -66,9 +66,6 @@ export class HttpService {
     } else {
       data = response.body.data;
     }
-
-    // console.log('RESPONSE::', response);
-    // console.log('DATA::', data);
 
     return data;
   }

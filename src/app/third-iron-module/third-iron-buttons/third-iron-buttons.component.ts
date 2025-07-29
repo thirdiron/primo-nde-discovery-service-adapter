@@ -41,7 +41,6 @@ export class ThirdIronButtonsComponent {
 
   ngOnInit() {
     // Start the process for determining if a button should be displayed and with what info
-    console.log('hostComponent', this.hostComponent);
     this.enhance(this.hostComponent.searchResult);
   }
 

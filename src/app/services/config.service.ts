@@ -1,5 +1,4 @@
-import { Injectable } from '@angular/core';
-// import {LookupService}
+import { Injectable, Inject } from '@angular/core';
 
 /**
  * This Service is responsible for getting config values from the corresponding
@@ -10,128 +9,97 @@ import { Injectable } from '@angular/core';
   providedIn: 'root',
 })
 export class ConfigService {
-  constructor() {} //private lookupService: LookupService
+  constructor(@Inject('MODULE_PARAMETERS') public moduleParameters: any) {}
 
-  // TODO - load config values from LookupService //
+  private getBooleanParam(paramName: string): boolean {
+    try {
+      const parsedValue = JSON.parse(this.moduleParameters[paramName]);
+      return parsedValue === true;
+    } catch {
+      return false;
+    }
+  }
+
+  getIsUnpaywallEnabled(): boolean {
+    return (
+      this.getBooleanParam('articlePDFDownloadViaUnpaywallEnabled') ||
+      this.getBooleanParam('articleLinkViaUnpaywallEnabled') ||
+      this.getBooleanParam('articleAcceptedManuscriptPDFViaUnpaywallEnabled') ||
+      this.getBooleanParam(
+        'articleAcceptedManuscriptArticleLinkViaUnpaywallEnabled'
+      )
+    );
+  }
   showDirectToPDFLink(): boolean {
-    let featureEnabled = true; // set back to false once implemented
-    // TODO - load from LookupService:
-    // const config = this.lookupService.getModuleParam('articlePDFDownloadLinkEnabled')
-    // const prefixConfig = this.lookupService.getModuleParam('primoArticlePDFDownloadLinkEnabled')
-
-    //// - old way -
-    // var config = browzine.articlePDFDownloadLinkEnabled;
-    // var prefixConfig = browzine.primoArticlePDFDownloadLinkEnabled;
-    ////
-
-    // if (typeof config === "undefined" || config === null || config === true) {
-    //   featureEnabled = true;
-    // }
-
-    // if (
-    //   typeof prefixConfig !== "undefined" &&
-    //   prefixConfig !== null &&
-    //   prefixConfig === false
-    // ) {
-    //   featureEnabled = false;
-    // }
-
-    return featureEnabled;
+    return this.getBooleanParam('articlePDFDownloadLinkEnabled');
   }
 
-  // TODO - load config values from LookupService //
   showArticleLink(): boolean {
-    let featureEnabled = true; // set back to false once implemented
-    // let config = browzine.articleLinkEnabled;
-
-    // if (typeof config === "undefined" || config === null || config === true) {
-    //   featureEnabled = true;
-    // }
-
-    return featureEnabled;
+    return this.getBooleanParam('articleLinkEnabled');
   }
 
-  // TODO - load config values from LookupService //
   showFormatChoice(): boolean {
-    let featureEnabled = true; // set back to false once implemented
-    // var config = browzine.showFormatChoice;
-
-    // if (config === true) {
-    //   featureEnabled = true;
-    // }
-
-    return featureEnabled;
+    return this.getBooleanParam('showFormatChoice');
   }
 
-  // TODO - load config values from LookupService //
   showRetractionWatch(): boolean {
-    let featureEnabled = true; // set back to false once implemented
-    // let config = browzine.articleRetractionWatchEnabled;
-
-    // if (typeof config === "undefined" || config === null || config === true) {
-    //   featureEnabled = true;
-    // }
-
-    return featureEnabled;
+    return this.getBooleanParam('articleRetractionWatchEnabled');
   }
 
-  // TODO - load config values from LookupService //
   showExpressionOfConcern(): boolean {
-    let featureEnabled = true; // set back to false once implemented
-    // let config = browzine.articleExpressionOfConcernEnabled;
-
-    // if (typeof config === "undefined" || config === null || config === true) {
-    //   featureEnabled = true;
-    // }
-
-    return featureEnabled;
+    return this.getBooleanParam('articleExpressionOfConcernEnabled');
   }
 
-  // TODO - load config values from LookupService //
+  showUnpaywallDirectToPDFLink(): boolean {
+    return this.getBooleanParam('articlePDFDownloadViaUnpaywallEnabled');
+  }
+
+  showUnpaywallArticleLink(): boolean {
+    return this.getBooleanParam('articleLinkViaUnpaywallEnabled');
+  }
+
+  showUnpaywallManuscriptPDFLink(): boolean {
+    return this.getBooleanParam(
+      'articleAcceptedManuscriptPDFViaUnpaywallEnabled'
+    );
+  }
+
+  showUnpaywallManuscriptArticleLink(): boolean {
+    return this.getBooleanParam(
+      'articleAcceptedManuscriptArticleLinkViaUnpaywallEnabled'
+    );
+  }
+
   showJournalBrowZineWebLinkText() {
-    let featureEnabled = true; // set back to false once implemented
-    // let config = browzine.journalBrowZineWebLinkTextEnabled;
-
-    // if (typeof config === 'undefined' || config === null || config === true) {
-    //   featureEnabled = true;
-    // }
-
-    return featureEnabled;
+    return this.getBooleanParam('journalBrowZineWebLinkTextEnabled');
   }
 
-  // TODO - load config values from LookupService //
   showArticleBrowZineWebLinkText() {
-    let featureEnabled = true; // set back to false once implemented
-    // let config = browzine.articleBrowZineWebLinkTextEnabled;
-
-    // if (typeof config === 'undefined' || config === null || config === true) {
-    //   featureEnabled = true;
-    // }
-
-    return featureEnabled;
+    return this.getBooleanParam('articleBrowZineWebLinkTextEnabled');
   }
 
-  // TODO - load config values from LookupService //
+  showJournalCoverImages() {
+    return this.getBooleanParam('journalCoverImagesEnabled');
+  }
+
   showDocumentDeliveryFulfillment() {
-    let featureEnabled = true; // set back to false once implemented
-    // let config = browzine.documentDeliveryFulfillmentEnabled;
-
-    // if (typeof config === 'undefined' || config === null || config === true) {
-    //   featureEnabled = true;
-    // }
-
-    return featureEnabled;
+    return this.getBooleanParam('documentDeliveryFulfillmentEnabled');
   }
 
-  // TODO - load config values from LookupService //
   showLinkResolverLink() {
-    let featureEnabled = false;
-    // let config = browzine.showLinkResolverLink;
+    return this.getBooleanParam('showLinkResolverLink');
+  }
 
-    // if (typeof config === "undefined" || config === null || config === true) {
-    //   featureEnabled = true;
-    // }
+  getApiUrl(): string {
+    const libraryId = this.moduleParameters.libraryId;
+    return `https://public-api.thirdiron.com/public/v1/libraries/${libraryId}`;
+  }
 
-    return featureEnabled;
+  getApiKey(): string {
+    return this.moduleParameters.apiKey;
+  }
+
+  getEmailAddressKey(): string {
+    return this.moduleParameters.unpaywallEmailAddressKey;
   }
 }
