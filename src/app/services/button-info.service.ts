@@ -257,6 +257,7 @@ export class ButtonInfoService {
    */
   buildStackOptions(displayInfo: DisplayWaterfallResponse, viewModel: PrimoViewModel): StackLink[] {
     const links: StackLink[] = [];
+    console.log('buildStackOptions:', viewModel);
 
     // Third Iron display options
     if (
@@ -307,6 +308,7 @@ export class ButtonInfoService {
       links.push(directLink);
     }
 
+    console.log('buildStackOptions links:', links);
     return links;
   }
 
