@@ -4,7 +4,7 @@ import { BaseButtonComponent } from '../base-button/base-button.component';
 import { ButtonType } from 'src/app/shared/button-type.enum';
 import { EntityType } from 'src/app/shared/entity-type.enum';
 import { TranslationService } from '../../services/translation.service';
-import { CombinedLink } from 'src/app/types/primoViewModel.types';
+import { StackLink } from 'src/app/types/primoViewModel.types';
 import { StackedButtonComponent } from '../stacked-dropdown/components/stacked-button.component';
 
 @Component({
@@ -20,7 +20,7 @@ export class MainButtonComponent {
   buttonType = input.required<ButtonType>();
   stack = input<boolean>(false);
   stackType = input<'main' | 'dropdown'>('main');
-  link = input<CombinedLink>({
+  link = input<StackLink>({
     entityType: EntityType.Unknown,
     url: '',
     label: '',

@@ -20,7 +20,7 @@ export interface OnlineLink {
 export type LinkEntityType = 'PDF' | 'HTML' | 'directLink' | EntityType;
 
 // used for the combined link values from the Primo viewModel and Third Iron display options
-export interface CombinedLink {
+export interface StackLink {
   entityType: LinkEntityType; // PDF, HTML, directLink, plus TI EntityType (Article, Journal, Unknown)
   url: string;
   ariaLabel?: string;

@@ -3,7 +3,7 @@ import { EntityType } from 'src/app/shared/entity-type.enum';
 import { IconType } from 'src/app/shared/icon-type.enum';
 import { BaseButtonComponent } from '../base-button/base-button.component';
 import { TranslationService } from '../../services/translation.service';
-import { CombinedLink } from 'src/app/types/primoViewModel.types';
+import { StackLink } from 'src/app/types/primoViewModel.types';
 import { StackedButtonComponent } from '../stacked-dropdown/components/stacked-button.component';
 
 @Component({
@@ -17,7 +17,7 @@ export class ArticleLinkButtonComponent {
   url = input.required<string>();
   stack = input<boolean>(false);
   stackType = input<'main' | 'dropdown'>('main');
-  link = input<CombinedLink>({
+  link = input<StackLink>({
     entityType: EntityType.Unknown,
     url: '',
     label: '',
