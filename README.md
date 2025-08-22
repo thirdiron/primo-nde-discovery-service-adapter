@@ -1,6 +1,6 @@
 # Third Iron Primo NDE Adapter
 
-- [Using the Add-On](#using-the-third-iron-primo-nde-addon)
+- [Using the Add-On](#using-the-third-iron-primo-nde-add-on)
 - [View Options](#view-options)
 - [Custom Labels and Translation](#custom-labels-and-translation)
 - [Developer Notes](#developer-notes)
