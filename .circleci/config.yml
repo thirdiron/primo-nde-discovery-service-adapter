@@ -1,7 +1,7 @@
 version: 2.1
 
 orbs:
-  browser-tools: circleci/browser-tools@2.1.2
+  browser-tools: circleci/browser-tools@2.3.0
   aws-cli: circleci/aws-cli@5.4.1
 
 settings: &settings
@@ -42,7 +42,7 @@ jobs:
       - persist_to_workspace:
           root: ~/
           paths:
-            - "project"
+            - 'project'
 
   deploy-to-staging:
     <<: *settings

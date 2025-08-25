@@ -1,5 +1,5 @@
-import { Component, ElementRef, Input } from '@angular/core';
-import { Observable } from 'rxjs';
+import { Component, ElementRef, Input, ViewEncapsulation } from '@angular/core';
+import { Observable, tap, combineLatestWith, map } from 'rxjs';
 import { BrowzineButtonComponent } from '../../components/browzine-button/browzine-button.component';
 import { SearchEntity } from '../../types/searchEntity.types';
 import { DisplayWaterfallResponse } from '../../types/displayWaterfallResponse.types';
@@ -10,6 +10,11 @@ import { AsyncPipe } from '@angular/common';
 import { ArticleLinkButtonComponent } from 'src/app/components/article-link-button/article-link-button.component';
 import { MainButtonComponent } from 'src/app/components/main-button/main-button.component';
 import { ButtonType } from 'src/app/shared/button-type.enum';
+import { CombinedLink, PrimoViewModel } from 'src/app/types/primoViewModel.types';
+import { MatIconModule } from '@angular/material/icon';
+import { MatSelectModule } from '@angular/material/select';
+import { ViewOptionType } from 'src/app/shared/view-option.enum';
+import { StackedDropdownComponent } from 'src/app/components/stacked-dropdown/stacked-dropdown.component';
 
 @Component({
   selector: 'custom-third-iron-buttons',
@@ -19,16 +24,29 @@ import { ButtonType } from 'src/app/shared/button-type.enum';
     BrowzineButtonComponent,
     ArticleLinkButtonComponent,
     AsyncPipe,
+    StackedDropdownComponent,
+    MatIconModule,
+    MatSelectModule,
   ],
   templateUrl: './third-iron-buttons.component.html',
-  styleUrl: './third-iron-buttons.component.scss',
+  styleUrls: [
+    './third-iron-buttons.component.scss',
+    '../../components/stacked-dropdown/stacked-dropdown.component.scss',
+  ],
   providers: [SearchEntityService],
+  encapsulation: ViewEncapsulation.None,
 })
 export class ThirdIronButtonsComponent {
   @Input() hostComponent!: any;
   elementRef: ElementRef;
+  combinedLinks: CombinedLink[] = []; // used to build custom merged array of online services for stack views
+  showDropdown = false;
+  viewOption = this.configService.getViewOption();
 
-  displayInfo$!: Observable<DisplayWaterfallResponse>;
+  // Expose enum to template
+  ViewOptionType = ViewOptionType;
+
+  displayInfo$!: Observable<DisplayWaterfallResponse | null>;
 
   constructor(
     private buttonInfoService: ButtonInfoService,
@@ -49,39 +67,51 @@ export class ThirdIronButtonsComponent {
       return;
     }
 
-    this.displayInfo$ = this.buttonInfoService.getDisplayInfo(searchResult);
+    // Use combineLatestWith to handle both observables together
+    this.displayInfo$ = this.buttonInfoService.getDisplayInfo(searchResult).pipe(
+      combineLatestWith(this.hostComponent.viewModel$ as Observable<PrimoViewModel>),
+      map(([displayInfo, viewModel]) => {
+        console.log('Display info and viewModel combined. VIEW OPTION:', this.viewOption);
 
-    // subscribe to displayInfo$ observable to continue only after we have a response
-    this.displayInfo$.subscribe((displayInfo) => {
-      if (this.shouldRemoveLinkResolverLink(displayInfo)) {
-        // remove primo button
-        const hostElem = this.elementRef.nativeElement; // this component's template element
-        this.removeLinkResolverLink(hostElem);
-      }
-    });
+        if (this.viewOption !== ViewOptionType.NoStack) {
+          // build custom stack options array for StackPlusBrowzine and SingleStack view options
+          this.combinedLinks = this.buttonInfoService.buildStackOptions(displayInfo, viewModel);
+
+          // remove Primo generated buttons/stack if we have a custom stack
+          if (this.combinedLinks.length > 0) {
+            const hostElem = this.elementRef.nativeElement; // this component's template element
+            this.removePrimoOnlineAvailability(hostElem);
+          }
+        } else if (this.shouldRemovePrimoOnlineAvailability(displayInfo)) {
+          // remove Primo "Online Options" button or Primo's stack
+          const hostElem = this.elementRef.nativeElement; // this component's template element
+          this.removePrimoOnlineAvailability(hostElem);
+        }
+
+        return displayInfo;
+      })
+    );
   };
 
-  removeLinkResolverLink = (hostElement: HTMLElement) => {
+  removePrimoOnlineAvailability = (hostElement: HTMLElement) => {
     if (hostElement?.parentElement?.parentElement) {
-      const onlineAvailabilityBlockParent: HTMLElement =
-        hostElement.parentElement.parentElement; // jump up to parent of <nde-record-image />
+      const onlineAvailabilityBlockParent: HTMLElement = hostElement.parentElement.parentElement; // jump up to parent of <nde-record-image />
       if (onlineAvailabilityBlockParent) {
-        const onlineAvailabilityElementArray =
-          onlineAvailabilityBlockParent.getElementsByTagName(
-            'nde-online-availability'
-          ) as HTMLCollectionOf<HTMLElement>;
+        const onlineAvailabilityElementArray = onlineAvailabilityBlockParent.getElementsByTagName(
+          'nde-online-availability'
+        ) as HTMLCollectionOf<HTMLElement>;
 
-        Array.from(onlineAvailabilityElementArray).forEach((elem) => {
+        Array.from(onlineAvailabilityElementArray).forEach(elem => {
           elem.style.display = 'none';
         });
       }
     }
   };
 
-  shouldRemoveLinkResolverLink = (displayInfo: DisplayWaterfallResponse) => {
+  // Remove Primo "Online Options" button or Primo generated stack dropdown
+  shouldRemovePrimoOnlineAvailability = (displayInfo: DisplayWaterfallResponse) => {
     return (
-      !this.configService.showLinkResolverLink() &&
-      displayInfo.mainButtonType !== ButtonType.None
+      !this.configService.showLinkResolverLink() && displayInfo.mainButtonType !== ButtonType.None
     );
   };
 }
