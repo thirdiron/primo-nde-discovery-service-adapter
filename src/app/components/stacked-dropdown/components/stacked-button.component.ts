@@ -1,7 +1,7 @@
 import { Component, input, ViewEncapsulation } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatSelectModule } from '@angular/material/select';
-import { CombinedLink } from 'src/app/types/primoViewModel.types';
+import { StackLink } from 'src/app/types/primoViewModel.types';
 import { PrimoPdfIconComponent } from '../../icons/primo-pdf-icon.component';
 import { PrimoHtmlIconComponent } from '../../icons/primo-html-icon.component';
 import { SvgIconComponent } from '../../svg-icon/svg-icon.component';
@@ -21,7 +21,7 @@ import { SvgIconComponent } from '../../svg-icon/svg-icon.component';
   encapsulation: ViewEncapsulation.None, // override styles are loaded globally from third-iron-module/mat-select-overrides.scss
 })
 export class StackedButtonComponent {
-  link = input.required<CombinedLink>();
+  link = input.required<StackLink>();
   stackType = input.required<'dropdown' | 'main'>();
 
   openLink() {

@@ -1,5 +1,11 @@
 # Third Iron Primo NDE Adapter
 
+- [Using the Add-On](#using-the-third-iron-primo-nde-add-on)
+- [View Options](#view-options)
+- [Custom Labels and Translation](#custom-labels-and-translation)
+- [Developer Notes](#developer-notes)
+- [Resources](#additional-resources)
+
 ## Overview
 
 The NDE Customization package offers options to enhance and extend the functionality of Primo’s New Discovery Experience (NDE). This Third Iron Adapter adds LibKey support directly into the Primo NDE experience.
@@ -24,7 +30,7 @@ Library staff can easily add, configure, and manage these add-ons through Alma, 
 **Note:**
 The NDE Customization package is currently available exclusively to Primo customers who have early access to the New Discovery Experience (NDE). Further availability will be announced in upcoming releases.
 
-## Using the Third Iron Primo NDE Adapter
+## Using the Third Iron Primo NDE Add-On
 
 ### Step 1: Create NDE view in Alma (if not present)
 
@@ -63,7 +69,6 @@ Default configuration JSON:
     "enableLinkOptimizer": "true",
     "articleRetractionWatchEnabled": "true",
     "articleExpressionOfConcernEnabled": "true",
-    "problematicJournalEnabled": "true",
     "articlePDFDownloadViaUnpaywallEnabled": "true",
     "articleLinkViaUnpaywallEnabled": "true",
     "articleAcceptedManuscriptPDFViaUnpaywallEnabled": "true",
@@ -85,6 +90,34 @@ Default configuration JSON:
    - **Add-on Name** – The identifier used in Alma’s configuration (View ID set in step 1).
    - **Add-on URL** – The location where the add-on is hosted (static folder to load the add-on at runtime). The current URL for the LibKey adaptor is `https://browzine-adapters.s3.amazonaws.com/primo-nde/production/` (keep the trailing '/')
    - **Add-on Configuration File** – JSON-based config parameters to be referenced at runtime by the add-on. Upload your modified JSON configuration file from Step 2.
+
+## View Options
+
+We provide three basic view options that effect the LibKey button arrangement:
+
+1. "Stack + BrowZine Link"
+
+   ![Stack plus BrowZine](./readme-files/stack-plus-browzine.png)
+
+   This version fully embraces the new “Stack” concept of link minimization in NDE by putting the “one click” link front and center with additional linking options available in the drop down arrow. LibKey Links would take precedent over Alma QuickLinks whenever they may both exist. The BrowZine View Issue Contents link appears separate since it serves a different purpose then immediate content access.
+
+   _Set in the config JSON file with:` "viewOption:"stack-plus-browzine"`_
+
+2. "Single Stack"
+
+   ![Single Stack](./readme-files/single-stack.png)
+
+   This version puts all LibKey and Alma generated links under a single stack. Effectively the only difference between this and the above option is that the BrowZine View Issue Contents appears with the links to content.
+
+   _Set in the config JSON file with:` "viewOption:"single-stack"`_
+
+3. "No Stack"
+
+   ![No Stack](./readme-files/no-stack.png)
+
+   With this arrangement we recommend turning off the link resolver when LibKey can create links as leaving it on can result in duplicate linking since Alma will generate a “stack” of links via a drop down menu off to the right which could be confusing.
+
+   _Set in the config JSON file with:` "viewOption:"no-stack"`_
 
 ## Custom Labels and Translation
 
@@ -108,7 +141,6 @@ Button label text can be customized and translated by setting up label codes in 
 
 3. The available label codes are as follows:
    - LibKey.articleExpressionOfConcernText
-   - LibKey.problematicJournalText
    - LibKey.articlePDFDownloadLinkText
    - LibKey.articleLinkText
    - LibKey.documentDeliveryFulfillmentText
@@ -160,3 +192,7 @@ Release Notes Generator
 
 - **Customize Primo NDE UI**: Watch the ExLibris live demo on YouTube for a visual guide on how to customize the Primo NDE UI:
   [Customize Primo NDE UI: Live Demo](https://www.youtube.com/watch?v=z06l2hJYuLc)
+
+### Customer Documentaion for Third Iron Add-On
+
+Our customer facing documentation for getting up and running with this Primo NDE add-on can be found [in our confluence docs](https://thirdiron.atlassian.net/wiki/spaces/BrowZineAPIDocs/pages/4018733059/Ex+Libris+Primo+NDE+Beta).

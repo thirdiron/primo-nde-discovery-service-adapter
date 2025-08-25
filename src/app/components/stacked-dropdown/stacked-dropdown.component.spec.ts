@@ -42,7 +42,7 @@ describe('StackedDropdownComponent', () => {
         label: 'Read Article',
       },
     ];
-    componentRef.setInput('combinedLinks', links as any);
+    componentRef.setInput('links', links as any);
     fixture.detectChanges();
 
     const nativeEl = fixture.nativeElement as HTMLElement;
@@ -64,7 +64,7 @@ describe('StackedDropdownComponent', () => {
         label: 'Browse Journal',
       },
     ];
-    componentRef.setInput('combinedLinks', links as any);
+    componentRef.setInput('links', links as any);
     fixture.detectChanges();
 
     const nativeEl = fixture.nativeElement as HTMLElement;
@@ -84,7 +84,7 @@ describe('StackedDropdownComponent', () => {
         label: 'Get PDF',
       },
     ];
-    componentRef.setInput('combinedLinks', links as any);
+    componentRef.setInput('links', links as any);
     fixture.detectChanges();
 
     const nativeEl = fixture.nativeElement as HTMLElement;
@@ -112,7 +112,7 @@ describe('StackedDropdownComponent', () => {
         label: 'Read Article',
       },
     ];
-    componentRef.setInput('combinedLinks', links as any);
+    componentRef.setInput('links', links as any);
     fixture.detectChanges();
 
     const selectDe = fixture.debugElement.query(By.css('mat-select'));
@@ -144,7 +144,7 @@ describe('StackedDropdownComponent', () => {
         label: 'Read Online',
       },
     ];
-    componentRef.setInput('combinedLinks', links as any);
+    componentRef.setInput('links', links as any);
     fixture.detectChanges();
 
     const selectDe = fixture.debugElement.query(By.css('mat-select'));
@@ -176,7 +176,7 @@ describe('StackedDropdownComponent', () => {
         label: 'Browse Journal',
       },
     ];
-    componentRef.setInput('combinedLinks', links as any);
+    componentRef.setInput('links', links as any);
     fixture.detectChanges();
 
     const selectDe = fixture.debugElement.query(By.css('mat-select'));
@@ -207,7 +207,7 @@ describe('StackedDropdownComponent', () => {
         label: 'Read Online',
       },
     ];
-    componentRef.setInput('combinedLinks', links as any);
+    componentRef.setInput('links', links as any);
     fixture.detectChanges();
 
     const nativeEl = fixture.nativeElement as HTMLElement;
@@ -227,7 +227,7 @@ describe('StackedDropdownComponent', () => {
         label: 'Get PDF',
       },
     ];
-    componentRef.setInput('combinedLinks', links as any);
+    componentRef.setInput('links', links as any);
     fixture.detectChanges();
 
     const nativeEl = fixture.nativeElement as HTMLElement;

@@ -3,7 +3,7 @@
     <!-- dealing with stack options -->
     @if (viewOption !== ViewOptionType.NoStack) {
       <div class="ti-stack-options-container">
-        <stacked-dropdown [combinedLinks]="combinedLinks"></stacked-dropdown>
+        <stacked-dropdown [links]="combinedLinks"></stacked-dropdown>
         @if (
           viewOption === ViewOptionType.StackPlusBrowzine && displayInfo.showBrowzineButton && displayInfo.browzineUrl
         ) {
@@ -34,6 +34,9 @@
           [entityType]="displayInfo.entityType"
           [url]="displayInfo.browzineUrl"
         ></custom-browzine-button>
+      }
+      @if (primoLinks.length > 0) {
+        <stacked-dropdown [links]="primoLinks"></stacked-dropdown>
       }
     </span>
   }

@@ -10,7 +10,7 @@ import { AsyncPipe } from '@angular/common';
 import { ArticleLinkButtonComponent } from 'src/app/components/article-link-button/article-link-button.component';
 import { MainButtonComponent } from 'src/app/components/main-button/main-button.component';
 import { ButtonType } from 'src/app/shared/button-type.enum';
-import { CombinedLink, PrimoViewModel } from 'src/app/types/primoViewModel.types';
+import { StackLink, PrimoViewModel } from 'src/app/types/primoViewModel.types';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSelectModule } from '@angular/material/select';
 import { ViewOptionType } from 'src/app/shared/view-option.enum';
@@ -39,7 +39,8 @@ import { StackedDropdownComponent } from 'src/app/components/stacked-dropdown/st
 export class ThirdIronButtonsComponent {
   @Input() hostComponent!: any;
   elementRef: ElementRef;
-  combinedLinks: CombinedLink[] = []; // used to build custom merged array of online services for stack views
+  combinedLinks: StackLink[] = []; // used to build custom merged array of online services for stack views
+  primoLinks: StackLink[] = []; // used to build array of Primo only links for NoStack view option
   showDropdown = false;
   viewOption = this.configService.getViewOption();
 
@@ -58,7 +59,7 @@ export class ThirdIronButtonsComponent {
   }
 
   ngOnInit() {
-    // Start the process for determining if a button should be displayed and with what info
+    // Start the process for determining which buttons should be displayed and with what info
     this.enhance(this.hostComponent.searchResult);
   }
 
@@ -67,7 +68,7 @@ export class ThirdIronButtonsComponent {
       return;
     }
 
-    // Use combineLatestWith to handle both observables together
+    // Use combineLatestWith to handle both displayInfo$ and viewModel$ observables together
     this.displayInfo$ = this.buttonInfoService.getDisplayInfo(searchResult).pipe(
       combineLatestWith(this.hostComponent.viewModel$ as Observable<PrimoViewModel>),
       map(([displayInfo, viewModel]) => {
@@ -75,15 +76,20 @@ export class ThirdIronButtonsComponent {
 
         if (this.viewOption !== ViewOptionType.NoStack) {
           // build custom stack options array for StackPlusBrowzine and SingleStack view options
-          this.combinedLinks = this.buttonInfoService.buildStackOptions(displayInfo, viewModel);
+          this.combinedLinks = this.buttonInfoService.buildCombinedLinks(displayInfo, viewModel);
 
           // remove Primo generated buttons/stack if we have a custom stack
           if (this.combinedLinks.length > 0) {
             const hostElem = this.elementRef.nativeElement; // this component's template element
             this.removePrimoOnlineAvailability(hostElem);
           }
-        } else if (this.shouldRemovePrimoOnlineAvailability(displayInfo)) {
-          // remove Primo "Online Options" button or Primo's stack
+        } else if (this.viewOption === ViewOptionType.NoStack) {
+          // Build array of Primo only links, filter based on TI config settings
+          this.primoLinks = this.buttonInfoService.buildPrimoLinks(viewModel);
+          console.log('Primo links:', this.primoLinks);
+
+          // remove Primo "Online Options" button or Primo's stack (quick links and direct link)
+          // Will be replaced with our own primoLinks options
           const hostElem = this.elementRef.nativeElement; // this component's template element
           this.removePrimoOnlineAvailability(hostElem);
         }
@@ -109,10 +115,10 @@ export class ThirdIronButtonsComponent {
   };
 
   // Check if we should remove Primo "Online Options" button or Primo generated stack dropdown
-  shouldRemovePrimoOnlineAvailability = (displayInfo: DisplayWaterfallResponse) => {
-    return (
-      (!this.configService.showLinkResolverLink() || this.configService.enableLinkOptimizer()) &&
-      displayInfo.mainButtonType !== ButtonType.None
-    );
-  };
+  // shouldRemovePrimoOnlineAvailability = (displayInfo: DisplayWaterfallResponse) => {
+  //   return (
+  //     (!this.configService.showLinkResolverLink() || this.configService.enableLinkOptimizer()) &&
+  //     displayInfo.mainButtonType !== ButtonType.None
+  //   );
+  // };
 }

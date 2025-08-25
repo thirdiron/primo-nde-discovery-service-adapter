@@ -1161,7 +1161,7 @@ describe('ButtonInfoService', () => {
         directLink: '',
       };
 
-      const result = service.buildStackOptions(displayInfo, viewModel);
+      const result = service.buildCombinedLinks(displayInfo, viewModel);
 
       expect(result).toHaveSize(1);
       expect(result[0]).toEqual({
@@ -1190,7 +1190,7 @@ describe('ButtonInfoService', () => {
         directLink: '',
       };
 
-      const result = service.buildStackOptions(displayInfo, viewModel);
+      const result = service.buildCombinedLinks(displayInfo, viewModel);
 
       expect(result).toHaveSize(2);
       expect(result[0]).toEqual({
@@ -1225,7 +1225,7 @@ describe('ButtonInfoService', () => {
         directLink: '',
       };
 
-      const result = service.buildStackOptions(displayInfo, viewModel);
+      const result = service.buildCombinedLinks(displayInfo, viewModel);
 
       expect(result).toHaveSize(0);
     });
@@ -1246,7 +1246,7 @@ describe('ButtonInfoService', () => {
         directLink: '',
       };
 
-      const result = service.buildStackOptions(displayInfo, viewModel);
+      const result = service.buildCombinedLinks(displayInfo, viewModel);
 
       expect(result).toHaveSize(0);
     });
@@ -1280,7 +1280,7 @@ describe('ButtonInfoService', () => {
         directLink: '',
       };
 
-      const result = service.buildStackOptions(displayInfo, viewModel);
+      const result = service.buildCombinedLinks(displayInfo, viewModel);
 
       expect(result).toHaveSize(3); // 1 Third Iron + 2 Primo links
       expect(result[1]).toEqual({
@@ -1328,7 +1328,7 @@ describe('ButtonInfoService', () => {
         directLink: '',
       };
 
-      const result = testService.buildStackOptions(displayInfo, viewModel);
+      const result = testService.buildCombinedLinks(displayInfo, viewModel);
 
       expect(result).toHaveSize(1); // Only Third Iron button, no Primo links
       expect(result[0].source).toBe('thirdIron');
@@ -1358,7 +1358,7 @@ describe('ButtonInfoService', () => {
         ariaLabel: 'Direct link aria label',
       };
 
-      const result = testService.buildStackOptions(displayInfo, viewModel);
+      const result = testService.buildCombinedLinks(displayInfo, viewModel);
 
       expect(result).toHaveSize(2); // 1 Third Iron + 1 direct link
       expect(result[1]).toEqual({
@@ -1393,7 +1393,7 @@ describe('ButtonInfoService', () => {
         ariaLabel: 'Direct link aria label',
       };
 
-      const result = testService.buildStackOptions(displayInfo, viewModel);
+      const result = testService.buildCombinedLinks(displayInfo, viewModel);
 
       expect(result).toHaveSize(1);
       expect(result[0]).toEqual({
@@ -1428,7 +1428,7 @@ describe('ButtonInfoService', () => {
         ariaLabel: 'Direct link aria label',
       };
 
-      const result = testService.buildStackOptions(displayInfo, viewModel);
+      const result = testService.buildCombinedLinks(displayInfo, viewModel);
 
       expect(result[1].url).toBe('/nde/some/direct/link&state=#nui.getit.service_viewit');
     });
@@ -1456,7 +1456,7 @@ describe('ButtonInfoService', () => {
         ariaLabel: 'Direct link aria label',
       };
 
-      const result = testService.buildStackOptions(displayInfo, viewModel);
+      const result = testService.buildCombinedLinks(displayInfo, viewModel);
 
       expect(result).toHaveSize(1); // Only Third Iron button, no direct link
       expect(result[0].source).toBe('thirdIron');
@@ -1493,7 +1493,7 @@ describe('ButtonInfoService', () => {
         ariaLabel: 'Direct link aria label',
       };
 
-      const result = testService.buildStackOptions(displayInfo, viewModel);
+      const result = testService.buildCombinedLinks(displayInfo, viewModel);
 
       expect(result).toHaveSize(4); // 1 Third Iron main + 1 Third Iron secondary + 1 Primo + 1 direct
       expect(result[0].source).toBe('thirdIron');
