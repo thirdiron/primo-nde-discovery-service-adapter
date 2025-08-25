@@ -195,4 +195,4 @@ Release Notes Generator
 
 ### Customer Documentaion for Third Iron Add-On
 
-Our customer facing documentation for getting up and running with this Primo NDE add-on can be found [In our confluence docs](https://thirdiron.atlassian.net/wiki/spaces/BrowZineAPIDocs/pages/4018733059/Ex+Libris+Primo+NDE+Beta).
+Our customer facing documentation for getting up and running with this Primo NDE add-on can be found [in our confluence docs](https://thirdiron.atlassian.net/wiki/spaces/BrowZineAPIDocs/pages/4018733059/Ex+Libris+Primo+NDE+Beta).
