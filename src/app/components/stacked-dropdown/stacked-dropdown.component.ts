@@ -1,7 +1,7 @@
 import { Component, input, ViewEncapsulation } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatSelectModule } from '@angular/material/select';
-import { CombinedLink } from 'src/app/types/primoViewModel.types';
+import { StackLink } from 'src/app/types/primoViewModel.types';
 import { EntityType } from 'src/app/shared/entity-type.enum';
 import { StackedButtonComponent } from './components/stacked-button.component';
 import { MainButtonComponent } from '../main-button/main-button.component';
@@ -27,7 +27,7 @@ import { BrowzineButtonComponent } from '../browzine-button/browzine-button.comp
 export class StackedDropdownComponent {
   ButtonType = ButtonType;
   EntityType = EntityType;
-  combinedLinks = input.required<CombinedLink[]>();
+  links = input.required<StackLink[]>();
 
   toEntityType(value: unknown): EntityType {
     // Accept enum values or string literals and coerce to EntityType

@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ComponentRef } from '@angular/core';
 import { StackedButtonComponent } from './stacked-button.component';
-import { CombinedLink } from 'src/app/types/primoViewModel.types';
+import { StackLink } from 'src/app/types/primoViewModel.types';
 
 describe('StackedButtonComponent', () => {
   let component: StackedButtonComponent;
@@ -22,7 +22,7 @@ describe('StackedButtonComponent', () => {
   });
 
   it('openLink should open in same tab for directLink source', () => {
-    const link: CombinedLink = {
+    const link: StackLink = {
       entityType: 'directLink',
       url: 'https://example.com',
       source: 'directLink',
@@ -38,7 +38,7 @@ describe('StackedButtonComponent', () => {
   });
 
   it('openLink should open in new tab for non-directLink source', () => {
-    const link: CombinedLink = {
+    const link: StackLink = {
       entityType: 'PDF',
       url: 'https://example.com/pdf',
       source: 'quicklink',
@@ -54,7 +54,7 @@ describe('StackedButtonComponent', () => {
   });
 
   it('openLink should not open when url is missing/empty', () => {
-    const link: CombinedLink = {
+    const link: StackLink = {
       entityType: 'HTML',
       url: '',
       source: 'quicklink',

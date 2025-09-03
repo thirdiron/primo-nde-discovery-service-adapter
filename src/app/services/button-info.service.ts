@@ -9,7 +9,7 @@ import { DisplayWaterfallResponse } from '../types/displayWaterfallResponse.type
 import { ApiResult, ArticleData, JournalData } from '../types/tiData.types';
 import { EntityType } from '../shared/entity-type.enum';
 import { ButtonType } from '../shared/button-type.enum';
-import { CombinedLink, OnlineLink } from '../types/primoViewModel.types';
+import { StackLink, OnlineLink } from '../types/primoViewModel.types';
 import { PrimoViewModel } from '../types/primoViewModel.types';
 import { TranslationService } from './translation.service';
 import { ViewOptionType } from '../shared/view-option.enum';
@@ -234,18 +234,38 @@ export class ButtonInfoService {
     };
   }
 
-  buildStackOptions = (
+  // Wrapper for buildStackOptions to build Primo links
+  buildPrimoLinks = (viewModel: PrimoViewModel): StackLink[] => {
+    return this.buildStackOptions(DEFAULT_DISPLAY_WATERFALL_RESPONSE, viewModel);
+  };
+
+  // Wrapper for buildStackOptions to build combined Third Iron and Primo links
+  buildCombinedLinks = (
     displayInfo: DisplayWaterfallResponse,
     viewModel: PrimoViewModel
-  ): CombinedLink[] => {
-    const combinedLinks: CombinedLink[] = [];
+  ): StackLink[] => {
+    return this.buildStackOptions(displayInfo, viewModel);
+  };
 
-    // Handle Third Iron display options
+  /*
+   * Builds the links for stacked view options - either the Third Iron stack option
+   * or the Primo stack with quick links and direct link.
+   *
+   * @param mode - 'combined' or 'primo', if 'combined' this is the merged array of Third Iron and Primo links
+   * @param displayInfo - Third Iron button display object
+   * @param viewModel - Primo view model
+   * @returns an array of StackLink objects
+   */
+  buildStackOptions(displayInfo: DisplayWaterfallResponse, viewModel: PrimoViewModel): StackLink[] {
+    const links: StackLink[] = [];
+    console.log('buildStackOptions:', viewModel);
+
+    // Third Iron display options
     if (
       displayInfo.entityType !== EntityType.Unknown &&
       displayInfo.mainButtonType !== ButtonType.None
     ) {
-      combinedLinks.push({
+      links.push({
         source: 'thirdIron',
         entityType: displayInfo.entityType,
         mainButtonType: displayInfo.mainButtonType,
@@ -255,11 +275,9 @@ export class ButtonInfoService {
       });
     }
 
-    // If we have a secondary Third Iron button,
-    // add Article Link to the combinedLinks array as well
-    // Note: the showFormatChoice config check is made in button-info.service.ts
+    // Secondary Third Iron button
     if (displayInfo.showSecondaryButton && displayInfo.secondaryUrl) {
-      combinedLinks.push({
+      links.push({
         source: 'thirdIron',
         entityType: displayInfo.entityType,
         url: displayInfo.secondaryUrl,
@@ -267,13 +285,13 @@ export class ButtonInfoService {
       });
     }
 
-    // For SingleStack view option, we need to add the browzine button to the combinedLinks array as well
+    // BrowZine for SingleStack
     if (
       displayInfo.showBrowzineButton &&
       displayInfo.browzineUrl &&
       this.configService.getViewOption() === ViewOptionType.SingleStack
     ) {
-      combinedLinks.push({
+      links.push({
         source: 'thirdIron',
         entityType: displayInfo.entityType,
         mainButtonType: ButtonType.Browzine,
@@ -281,58 +299,68 @@ export class ButtonInfoService {
       });
     }
 
-    // Handle Primo onlineLinks (array of Link objects)
+    // Primo onlineLinks
+    const primoOnlineLinks = this.buildPrimoOnlineLinksBase(viewModel);
+    primoOnlineLinks.forEach(link => links.push(link));
+
+    // Primo directLink
+    const directLink = this.buildPrimoDirectLinkBase(viewModel, links.length > 0);
+    if (directLink) {
+      links.push(directLink);
+    }
+
+    console.log('buildStackOptions links:', links);
+    return links;
+  }
+
+  private buildPrimoOnlineLinksBase(viewModel: PrimoViewModel): StackLink[] {
+    const links: StackLink[] = [];
     if (
       viewModel?.onlineLinks &&
       viewModel.onlineLinks.length > 0 &&
       !this.configService.enableLinkOptimizer()
     ) {
-      const primoFullDisplayHTMLText = this.translationService.getTranslatedText(
-        'fulldisplay.HTML',
-        'Read Online'
-      );
-      const primoFullDisplayPDFText = this.translationService.getTranslatedText(
-        'fulldisplay.PDF',
-        'Get PDF'
-      );
-
+      const htmlText = this.translationService.getTranslatedText('fulldisplay.HTML', 'Read Online');
+      const pdfText = this.translationService.getTranslatedText('fulldisplay.PDF', 'Get PDF');
       viewModel.onlineLinks.forEach((link: OnlineLink) => {
-        combinedLinks.push({
-          source: link.source,
+        links.push({
           entityType: link.type,
           url: link.url,
           ariaLabel: link.ariaLabel || '',
-          label: link.type === 'PDF' ? primoFullDisplayPDFText : primoFullDisplayHTMLText,
+          source: link.source,
+          label: link.type === 'PDF' ? pdfText : htmlText,
         });
       });
     }
+    return links;
+  }
 
-    // Handle Primo directLink (string) and ariaLabel
-    // This anchor tag may change! If the NDE UI site changes, we may need to update this
-    const anchor = '&state=#nui.getit.service_viewit';
+  private buildPrimoDirectLinkBase(
+    viewModel: PrimoViewModel,
+    hasOtherLinks: boolean
+  ): StackLink | null {
     if (viewModel.directLink && this.configService.showLinkResolverLink()) {
-      const primoOnlineOptionsText = this.translationService.getTranslatedText(
+      const anchor = '&state=#nui.getit.service_viewit';
+      const otherOptions = this.translationService.getTranslatedText(
         'nde.delivery.code.otherOnlineOptions',
         'Other online options'
       );
-      const primoAvailableOnlineText = this.translationService.getTranslatedText(
+      const availableOnline = this.translationService.getTranslatedText(
         'delivery.code.fulltext',
         'Available Online'
       );
-
-      combinedLinks.push({
-        source: 'directLink',
+      return {
         entityType: 'directLink',
         url: viewModel.directLink.includes('/nde')
           ? `${viewModel.directLink}${anchor}`
           : `/nde${viewModel.directLink}${anchor}`,
         ariaLabel: viewModel.ariaLabel || '',
-        label: combinedLinks.length > 0 ? primoOnlineOptionsText : primoAvailableOnlineText,
-      });
+        source: 'directLink',
+        label: hasOtherLinks ? otherOptions : availableOnline,
+      };
     }
-
-    return combinedLinks;
-  };
+    return null;
+  }
 
   private getBrowZineWebLink(data: ArticleData | JournalData): string {
     return data?.browzineWebLink ? data.browzineWebLink : '';
