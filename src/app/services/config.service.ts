@@ -1,4 +1,5 @@
 import { Injectable, Inject } from '@angular/core';
+import { ViewOptionType } from '../shared/view-option.enum';
 
 /**
  * This Service is responsible for getting config values from the corresponding
@@ -25,9 +26,7 @@ export class ConfigService {
       this.getBooleanParam('articlePDFDownloadViaUnpaywallEnabled') ||
       this.getBooleanParam('articleLinkViaUnpaywallEnabled') ||
       this.getBooleanParam('articleAcceptedManuscriptPDFViaUnpaywallEnabled') ||
-      this.getBooleanParam(
-        'articleAcceptedManuscriptArticleLinkViaUnpaywallEnabled'
-      )
+      this.getBooleanParam('articleAcceptedManuscriptArticleLinkViaUnpaywallEnabled')
     );
   }
   showDirectToPDFLink(): boolean {
@@ -59,15 +58,11 @@ export class ConfigService {
   }
 
   showUnpaywallManuscriptPDFLink(): boolean {
-    return this.getBooleanParam(
-      'articleAcceptedManuscriptPDFViaUnpaywallEnabled'
-    );
+    return this.getBooleanParam('articleAcceptedManuscriptPDFViaUnpaywallEnabled');
   }
 
   showUnpaywallManuscriptArticleLink(): boolean {
-    return this.getBooleanParam(
-      'articleAcceptedManuscriptArticleLinkViaUnpaywallEnabled'
-    );
+    return this.getBooleanParam('articleAcceptedManuscriptArticleLinkViaUnpaywallEnabled');
   }
 
   showJournalBrowZineWebLinkText() {
@@ -90,6 +85,10 @@ export class ConfigService {
     return this.getBooleanParam('showLinkResolverLink');
   }
 
+  enableLinkOptimizer() {
+    return this.getBooleanParam('enableLinkOptimizer');
+  }
+
   getApiUrl(): string {
     const libraryId = this.moduleParameters.libraryId;
     return `https://public-api.thirdiron.com/public/v1/libraries/${libraryId}`;
@@ -101,5 +100,12 @@ export class ConfigService {
 
   getEmailAddressKey(): string {
     return this.moduleParameters.unpaywallEmailAddressKey;
+  }
+
+  getViewOption(): ViewOptionType {
+    const viewOption = this.moduleParameters.viewOption;
+    return Object.values(ViewOptionType).includes(viewOption)
+      ? viewOption
+      : ViewOptionType.StackPlusBrowzine;
   }
 }

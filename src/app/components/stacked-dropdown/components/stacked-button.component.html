@@ -1,0 +1,21 @@
+<button
+  mat-flat-button
+  iconPositionEnd
+  type="button"
+  color="primary"
+  [class.ti-dropdown-button]="stackType() === 'main'"
+  [class.ti-dropdown-option-button]="stackType() === 'dropdown'"
+  [attr.aria-label]="link().ariaLabel || ''"
+  (click)="openLink()"
+>
+  <span class="quicklink-button-text">
+    {{ link().label }}
+  </span>
+  @if (link().entityType === 'PDF') {
+    <primo-pdf-icon />
+  } @else if (link().entityType === 'HTML') {
+    <primo-html-icon />
+  } @else if (link().source === 'thirdIron') {
+    <custom-svg-icon data-testid="ti-svg-icon" [name]="link().icon || ''" [color]="'sys-primary'"></custom-svg-icon>
+  }
+</button>

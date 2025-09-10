@@ -1,29 +1,50 @@
-import { Component, effect, input } from '@angular/core';
+import { Component, effect, input, computed, signal } from '@angular/core';
 import { IconType } from 'src/app/shared/icon-type.enum';
 import { BaseButtonComponent } from '../base-button/base-button.component';
 import { ButtonType } from 'src/app/shared/button-type.enum';
+import { EntityType } from 'src/app/shared/entity-type.enum';
+import { TranslationService } from '../../services/translation.service';
+import { StackLink } from 'src/app/types/primoViewModel.types';
+import { StackedButtonComponent } from '../stacked-dropdown/components/stacked-button.component';
 
 @Component({
   selector: 'main-button',
   standalone: true,
-  imports: [BaseButtonComponent],
+  imports: [BaseButtonComponent, StackedButtonComponent],
   templateUrl: './main-button.component.html',
   styleUrl: './main-button.component.scss',
 })
 export class MainButtonComponent {
+  IconType = IconType;
   url = input.required<string>();
   buttonType = input.required<ButtonType>();
+  stack = input<boolean>(false);
+  stackType = input<'main' | 'dropdown'>('main');
+  link = input<StackLink>({
+    entityType: EntityType.Unknown,
+    url: '',
+    label: '',
+  });
 
-  buttonText: string = '';
-  buttonIcon: string = '';
-  IconType = IconType;
+  // Derived values from inputs
+  buttonText = computed<string>(() => this.getButtonText(this.buttonType()));
+  buttonIcon = computed<IconType>(() => this.getButtonIcon(this.buttonType()));
 
-  constructor() {
-    effect(() => {
-      this.buttonText = this.getButtonText(this.buttonType());
-      this.buttonIcon = this.getButtonIcon(this.buttonType());
-    });
-  }
+  updatedLink = computed(() => {
+    const originalLink = this.link();
+    const computedLabel = this.buttonText() || originalLink.label;
+    const defaultIcon = IconType.None;
+    const computedIcon = this.buttonIcon() || originalLink.icon || defaultIcon;
+
+    return {
+      ...originalLink,
+      label: computedLabel,
+      icon: computedIcon,
+      source: originalLink.source ?? 'thirdIron',
+    };
+  });
+
+  constructor(private translationService: TranslationService) {}
 
   onClick(event: MouseEvent) {
     // We’ve seen some discovery services intercept basic a href links, and have
@@ -42,42 +63,69 @@ export class MainButtonComponent {
     let text = '';
     switch (buttonType) {
       case ButtonType.Retraction:
-        text = 'Retracted Article'; // TODO - add config: browzine.articleRetractionWatchText;
+        text = this.translationService.getTranslatedText(
+          'LibKey.articleRetractionWatchText',
+          'Retracted Article'
+        );
         break;
       case ButtonType.ExpressionOfConcern:
-        text = 'Expression of Concern'; // TODO - add config: browzine.articleExpressionOfConcernText
+        text = this.translationService.getTranslatedText(
+          'LibKey.articleExpressionOfConcernText',
+          'Expression of Concern'
+        );
         break;
       case ButtonType.ProblematicJournalArticle:
-        text = 'Problematic Journal'; // TODO - add config: browzine.problematicJournalText
+        text = this.translationService.getTranslatedText(
+          'LibKey.problematicJournalText',
+          'Problematic Journal'
+        );
         break;
       case ButtonType.DirectToPDF:
-        text = 'Download PDF'; // TODO - add config: browzine.articlePDFDownloadLinkText || browzine.primoArticlePDFDownloadLinkText
+        text = this.translationService.getTranslatedText(
+          'LibKey.articlePDFDownloadLinkText',
+          'Download PDF'
+        );
         break;
       case ButtonType.ArticleLink:
-        text = 'Read Article'; // TODO - add config: browzine.articleLinkText
+        text = this.translationService.getTranslatedText('LibKey.articleLinkText', 'Read Article');
         break;
       case ButtonType.DocumentDelivery:
-        text = 'Request PDF'; // TODO - add config: browzine.documentDeliveryFulfillmentText
+        text = this.translationService.getTranslatedText(
+          'LibKey.documentDeliveryFulfillmentText',
+          'Request PDF'
+        );
         break;
       case ButtonType.UnpaywallDirectToPDF:
-        text = 'Download PDF (via Unpaywall)'; // TODO load config: && browzine.articlePDFDownloadViaUnpaywallText
+        text = this.translationService.getTranslatedText(
+          'LibKey.articlePDFDownloadViaUnpaywallText',
+          'Download PDF (via Unpaywall)'
+        );
         break;
       case ButtonType.UnpaywallArticleLink:
-        text = 'Read Article (via Unpaywall)'; // TODO - add config: browzine.articleLinkViaUnpaywallText
+        text = this.translationService.getTranslatedText(
+          'LibKey.articleLinkViaUnpaywallText',
+          'Read Article (via Unpaywall)'
+        );
         break;
       case ButtonType.UnpaywallManuscriptPDF:
-        text = 'Download PDF (Accepted Manuscript via Unpaywall)'; // TODO - add config: browzine.articleAcceptedManuscriptPDFViaUnpaywallText
+        text = this.translationService.getTranslatedText(
+          'LibKey.articleAcceptedManuscriptPDFViaUnpaywallText',
+          'Download PDF (Accepted Manuscript via Unpaywall)'
+        );
         break;
       case ButtonType.UnpaywallManuscriptLink:
-        text = 'Read Article (Accepted Manuscript via Unpaywall)'; // TODO - add config: browzine.articleAcceptedManuscriptArticleLinkViaUnpaywallText
+        text = this.translationService.getTranslatedText(
+          'LibKey.articleAcceptedManuscriptArticleLinkViaUnpaywallText',
+          'Read Article (Accepted Manuscript via Unpaywall)'
+        );
         break;
     }
 
     return text;
   }
 
-  getButtonIcon(buttonType: ButtonType): string {
-    let icon = '';
+  getButtonIcon(buttonType: ButtonType): IconType {
+    let icon = IconType.None;
     switch (buttonType) {
       case ButtonType.Retraction:
         icon = IconType.ArticleAlert;

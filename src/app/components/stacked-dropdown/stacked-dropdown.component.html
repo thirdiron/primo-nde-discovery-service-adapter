@@ -1,0 +1,65 @@
+<div class="dropdown-group flex-row flex-layout-center">
+  @if (links()[0].source === 'thirdIron') {
+    @if (links()[0].mainButtonType === ButtonType.Browzine) {
+      <custom-browzine-button
+        [entityType]="toEntityType(links()[0].entityType)"
+        [url]="links()[0].url || ''"
+        [link]="links()[0]"
+        [stack]="true"
+        [stackType]="'main'"
+        [class.with-dropdown]="links().length > 1"
+      ></custom-browzine-button>
+    } @else {
+      <!-- for ThirdIron main buttons, run through main-button component first to get the button text and icon -->
+      <main-button
+        [url]="links()[0].url"
+        [buttonType]="links()[0].mainButtonType || ButtonType.None"
+        [stack]="true"
+        [stackType]="'main'"
+        [link]="links()[0]"
+        [class.with-dropdown]="links().length > 1"
+      ></main-button>
+    }
+  } @else {
+    <!-- For Primo buttons, just render the stacked button -->
+    <stacked-button
+      [link]="links()[0]"
+      [stackType]="'main'"
+      [class.with-dropdown]="links().length > 1"
+    ></stacked-button>
+  }
+
+  @if (links().length > 1) {
+    <span class="ti-dropdown">
+      <mat-select hideSingleSelectionIndicator panelWidth="'auto'" class="ti-dropdown-toggle">
+        <mat-select-trigger class="mat-mdc-select-trigger">
+          <span class="mat-mdc-select-min-line"></span>
+        </mat-select-trigger>
+        @for (link of links().slice(1); track link.source) {
+          <mat-option [value]="link" class="ti-dropdown-option">
+            @if (link.source === 'thirdIron') {
+              @if (link.showSecondaryButton && link.url) {
+                <article-link-button
+                  [url]="link.url || ''"
+                  [link]="link"
+                  [stack]="true"
+                  [stackType]="'dropdown'"
+                ></article-link-button>
+              } @else if (link.mainButtonType === ButtonType.Browzine) {
+                <custom-browzine-button
+                  [entityType]="toEntityType(link.entityType)"
+                  [url]="link.url || ''"
+                  [link]="link"
+                  [stack]="true"
+                  [stackType]="'dropdown'"
+                ></custom-browzine-button>
+              }
+            } @else {
+              <stacked-button [link]="link" [stackType]="'dropdown'"></stacked-button>
+            }
+          </mat-option>
+        }
+      </mat-select>
+    </span>
+  }
+</div>
