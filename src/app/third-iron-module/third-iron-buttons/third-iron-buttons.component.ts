@@ -1,5 +1,5 @@
 import { Component, ElementRef, Input, ViewEncapsulation } from '@angular/core';
-import { Observable, tap, combineLatestWith, map } from 'rxjs';
+import { Observable, combineLatestWith, map } from 'rxjs';
 import { BrowzineButtonComponent } from '../../components/browzine-button/browzine-button.component';
 import { SearchEntity } from '../../types/searchEntity.types';
 import { DisplayWaterfallResponse } from '../../types/displayWaterfallResponse.types';
@@ -9,7 +9,6 @@ import { ConfigService } from 'src/app/services/config.service';
 import { AsyncPipe } from '@angular/common';
 import { ArticleLinkButtonComponent } from 'src/app/components/article-link-button/article-link-button.component';
 import { MainButtonComponent } from 'src/app/components/main-button/main-button.component';
-import { ButtonType } from 'src/app/shared/button-type.enum';
 import { StackLink, PrimoViewModel } from 'src/app/types/primoViewModel.types';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSelectModule } from '@angular/material/select';
@@ -84,7 +83,6 @@ export class ThirdIronButtonsComponent {
         } else if (this.viewOption === ViewOptionType.NoStack) {
           // Build array of Primo only links, filter based on TI config settings
           this.primoLinks = this.buttonInfoService.buildPrimoLinks(viewModel);
-          console.log('Primo links:', this.primoLinks);
 
           // remove Primo "Online Options" button or Primo's stack (quick links and direct link)
           // Will be replaced with our own primoLinks options
@@ -99,7 +97,7 @@ export class ThirdIronButtonsComponent {
 
   removePrimoOnlineAvailability = (hostElement: HTMLElement) => {
     if (hostElement?.parentElement?.parentElement) {
-      const onlineAvailabilityBlockParent: HTMLElement = hostElement.parentElement.parentElement; // jump up to parent of <nde-record-image />
+      const onlineAvailabilityBlockParent: HTMLElement = hostElement.parentElement.parentElement; // jump up to parent of <nde-online-availability />
       if (onlineAvailabilityBlockParent) {
         const onlineAvailabilityElementArray = onlineAvailabilityBlockParent.getElementsByTagName(
           'nde-online-availability'
@@ -111,12 +109,4 @@ export class ThirdIronButtonsComponent {
       }
     }
   };
-
-  // Check if we should remove Primo "Online Options" button or Primo generated stack dropdown
-  // shouldRemovePrimoOnlineAvailability = (displayInfo: DisplayWaterfallResponse) => {
-  //   return (
-  //     (!this.configService.showLinkResolverLink() || this.configService.enableLinkOptimizer()) &&
-  //     displayInfo.mainButtonType !== ButtonType.None
-  //   );
-  // };
 }

@@ -55,8 +55,8 @@ Default configuration JSON:
 ```
   {
     "apiKey": "your-libkey-api-key",
-    "libraryId":"your-libkey-library-id",
-    "viewOption:"stack-plus-browzine",
+    "libraryId": "your-libkey-library-id",
+    "viewOption": "stack-plus-browzine",
     "unpaywallEmailAddressKey": "your-unpaywall-email-address",
     "journalCoverImagesEnabled": "true",
     "journalBrowZineWebLinkTextEnabled": "true",
