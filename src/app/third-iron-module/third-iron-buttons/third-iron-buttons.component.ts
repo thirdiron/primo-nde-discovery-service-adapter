@@ -59,6 +59,7 @@ export class ThirdIronButtonsComponent {
 
   ngOnInit() {
     // Start the process for determining which buttons should be displayed and with what info
+    // Use the hostComponent.searchResult for all the needed pnx info
     this.enhance(this.hostComponent.searchResult);
   }
 
