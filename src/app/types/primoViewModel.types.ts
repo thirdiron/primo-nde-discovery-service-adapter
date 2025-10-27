@@ -10,7 +10,7 @@ export interface PrimoViewModel {
 }
 
 export interface OnlineLink {
-  type: 'PDF' | 'HTML' | 'directLink'; // PDF, HTML, directLink, plus TI EntityType (Article, Journal, Unknown)
+  type: 'PDF' | 'HTML' | 'directLink';
   url: string;
   ariaLabel?: string;
   source?: string; // quicklink, directLink

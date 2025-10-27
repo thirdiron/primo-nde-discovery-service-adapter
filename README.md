@@ -55,8 +55,8 @@ Default configuration JSON:
 ```
   {
     "apiKey": "your-libkey-api-key",
-    "libraryId":"your-libkey-library-id",
-    "viewOption:"stack-plus-browzine",
+    "libraryId": "your-libkey-library-id",
+    "viewOption": "stack-plus-browzine",
     "unpaywallEmailAddressKey": "your-unpaywall-email-address",
     "journalCoverImagesEnabled": "true",
     "journalBrowZineWebLinkTextEnabled": "true",
@@ -185,6 +185,45 @@ AWS Deployment
 Release Notes Generator
 
 - `RENOGEN_GITHUB_OAUTH_TOKEN` : value stored in keepass
+
+
+## Primo LibKey Add-on Architecture Sequence Diagram
+
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Primo
+    participant AWSS3 as Amazon S3
+    participant LibKey as LibKey Add-on
+    participant API as Third Iron Public API
+
+    User->>Primo: Load Primo application
+    activate Primo
+    
+    Note over Primo: Load 0, 1, or more Add-ons
+    
+    Primo->>AWSS3: Fetch LibKey Add-on remoteEntry.js file
+    AWSS3->>Primo: Return remoteEntry.js file
+    activate LibKey
+    
+    LibKey->>AWSS3: Load more .js files specified in remoteEntry.js
+    AWSS3->>LibKey: Return those .js files
+
+    Primo->>LibKey: send each search result for interpretation
+
+    LibKey->>API: Contact Third Iron Public API for each DOI or ISSN/eISSN
+    activate API
+    API-->>LibKey: Return API response for each DOI or ISSN/eISSN
+    deactivate API
+    
+    LibKey->>Primo: Interpret API response & modify DOM
+    Note over LibKey,Primo: Visual changes applied to Primo interface
+    deactivate LibKey
+    
+    Primo-->>User: Primo fully loaded with enhancements
+    deactivate Primo
+```
 
 ## Additional Resources
 

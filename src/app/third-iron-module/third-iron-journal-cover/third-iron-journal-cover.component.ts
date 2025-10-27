@@ -30,10 +30,9 @@ export class ThirdIronJournalCoverComponent {
 
   enhance = (searchResult: SearchEntity) => {
     if (searchResult) {
-      this.journalCoverUrl$ =
-        this.journalCoverService.getJournalCoverUrl(searchResult);
+      this.journalCoverUrl$ = this.journalCoverService.getJournalCoverUrl(searchResult);
 
-      this.journalCoverUrl$.subscribe((journalCoverUrl) => {
+      this.journalCoverUrl$.subscribe(journalCoverUrl => {
         // hide default Primo image blocks if we find a Third Iron provided image
         if (journalCoverUrl !== '') {
           const hostElem = this.elementRef.nativeElement; // this component's template element
@@ -42,16 +41,8 @@ export class ThirdIronJournalCoverComponent {
             'nde-record-image'
           ) as HTMLCollectionOf<HTMLElement>;
 
-          Array.from(imageElements).forEach((elem) => {
+          Array.from(imageElements).forEach(elem => {
             elem.style.display = 'none';
-
-            // TODO try setting img.src to our journal cover image
-            // console.log('elem::::', elem);
-            // const imageElement = elem.querySelector('img');
-            // console.log('img::::', imageElement);
-            // if (imageElement) {
-            //   imageElement.src = journalCoverUrl;
-            // }
           });
         }
       });
