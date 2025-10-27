@@ -64,6 +64,7 @@ export class ThirdIronButtonsComponent {
   }
 
   enhance = (searchResult: SearchEntity) => {
+    console.log('Angular/Material removed from webpack shared!');
     if (!this.searchEntityService.shouldEnhance(searchResult)) {
       return;
     }
