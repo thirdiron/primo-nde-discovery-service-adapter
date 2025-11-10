@@ -88,7 +88,7 @@ Default configuration JSON:
 
    Configure the following:
    - **Add-on Name** – The identifier used in Alma’s configuration (View ID set in step 1).
-   - **Add-on URL** – The location where the add-on is hosted (static folder to load the add-on at runtime). The current URL for the LibKey adaptor is `https://browzine-adapters.s3.amazonaws.com/primo-nde/production/` (keep the trailing '/')
+   - **Add-on URL** – The location where the add-on is hosted (static folder to load the add-on at runtime). The current URL for the LibKey adaptor is `https://thirdiron-adapters.s3.amazonaws.com/primo-nde/production/` (keep the trailing '/')
    - **Add-on Configuration File** – JSON-based config parameters to be referenced at runtime by the add-on. Upload your modified JSON configuration file from Step 2.
 
 ## View Options
@@ -186,9 +186,7 @@ Release Notes Generator
 
 - `RENOGEN_GITHUB_OAUTH_TOKEN` : value stored in keepass
 
-
 ## Primo LibKey Add-on Architecture Sequence Diagram
-
 
 ```mermaid
 sequenceDiagram
@@ -200,13 +198,13 @@ sequenceDiagram
 
     User->>Primo: Load Primo application
     activate Primo
-    
+
     Note over Primo: Load 0, 1, or more Add-ons
-    
+
     Primo->>AWSS3: Fetch LibKey Add-on remoteEntry.js file
     AWSS3->>Primo: Return remoteEntry.js file
     activate LibKey
-    
+
     LibKey->>AWSS3: Load more .js files specified in remoteEntry.js
     AWSS3->>LibKey: Return those .js files
 
@@ -216,11 +214,11 @@ sequenceDiagram
     activate API
     API-->>LibKey: Return API response for each DOI or ISSN/eISSN
     deactivate API
-    
+
     LibKey->>Primo: Interpret API response & modify DOM
     Note over LibKey,Primo: Visual changes applied to Primo interface
     deactivate LibKey
-    
+
     Primo-->>User: Primo fully loaded with enhancements
     deactivate Primo
 ```
