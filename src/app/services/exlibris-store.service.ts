@@ -19,9 +19,7 @@ export class ExlibrisStoreService {
     return this.store
       .select((state: any) => state?.['full-display']?.selectedRecordId ?? null)
       .pipe(
-        tap(selectedId =>
-          console.debug('[ExlibrisStoreService] selectedRecordId$', selectedId)
-        ),
+        tap(selectedId => console.debug('[ExlibrisStoreService] selectedRecordId$', selectedId)),
         distinctUntilChanged()
       );
   }

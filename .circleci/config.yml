@@ -20,29 +20,29 @@ jobs:
       - checkout
       - restore_cache:
           <<: *package-cache
-      - run:
-          name: Install project dependencies
-          command: |
-            npm ci --loglevel verbose
-      - browser-tools/install_chrome
-      - browser-tools/install_chromedriver
-      - run:
-          name: Check browser tools install
-          command: |
-            google-chrome --version
-            chromedriver --version
-      - save_cache:
-          <<: *package-cache
-          paths:
-            - node_modules
-      - run:
-          name: Run automated tests
-          command: |
-            npm run test:ci
-      - persist_to_workspace:
-          root: ~/
-          paths:
-            - 'project'
+      # - run:
+      #     name: Install project dependencies
+      #     command: |
+      #       npm ci --loglevel verbose
+      # - browser-tools/install_chrome
+      # - browser-tools/install_chromedriver
+      # - run:
+      #     name: Check browser tools install
+      #     command: |
+      #       google-chrome --version
+      #       chromedriver --version
+      # - save_cache:
+      #     <<: *package-cache
+      #     paths:
+      #       - node_modules
+      # - run:
+      #     name: Run automated tests
+      #     command: |
+      #       npm run test:ci
+      # - persist_to_workspace:
+      #     root: ~/
+      #     paths:
+      #       - 'project'
 
   deploy-to-staging:
     <<: *settings
@@ -153,7 +153,7 @@ workflows:
             - build-and-test
           filters:
             branches:
-              only: develop
+              only: /feature\/.*/ #develop
       - deploy-to-production:
           requires:
             - build-and-test

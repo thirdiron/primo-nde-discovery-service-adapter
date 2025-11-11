@@ -64,10 +64,18 @@ export class ThirdIronButtonsComponent {
     // Start the process for determining which buttons should be displayed and with what info
     // Use the hostComponent.searchResult for all the needed pnx info
 
+    const hostRecordId = this.hostComponent?.searchResult?.pnx?.control?.recordid?.[0] ?? null;
+    console.debug('[ThirdIronButtonsComponent] host recordId (fallback)', hostRecordId);
+
     this.exlibrisStoreService
       .getRecord$(this.hostComponent)
       .pipe(takeUntilDestroyed())
       .subscribe(record => {
+        console.debug(
+          '[ThirdIronButtonsComponent] getRecord$ emit',
+          record?.pnx?.control?.recordid?.[0] ?? null,
+          record
+        );
         if (record) {
           this.enhance(record);
         }
