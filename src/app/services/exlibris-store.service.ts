@@ -42,19 +42,17 @@ export class ExlibrisStoreService {
   }
 
   /**
-   * Returns an up-to-date SearchEntity for the current record.
+   * Returns an up-to-date SearchEntity using a provided entity as a fallback source for record id.
    * - Prefers the record indicated by full-display.selectedRecordId (Full View)
-   * - Falls back to the recordId derived from the hostComponent (List View)
+   * - Falls back to the provided entity's pnx.control.recordid[0] (List View)
    */
-  getRecord$(hostComponent: any): Observable<SearchEntity | null> {
-    const hostRecordId: string | null =
-      hostComponent?.searchResult?.pnx?.control?.recordid?.[0] ?? null;
+  getRecordForEntity$(entity: SearchEntity | null | undefined): Observable<SearchEntity | null> {
+    const fallbackId: string | null = entity?.pnx?.control?.recordid?.[0] ?? null;
 
     return combineLatest([this.selectSelectedRecordId$(), this.selectSearchEntities$()]).pipe(
       map(([selectedRecordId, entities]) => {
-        const id = selectedRecordId || hostRecordId;
-        const record = id ? (entities[id] ?? null) : null;
-        return record;
+        const id = selectedRecordId || fallbackId;
+        return id ? (entities[id] ?? null) : null;
       }),
       distinctUntilChanged()
     );

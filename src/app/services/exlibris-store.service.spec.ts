@@ -22,13 +22,7 @@ describe('ExlibrisStoreService', () => {
     } as any,
   });
 
-  const hostComponentWith = (id: string) => ({
-    searchResult: {
-      pnx: {
-        control: { recordid: [id] },
-      },
-    },
-  });
+  const entityWith = (id: string) => makeEntity(id);
 
   const setState = (partial: any) => {
     state$.next({
@@ -66,13 +60,13 @@ describe('ExlibrisStoreService', () => {
       Search: { entities: { [id]: entity } },
     });
 
-    const hostComponent = hostComponentWith('fallback-id');
-
-    const result = await firstValueFrom(service.getRecord$(hostComponent).pipe(take(1)));
+    const result = await firstValueFrom(
+      service.getRecordForEntity$(entityWith('fallback-id')).pipe(take(1))
+    );
     expect(result).toEqual(entity);
   });
 
-  it('falls back to hostComponent record id when no selectedRecordId', async () => {
+  it('falls back to entity record id when no selectedRecordId', async () => {
     const fallbackId = 'cdi_fallback_id';
     const entity = makeEntity(fallbackId);
 
@@ -80,9 +74,9 @@ describe('ExlibrisStoreService', () => {
       Search: { entities: { [fallbackId]: entity } },
     });
 
-    const hostComponent = hostComponentWith(fallbackId);
-
-    const result = await firstValueFrom(service.getRecord$(hostComponent).pipe(take(1)));
+    const result = await firstValueFrom(
+      service.getRecordForEntity$(entityWith(fallbackId)).pipe(take(1))
+    );
     expect(result).toEqual(entity);
   });
 
@@ -92,16 +86,16 @@ describe('ExlibrisStoreService', () => {
       ['full-display']: { selectedRecordId: id },
       Search: { entities: {} },
     });
-    const hostComponent = hostComponentWith('other-id');
 
-    const result = await firstValueFrom(service.getRecord$(hostComponent).pipe(take(1)));
+    const result = await firstValueFrom(
+      service.getRecordForEntity$(entityWith('other-id')).pipe(take(1))
+    );
     expect(result).toBeNull();
   });
 
   it('emits updated record when full-display.selectedRecordId appears later', async () => {
     const initialId = 'cdi_initial';
     const dynamicId = 'cdi_dynamic';
-    const hostComponent = hostComponentWith(initialId);
 
     // Initially: user is in list view. Both initial and dynamic ids are in entities,
     // but there is no selectedRecordId yet. Should emit the fallback initial entity.
@@ -112,7 +106,9 @@ describe('ExlibrisStoreService', () => {
       ['full-display']: {},
     });
 
-    const first = await firstValueFrom(service.getRecord$(hostComponent).pipe(take(1)));
+    const first = await firstValueFrom(
+      service.getRecordForEntity$(entityWith(initialId)).pipe(take(1))
+    );
     expect(first).toEqual(initialEntity);
 
     // Then: full-display.selectedRecordId is set to dynamic id and should emit dynamic entity.
@@ -120,7 +116,9 @@ describe('ExlibrisStoreService', () => {
       ['full-display']: { selectedRecordId: dynamicId },
     });
 
-    const second = await firstValueFrom(service.getRecord$(hostComponent).pipe(take(1)));
+    const second = await firstValueFrom(
+      service.getRecordForEntity$(entityWith(initialId)).pipe(take(1))
+    );
     expect(second).toEqual(dynamicEntity);
   });
 });

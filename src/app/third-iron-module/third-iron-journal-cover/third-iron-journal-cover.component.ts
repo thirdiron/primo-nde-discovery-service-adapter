@@ -1,8 +1,10 @@
-import { Component, ElementRef, Input } from '@angular/core';
+import { Component, ElementRef, Input, DestroyRef } from '@angular/core';
 import { SearchEntity } from '../../types/searchEntity.types';
 import { Observable } from 'rxjs';
 import { AsyncPipe } from '@angular/common';
 import { JournalCoverService } from '../../services/journal-cover.service';
+import { ExlibrisStoreService } from '../../services/exlibris-store.service';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
 @Component({
   selector: 'custom-third-iron-journal-cover',
@@ -16,6 +18,8 @@ export class ThirdIronJournalCoverComponent {
   elementRef: ElementRef;
   constructor(
     private journalCoverService: JournalCoverService,
+    private exlibrisStoreService: ExlibrisStoreService,
+    private destroyRef: DestroyRef,
     elementRef: ElementRef
   ) {
     this.elementRef = elementRef;
@@ -25,7 +29,14 @@ export class ThirdIronJournalCoverComponent {
   journalCoverUrl$!: Observable<string>;
 
   ngOnInit() {
-    this.enhance(this.hostComponent.item);
+    this.exlibrisStoreService
+      .getRecordForEntity$(this.hostComponent?.item)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(record => {
+        if (record) {
+          this.enhance(record);
+        }
+      });
   }
 
   enhance = (searchResult: SearchEntity) => {

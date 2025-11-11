@@ -65,7 +65,7 @@ export class ThirdIronButtonsComponent {
     // Start the process for determining which buttons should be displayed and with what info
     // Using the raw hostComponent.searchResult is not an observable, so we need to use the ExLibris store to get the up to date record
     this.exlibrisStoreService
-      .getRecord$(this.hostComponent)
+      .getRecordForEntity$(this.hostComponent?.searchResult)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(record => {
         if (record) {
