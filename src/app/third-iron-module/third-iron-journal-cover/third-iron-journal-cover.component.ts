@@ -29,6 +29,8 @@ export class ThirdIronJournalCoverComponent {
   journalCoverUrl$!: Observable<string>;
 
   ngOnInit() {
+    // Using the raw hostComponent.searchResult is not an observable,
+    // so we need to use the ExLibris store to get the up to date record
     this.exlibrisStoreService
       .getRecordForEntity$(this.hostComponent?.item)
       .pipe(takeUntilDestroyed(this.destroyRef))
