@@ -1,4 +1,4 @@
-import { Component, ElementRef, Input, ViewEncapsulation } from '@angular/core';
+import { Component, ElementRef, Input, ViewEncapsulation, DestroyRef } from '@angular/core';
 import { Observable, combineLatestWith, map } from 'rxjs';
 import { BrowzineButtonComponent } from '../../components/browzine-button/browzine-button.component';
 import { SearchEntity } from '../../types/searchEntity.types';
@@ -55,6 +55,7 @@ export class ThirdIronButtonsComponent {
     private searchEntityService: SearchEntityService,
     private configService: ConfigService,
     private exlibrisStoreService: ExlibrisStoreService,
+    private destroyRef: DestroyRef,
     elementRef: ElementRef
   ) {
     this.elementRef = elementRef;
@@ -69,7 +70,7 @@ export class ThirdIronButtonsComponent {
 
     this.exlibrisStoreService
       .getRecord$(this.hostComponent)
-      .pipe(takeUntilDestroyed())
+      .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(record => {
         console.debug(
           '[ThirdIronButtonsComponent] getRecord$ emit',
