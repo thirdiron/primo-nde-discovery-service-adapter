@@ -50,13 +50,16 @@ export class ThirdIronJournalCoverComponent {
         if (journalCoverUrl !== '') {
           const hostElem = this.elementRef.nativeElement; // this component's template element
           const imageBlockParent = hostElem.parentNode?.parentNode; // jump up to parent of <nde-record-image />
-          const imageElements = imageBlockParent?.getElementsByTagName(
-            'nde-record-image'
-          ) as HTMLCollectionOf<HTMLElement>;
-
-          Array.from(imageElements).forEach(elem => {
-            elem.style.display = 'none';
-          });
+          const imageElements = imageBlockParent?.getElementsByTagName('nde-record-image') as
+            | HTMLCollectionOf<HTMLElement>
+            | undefined;
+          if (imageElements && imageElements.length > 0) {
+            Array.from(imageElements as HTMLCollectionOf<HTMLElement>).forEach(
+              (elem: HTMLElement) => {
+                elem.style.display = 'none';
+              }
+            );
+          }
         }
       });
     }
