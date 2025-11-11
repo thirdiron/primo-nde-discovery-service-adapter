@@ -75,7 +75,6 @@ export class ThirdIronButtonsComponent {
   }
 
   enhance = (searchResult: SearchEntity) => {
-    console.log('searchResult', searchResult);
     if (!this.searchEntityService.shouldEnhance(searchResult)) {
       return;
     }
