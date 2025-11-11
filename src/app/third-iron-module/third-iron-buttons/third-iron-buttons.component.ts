@@ -63,20 +63,11 @@ export class ThirdIronButtonsComponent {
 
   ngOnInit() {
     // Start the process for determining which buttons should be displayed and with what info
-    // Use the hostComponent.searchResult for all the needed pnx info
-
-    const hostRecordId = this.hostComponent?.searchResult?.pnx?.control?.recordid?.[0] ?? null;
-    console.debug('[ThirdIronButtonsComponent] host recordId (fallback)', hostRecordId);
-
+    // Using the raw hostComponent.searchResult is not an observable, so we need to use the ExLibris store to get the up to date record
     this.exlibrisStoreService
       .getRecord$(this.hostComponent)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(record => {
-        console.debug(
-          '[ThirdIronButtonsComponent] getRecord$ emit',
-          record?.pnx?.control?.recordid?.[0] ?? null,
-          record
-        );
         if (record) {
           this.enhance(record);
         }

@@ -5,7 +5,7 @@ export interface SearchEntity {
 export interface PNX {
   addata: AdData;
   display: Display;
-  control: Control;
+  control?: Control;
 }
 
 export interface Display {

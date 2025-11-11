@@ -2,11 +2,10 @@ import { Injectable } from '@angular/core';
 import { Store } from '@ngrx/store';
 import { Observable, combineLatest } from 'rxjs';
 import { distinctUntilChanged, map } from 'rxjs/operators';
-import { tap } from 'rxjs/operators';
 import { SearchEntity } from '../types/searchEntity.types';
 
 /**
- * This Service is responsible for getting store values from the ExLibris NDE store.
+ * This Service is responsible for getting state values from the ExLibris NDE store.
  */
 
 @Injectable({
@@ -15,30 +14,31 @@ import { SearchEntity } from '../types/searchEntity.types';
 export class ExlibrisStoreService {
   constructor(private store: Store<any>) {}
 
+  /**
+   * Selects the currently active Full Display record id from the host store.
+   * - Reads state['full-display'].selectedRecordId
+   * - Emits null when there is no active selection (e.g., List View)
+   * - Emits only when the value actually changes
+   */
   private selectSelectedRecordId$(): Observable<string | null> {
     return this.store
       .select((state: any) => state?.['full-display']?.selectedRecordId ?? null)
-      .pipe(
-        tap(selectedId => console.debug('[ExlibrisStoreService] selectedRecordId$', selectedId)),
-        distinctUntilChanged()
-      );
+      .pipe(distinctUntilChanged());
   }
 
+  /**
+   * Selects the Search/List View entities map keyed by record id.
+   * - Works with either 'Search' or 'search' slice names
+   * - Returns an empty object when the slice is missing
+   * - Emits only when the map reference actually changes
+   */
   private selectSearchEntities$(): Observable<Record<string, SearchEntity>> {
     return this.store
       .select((state: any) => {
         const searchSlice = state?.Search ?? state?.search;
         return (searchSlice?.entities as Record<string, SearchEntity>) ?? {};
       })
-      .pipe(
-        tap(entities =>
-          console.debug(
-            '[ExlibrisStoreService] entities$ size',
-            entities ? Object.keys(entities).length : 0
-          )
-        ),
-        distinctUntilChanged()
-      );
+      .pipe(distinctUntilChanged());
   }
 
   /**
@@ -54,12 +54,6 @@ export class ExlibrisStoreService {
       map(([selectedRecordId, entities]) => {
         const id = selectedRecordId || hostRecordId;
         const record = id ? (entities[id] ?? null) : null;
-        console.debug('[ExlibrisStoreService] getRecord$ resolve', {
-          selectedRecordId,
-          hostRecordId,
-          resolvedId: id,
-          hasRecord: !!record,
-        });
         return record;
       }),
       distinctUntilChanged()
