@@ -63,7 +63,7 @@ export class ThirdIronButtonsComponent {
 
   ngOnInit() {
     // Start the process for determining which buttons should be displayed and with what info
-    // Using the raw hostComponent.searchResult is not an observable, so we need to use the ExLibris store to get the up to date record
+    // The raw hostComponent.searchResult is not an observable, so we need to use the ExLibris store to get the up to date record
     this.exlibrisStoreService
       .getRecordForEntity$(this.hostComponent?.searchResult)
       .pipe(takeUntilDestroyed(this.destroyRef))
