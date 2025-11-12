@@ -45,7 +45,7 @@ export class ThirdIronJournalCoverComponent {
     if (searchResult) {
       this.journalCoverUrl$ = this.journalCoverService.getJournalCoverUrl(searchResult);
 
-      this.journalCoverUrl$.subscribe(journalCoverUrl => {
+      this.journalCoverUrl$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(journalCoverUrl => {
         // hide default Primo image blocks if we find a Third Iron provided image
         if (journalCoverUrl !== '') {
           const hostElem = this.elementRef.nativeElement; // this component's template element

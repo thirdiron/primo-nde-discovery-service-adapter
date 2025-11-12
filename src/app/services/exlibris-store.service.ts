@@ -28,14 +28,14 @@ export class ExlibrisStoreService {
 
   /**
    * Selects the Search/List View entities map keyed by record id.
-   * - Works with either 'Search' or 'search' slice names
+   * - Works with 'Search' slice name
    * - Returns an empty object when the slice is missing
    * - Emits only when the map reference actually changes
    */
   private selectSearchEntities$(): Observable<Record<string, SearchEntity>> {
     return this.store
       .select((state: any) => {
-        const searchSlice = state?.Search ?? state?.search;
+        const searchSlice = state?.Search;
         return (searchSlice?.entities as Record<string, SearchEntity>) ?? {};
       })
       .pipe(distinctUntilChanged());
