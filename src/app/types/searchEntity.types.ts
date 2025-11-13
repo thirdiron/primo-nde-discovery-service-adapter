@@ -5,6 +5,7 @@ export interface SearchEntity {
 export interface PNX {
   addata: AdData;
   display: Display;
+  control?: Control;
 }
 
 export interface Display {
@@ -17,4 +18,8 @@ export interface AdData {
   issn?: string[];
   eissn?: string[];
   doi?: string[];
+}
+
+export interface Control {
+  recordid: string[];
 }
