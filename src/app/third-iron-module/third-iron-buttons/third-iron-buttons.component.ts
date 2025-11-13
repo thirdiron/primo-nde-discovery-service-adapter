@@ -1,4 +1,4 @@
-import { Component, ElementRef, Input, ViewEncapsulation } from '@angular/core';
+import { Component, ElementRef, Input, ViewEncapsulation, DestroyRef } from '@angular/core';
 import { Observable, combineLatestWith, map } from 'rxjs';
 import { BrowzineButtonComponent } from '../../components/browzine-button/browzine-button.component';
 import { SearchEntity } from '../../types/searchEntity.types';
@@ -6,7 +6,9 @@ import { DisplayWaterfallResponse } from '../../types/displayWaterfallResponse.t
 import { SearchEntityService } from '../../services/search-entity.service';
 import { ButtonInfoService } from '../../services/button-info.service';
 import { ConfigService } from 'src/app/services/config.service';
+import { ExlibrisStoreService } from 'src/app/services/exlibris-store.service';
 import { AsyncPipe } from '@angular/common';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ArticleLinkButtonComponent } from 'src/app/components/article-link-button/article-link-button.component';
 import { MainButtonComponent } from 'src/app/components/main-button/main-button.component';
 import { StackLink, PrimoViewModel } from 'src/app/types/primoViewModel.types';
@@ -52,6 +54,8 @@ export class ThirdIronButtonsComponent {
     private buttonInfoService: ButtonInfoService,
     private searchEntityService: SearchEntityService,
     private configService: ConfigService,
+    private exlibrisStoreService: ExlibrisStoreService,
+    private destroyRef: DestroyRef,
     elementRef: ElementRef
   ) {
     this.elementRef = elementRef;
@@ -59,12 +63,18 @@ export class ThirdIronButtonsComponent {
 
   ngOnInit() {
     // Start the process for determining which buttons should be displayed and with what info
-    // Use the hostComponent.searchResult for all the needed pnx info
-    this.enhance(this.hostComponent.searchResult);
+    // The raw hostComponent.searchResult is not an observable, so we need to use the ExLibris store to get the up to date record
+    this.exlibrisStoreService
+      .getRecordForEntity$(this.hostComponent?.searchResult)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(record => {
+        if (record) {
+          this.enhance(record);
+        }
+      });
   }
 
   enhance = (searchResult: SearchEntity) => {
-    console.log('Angular/Material removed from webpack shared!');
     if (!this.searchEntityService.shouldEnhance(searchResult)) {
       return;
     }
