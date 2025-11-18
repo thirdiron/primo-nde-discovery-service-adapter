@@ -140,6 +140,7 @@ Button label text can be customized and translated by setting up label codes in 
    ![Alma Add Row](./readme-files/alma-add-row.png)
 
 3. The available label codes are as follows:
+   - LibKey.articleRetractionWatchText
    - LibKey.articleExpressionOfConcernText
    - LibKey.articlePDFDownloadLinkText
    - LibKey.articleLinkText
