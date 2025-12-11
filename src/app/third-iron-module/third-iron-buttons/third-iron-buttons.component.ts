@@ -75,6 +75,7 @@ export class ThirdIronButtonsComponent {
   }
 
   enhance = (searchResult: SearchEntity) => {
+    console.log('ThirdIronButtonsComponent enhance');
     if (!this.searchEntityService.shouldEnhance(searchResult)) {
       return;
     }
@@ -83,9 +84,10 @@ export class ThirdIronButtonsComponent {
     this.displayInfo$ = this.buttonInfoService.getDisplayInfo(searchResult).pipe(
       combineLatestWith(this.hostComponent.viewModel$ as Observable<PrimoViewModel>),
       tap(([displayInfo, viewModel]) => {
-        console.log('ThirdIronButtonsComponent viewModel:', viewModel);
+        console.log('NomadLibkey: ThirdIronButtonsComponent viewModel:', viewModel);
       }),
       map(([displayInfo, viewModel]) => {
+        console.log('NomadLibkey: ThirdIronButtonsComponent viewModel:', viewModel);
         if (this.viewOption !== ViewOptionType.NoStack) {
           // build custom stack options array for StackPlusBrowzine and SingleStack view options
           this.combinedLinks = this.buttonInfoService.buildCombinedLinks(displayInfo, viewModel);

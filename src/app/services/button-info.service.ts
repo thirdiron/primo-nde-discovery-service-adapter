@@ -257,6 +257,7 @@ export class ButtonInfoService {
    * @returns an array of StackLink objects
    */
   buildStackOptions(displayInfo: DisplayWaterfallResponse, viewModel: PrimoViewModel): StackLink[] {
+    console.log('NomadLibkey: ButtonInfoService buildStackOptions', displayInfo, viewModel);
     const links: StackLink[] = [];
 
     // Third Iron display options
