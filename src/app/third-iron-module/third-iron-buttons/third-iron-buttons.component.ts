@@ -87,6 +87,8 @@ export class ThirdIronButtonsComponent {
       .pipe(
         tap(viewModel => {
           console.log('NomadLibkey: ThirdIronButtonsComponent viewModel:', viewModel);
+          // Also invoke buildStackOptions (via buildPrimoLinks) so its internal logging runs reliably
+          this.buttonInfoService.buildPrimoLinks(viewModel);
         }),
         takeUntilDestroyed(this.destroyRef)
       )
