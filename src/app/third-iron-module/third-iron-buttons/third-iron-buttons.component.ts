@@ -1,5 +1,5 @@
 import { Component, ElementRef, Input, ViewEncapsulation, DestroyRef } from '@angular/core';
-import { Observable, combineLatestWith, map } from 'rxjs';
+import { Observable, combineLatestWith, map, tap } from 'rxjs';
 import { BrowzineButtonComponent } from '../../components/browzine-button/browzine-button.component';
 import { SearchEntity } from '../../types/searchEntity.types';
 import { DisplayWaterfallResponse } from '../../types/displayWaterfallResponse.types';
@@ -82,6 +82,9 @@ export class ThirdIronButtonsComponent {
     // Use combineLatestWith to handle both displayInfo$ and viewModel$ observables together
     this.displayInfo$ = this.buttonInfoService.getDisplayInfo(searchResult).pipe(
       combineLatestWith(this.hostComponent.viewModel$ as Observable<PrimoViewModel>),
+      tap(([displayInfo, viewModel]) => {
+        console.log('ThirdIronButtonsComponent viewModel:', viewModel);
+      }),
       map(([displayInfo, viewModel]) => {
         if (this.viewOption !== ViewOptionType.NoStack) {
           // build custom stack options array for StackPlusBrowzine and SingleStack view options
