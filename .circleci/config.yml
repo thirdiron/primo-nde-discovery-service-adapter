@@ -35,10 +35,10 @@ jobs:
           <<: *package-cache
           paths:
             - node_modules
-      # - run:
-      #     name: Run automated tests
-      #     command: |
-      #       npm run test:ci
+      - run:
+          name: Run automated tests
+          command: |
+            npm run test:ci
       - persist_to_workspace:
           root: ~/
           paths:
@@ -153,7 +153,7 @@ workflows:
             - build-and-test
           filters:
             branches:
-              only: /feature\/.*/
+              only: develop
       - deploy-to-production:
           requires:
             - build-and-test
