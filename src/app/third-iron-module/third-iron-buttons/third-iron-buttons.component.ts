@@ -80,14 +80,22 @@ export class ThirdIronButtonsComponent {
       return;
     }
 
+    const viewModel$ = this.hostComponent.viewModel$ as Observable<PrimoViewModel>;
+
+    // Log viewModel independently so it doesn't depend on combineLatestWith
+    viewModel$
+      .pipe(
+        tap(viewModel => {
+          console.log('NomadLibkey: ThirdIronButtonsComponent viewModel:', viewModel);
+        }),
+        takeUntilDestroyed(this.destroyRef)
+      )
+      .subscribe();
+
     // Use combineLatestWith to handle both displayInfo$ and viewModel$ observables together
     this.displayInfo$ = this.buttonInfoService.getDisplayInfo(searchResult).pipe(
-      combineLatestWith(this.hostComponent.viewModel$ as Observable<PrimoViewModel>),
-      tap(([displayInfo, viewModel]) => {
-        console.log('NomadLibkey: ThirdIronButtonsComponent viewModel:', viewModel);
-      }),
+      combineLatestWith(viewModel$),
       map(([displayInfo, viewModel]) => {
-        console.log('NomadLibkey: ThirdIronButtonsComponent viewModel:', viewModel);
         if (this.viewOption !== ViewOptionType.NoStack) {
           // build custom stack options array for StackPlusBrowzine and SingleStack view options
           this.combinedLinks = this.buttonInfoService.buildCombinedLinks(displayInfo, viewModel);
