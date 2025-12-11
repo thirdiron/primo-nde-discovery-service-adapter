@@ -49,6 +49,7 @@ export class ThirdIronButtonsComponent {
   ViewOptionType = ViewOptionType;
 
   displayInfo$!: Observable<DisplayWaterfallResponse | null>;
+  viewModel$!: Observable<PrimoViewModel>;
 
   constructor(
     private buttonInfoService: ButtonInfoService,
@@ -62,6 +63,9 @@ export class ThirdIronButtonsComponent {
   }
 
   ngOnInit() {
+    // Expose host viewModel$ to the template so it can update reactively via async pipe
+    this.viewModel$ = this.hostComponent.viewModel$ as Observable<PrimoViewModel>;
+
     // Start the process for determining which buttons should be displayed and with what info
     // The raw hostComponent.searchResult is not an observable, so we need to use the ExLibris store to get the up to date record
     this.exlibrisStoreService
@@ -81,7 +85,7 @@ export class ThirdIronButtonsComponent {
 
     // Use combineLatestWith to handle both displayInfo$ and viewModel$ observables together
     this.displayInfo$ = this.buttonInfoService.getDisplayInfo(searchResult).pipe(
-      combineLatestWith(this.hostComponent.viewModel$ as Observable<PrimoViewModel>),
+      combineLatestWith(this.viewModel$),
       map(([displayInfo, viewModel]) => {
         if (this.viewOption !== ViewOptionType.NoStack) {
           // build custom stack options array for StackPlusBrowzine and SingleStack view options
