@@ -1,3 +1,9 @@
+@if (viewModel$ | async; as viewModel) {
+  <div>
+    <h1>View Model</h1>
+    <pre>{{ viewModel | json }}</pre>
+  </div>
+}
 @if (displayInfo$ | async; as displayInfo) {
   @if (combinedLinks.length > 0) {
     <!-- dealing with stack options -->
