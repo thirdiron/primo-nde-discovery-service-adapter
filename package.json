@@ -32,7 +32,7 @@
     "@ngrx/entity": "^18.1.0",
     "@ngrx/store": "^18.1.0",
     "@ngrx/store-devtools": "^18.1.0",
-    "@ngx-translate/core": "^15.0.0",
+    "@ngx-translate/core": "^17.0.0",
     "@ngx-translate/http-loader": "^8.0.0",
     "@webcomponents/custom-elements": "^1.6.0",
     "dotenv": "^16.4.5",
