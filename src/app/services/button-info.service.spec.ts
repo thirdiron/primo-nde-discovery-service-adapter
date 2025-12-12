@@ -1463,6 +1463,34 @@ describe('ButtonInfoService', () => {
       );
     });
 
+    it('should build direct link with correct URL when directLink does not include /nde and does not include /fulldisplay', async () => {
+      const mockConfig = { ...MOCK_MODULE_PARAMETERS };
+      mockConfig.showLinkResolverLink = true;
+
+      const testBed = await createTestModule(mockConfig);
+      const testService = testBed.inject(ButtonInfoService);
+
+      const displayInfo: DisplayWaterfallResponse = {
+        entityType: EntityType.Article,
+        mainButtonType: ButtonType.DirectToPDF,
+        mainUrl: 'https://example.com/pdf',
+        secondaryUrl: '',
+        showSecondaryButton: false,
+        showBrowzineButton: false,
+        browzineUrl: '',
+      };
+
+      const viewModel: any = {
+        onlineLinks: [],
+        directLink: '/some/direct/link',
+        ariaLabel: 'Direct link aria label',
+      };
+
+      const result = testService.buildCombinedLinks(displayInfo, viewModel);
+
+      expect(result[1].url).toBe('/some/direct/link&state=#nui.getit.service_viewit');
+    });
+
     it('should not build direct link when showLinkResolverLink is false', async () => {
       const mockConfig = { ...MOCK_MODULE_PARAMETERS };
       mockConfig.showLinkResolverLink = false;

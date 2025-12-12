@@ -347,18 +347,11 @@ export class ButtonInfoService {
         'delivery.code.fulltext',
         'Available Online'
       );
-
-      // If the link we pull from the viewModel doesn't already have /nde in the URL and we know we
-      // are navigating to the full display page within the NDE site, then we need to add /nde to the URL.
-      // Otherwise we may be linking off the NDE site and should not add /nde to the URL.
-      const shouldUseNde =
-        !viewModel.directLink.includes('/nde') && viewModel.directLink.includes('/fulldisplay');
-
       return {
         entityType: 'directLink',
-        url: shouldUseNde
-          ? `/nde${viewModel.directLink}${anchor}`
-          : `${viewModel.directLink}${anchor}`,
+        url: viewModel.directLink.includes('/nde')
+          ? `${viewModel.directLink}${anchor}`
+          : `/nde${viewModel.directLink}${anchor}`,
         ariaLabel: viewModel.ariaLabel || '',
         source: 'directLink',
         label: hasOtherLinks ? otherOptions : availableOnline,
