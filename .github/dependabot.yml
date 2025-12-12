@@ -20,3 +20,9 @@ updates:
       types:
         patterns:
           - '@types*'
+    ignore:
+      - dependency-name: '@angular*'
+      - dependency-name: '@ngrx*'
+      - dependency-name: '@ngx*'
+      - dependency-name: 'ngx*'
+      - dependency-name: 'rxjs'
