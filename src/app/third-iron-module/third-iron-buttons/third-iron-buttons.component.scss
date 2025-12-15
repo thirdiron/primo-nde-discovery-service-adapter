@@ -2,6 +2,24 @@
   float: left;
 }
 
+.ti-debug {
+  margin: 8px 0;
+  padding: 8px;
+  border: 1px solid #ccc;
+  background: #fafafa;
+}
+
+.ti-debug-title {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.ti-debug-pre {
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 0 0 8px 0;
+}
+
 .ti-stack-options-container {
   display: flex;
   flex-direction: row;
