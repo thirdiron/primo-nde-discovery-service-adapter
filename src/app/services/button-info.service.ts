@@ -13,15 +13,7 @@ import { StackLink, OnlineLink } from '../types/primoViewModel.types';
 import { PrimoViewModel } from '../types/primoViewModel.types';
 import { TranslationService } from './translation.service';
 import { ViewOptionType } from '../shared/view-option.enum';
-
-export const DEFAULT_DISPLAY_WATERFALL_RESPONSE = {
-  entityType: EntityType.Unknown,
-  mainButtonType: ButtonType.None,
-  mainUrl: '',
-  secondaryUrl: '',
-  showSecondaryButton: false,
-  showBrowzineButton: false,
-};
+import { DEFAULT_DISPLAY_WATERFALL_RESPONSE } from '../shared/displayWaterfall.constants';
 
 /**
  * This Service is responsible for initiating the call to Third Iron article/journal endpoints
@@ -58,7 +50,7 @@ export class ButtonInfoService {
               this.shouldMakeUnpaywallCall(articleRes, entityType, displayInfo.mainButtonType) &&
               doi
                 ? // fallback to Unpaywall
-                  this.makeUnpaywallCall(articleRes, displayInfo, doi)
+                  this.unpaywallService.makeUnpaywallCall(articleRes, displayInfo, doi)
                 : // no fallback, just return displayInfo from display waterfall
                   of(displayInfo)
           )
@@ -518,33 +510,6 @@ export class ButtonInfoService {
 
   private isUnpaywallEnabled() {
     return this.configService.getIsUnpaywallEnabled();
-  }
-
-  private makeUnpaywallCall(
-    articleResponse: ApiResult,
-    displayInfo: DisplayWaterfallResponse,
-    doi: string
-  ): Observable<DisplayWaterfallResponse> {
-    return this.httpService.getUnpaywall(doi).pipe(
-      map(unpaywallRes => {
-        const data = this.httpService.getData(articleResponse);
-        const avoidUnpaywallPublisherLinks = !!(
-          this.httpService.isArticle(data) && data?.avoidUnpaywallPublisherLinks
-        );
-
-        const unpaywallButtonInfo = this.unpaywallService.unpaywallWaterfall(
-          unpaywallRes,
-          avoidUnpaywallPublisherLinks
-        );
-
-        if (unpaywallButtonInfo.mainUrl && unpaywallButtonInfo.mainUrl !== '') {
-          return unpaywallButtonInfo;
-        } else {
-          // original display info from Article Response
-          return displayInfo;
-        }
-      })
-    );
   }
 
   private isAlertButton(buttonType: ButtonType): boolean {
