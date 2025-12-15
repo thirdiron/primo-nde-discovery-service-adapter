@@ -164,6 +164,33 @@ Button label text can be customized and translated by setting up label codes in 
 
 ## Developer notes
 
+### Sync the forked repo
+
+1. Verify existing remotes by running: `git remote -v`. You should see an `origin` remote pointing to your fork on GitHub.
+2. Add the original repository as the 'upstream' remote (if you haven't already).
+   Specify the URL of the original repository forked.
+   ```
+   git remote add upstream https://github.com/ExLibrisGroup/customModule.git
+   ```
+   You can then run git remote -v again to confirm the new upstream remote.
+3. Fetch the changes from the upstream repository:
+   ```
+   git fetch upstream
+   ```
+4. Switch to your local default branch (develop):
+   ```
+   git checkout develop
+   ```
+5. Merge the changes from the upstream default branch into your local branch:
+   ```
+   git merge upstream/main
+   ```
+   If there are merge conflicts, you will need to resolve them in your local files and commit the changes.
+6. Push the updated local branch to your fork (the `origin` remote):
+   ```
+   git push origin develop
+   ```
+
 ### Adding new icons
 
 1. To add new icons, bring in the .svg file into `/src/assets/icons`. Edit the svg file to have a `color` prop that is dynamically set (see the other svg files for examples).

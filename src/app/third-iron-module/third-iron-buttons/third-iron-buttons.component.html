@@ -1,44 +1,56 @@
-@if (displayInfo$ | async; as displayInfo) {
-  @if (combinedLinks.length > 0) {
-    <!-- dealing with stack options -->
-    @if (viewOption !== ViewOptionType.NoStack) {
-      <div class="ti-stack-options-container">
-        <stacked-dropdown [links]="combinedLinks"></stacked-dropdown>
-        @if (
-          viewOption === ViewOptionType.StackPlusBrowzine && displayInfo.showBrowzineButton && displayInfo.browzineUrl
-        ) {
-          <!-- for Stack + Browzine view option -->
+@if (viewModel$ | async; as viewModel) {
+  @if (displayInfo$ | async; as displayInfo) {
+    @if (combinedLinks.length > 0) {
+      <!-- dealing with stack options -->
+      @if (viewOption !== ViewOptionType.NoStack) {
+        <div class="ti-stack-options-container">
+          <stacked-dropdown [links]="combinedLinks"></stacked-dropdown>
+          @if (
+            viewOption === ViewOptionType.StackPlusBrowzine && displayInfo.showBrowzineButton && displayInfo.browzineUrl
+          ) {
+            <!-- for Stack + Browzine view option -->
+            <custom-browzine-button
+              class="ti-browzine-button-with-stack"
+              [entityType]="displayInfo.entityType"
+              [url]="displayInfo.browzineUrl"
+            ></custom-browzine-button>
+          }
+          @if (viewModel.consolidatedCoverage) {
+            <div class="ti-consolidated-coverage">
+              {{ viewModel.consolidatedCoverage }}
+            </div>
+          }
+        </div>
+      }
+    } @else {
+      <!-- dealing with individual button options -->
+      <span>
+        @if (displayInfo.mainUrl !== '') {
+          <main-button
+            class="ti-single-button"
+            [url]="displayInfo.mainUrl"
+            [buttonType]="displayInfo.mainButtonType"
+          ></main-button>
+        }
+        @if (displayInfo.showSecondaryButton && displayInfo.secondaryUrl) {
+          <article-link-button class="ti-single-button" [url]="displayInfo.secondaryUrl || ''"></article-link-button>
+        }
+        @if (displayInfo.showBrowzineButton && displayInfo.browzineUrl) {
           <custom-browzine-button
-            class="ti-browzine-button-with-stack"
+            class="ti-single-button"
             [entityType]="displayInfo.entityType"
             [url]="displayInfo.browzineUrl"
           ></custom-browzine-button>
         }
-      </div>
+        @if (primoLinks.length > 0) {
+          <stacked-dropdown [links]="primoLinks"></stacked-dropdown>
+        }
+        @if (viewModel.consolidatedCoverage) {
+          <div class="ti-consolidated-coverage">
+            {{ viewModel.consolidatedCoverage }}
+          </div>
+        }
+      </span>
     }
-  } @else {
-    <!-- dealing with individual button options -->
-    <span>
-      @if (displayInfo.mainUrl !== '') {
-        <main-button
-          class="ti-single-button"
-          [url]="displayInfo.mainUrl"
-          [buttonType]="displayInfo.mainButtonType"
-        ></main-button>
-      }
-      @if (displayInfo.showSecondaryButton && displayInfo.secondaryUrl) {
-        <article-link-button class="ti-single-button" [url]="displayInfo.secondaryUrl || ''"></article-link-button>
-      }
-      @if (displayInfo.showBrowzineButton && displayInfo.browzineUrl) {
-        <custom-browzine-button
-          class="ti-single-button"
-          [entityType]="displayInfo.entityType"
-          [url]="displayInfo.browzineUrl"
-        ></custom-browzine-button>
-      }
-      @if (primoLinks.length > 0) {
-        <stacked-dropdown [links]="primoLinks"></stacked-dropdown>
-      }
-    </span>
   }
 }
