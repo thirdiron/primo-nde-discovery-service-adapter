@@ -36,6 +36,7 @@
     "@ngx-translate/http-loader": "^8.0.0",
     "@webcomponents/custom-elements": "^1.6.0",
     "dotenv": "^16.4.5",
+    "es6-3i-unpaywall": "thirdiron/es6-3i-unpaywall#v1.7.0",
     "rxjs": "~7.8.0",
     "tslib": "^2.4.1",
     "zone.js": "~0.14.10"
