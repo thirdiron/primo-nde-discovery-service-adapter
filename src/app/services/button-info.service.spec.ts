@@ -1405,7 +1405,7 @@ describe('ButtonInfoService', () => {
       });
     });
 
-    it('should build direct link with correct URL when directLink includes /nde but not /fulldisplay', async () => {
+    it('should build direct link with "/nde" path when directLink includes /nde but not /fulldisplay', async () => {
       const mockConfig = { ...MOCK_MODULE_PARAMETERS };
       mockConfig.showLinkResolverLink = true;
 
@@ -1433,7 +1433,7 @@ describe('ButtonInfoService', () => {
       expect(result[1].url).toBe('/nde/some/direct/link&state=#nui.getit.service_viewit');
     });
 
-    it('should build direct link with correct URL when directLink does not include /nde but includes /fulldisplay', async () => {
+    it('should build direct link with "/nde" path when directLink does not include /nde but includes /fulldisplay', async () => {
       const mockConfig = { ...MOCK_MODULE_PARAMETERS };
       mockConfig.showLinkResolverLink = true;
 
@@ -1463,7 +1463,7 @@ describe('ButtonInfoService', () => {
       );
     });
 
-    it('should build direct link with correct URL when directLink does not include /nde and does not include /fulldisplay', async () => {
+    it('should build direct link without "/nde" path when directLink does not include /nde and does not include /fulldisplay', async () => {
       const mockConfig = { ...MOCK_MODULE_PARAMETERS };
       mockConfig.showLinkResolverLink = true;
 
