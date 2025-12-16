@@ -170,7 +170,7 @@ export class ButtonInfoService {
     else if (
       articleLinkUrl &&
       type === EntityType.Article &&
-      // this.configService.showDirectToPDFLink() && // can this be removed? Think it might be a bug
+      // TODO this.configService.showDirectToPDFLink() && // can this be removed? Think it might be a bug
       this.configService.showArticleLink()
     ) {
       buttonType = ButtonType.ArticleLink;
@@ -190,6 +190,11 @@ export class ButtonInfoService {
     // Secondary button
     if (
       !this.isAlertButton(buttonType) &&
+      // Only add a secondary button when we have a real primary Third Iron main button.
+      // We don't want to display a "secondary-only" entry if we don't have a primary button first
+      buttonType !== ButtonType.None &&
+      linkUrl &&
+      linkUrl !== '' &&
       buttonType !== ButtonType.ArticleLink &&
       this.configService.showFormatChoice() &&
       articleLinkUrl &&
