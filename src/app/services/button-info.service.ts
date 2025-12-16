@@ -330,7 +330,6 @@ export class ButtonInfoService {
     hasOtherLinks: boolean
   ): StackLink | null {
     if (viewModel.directLink && this.configService.showLinkResolverLink()) {
-      const anchor = '&state=#nui.getit.service_viewit';
       const otherOptions = this.translationService.getTranslatedText(
         'nde.delivery.code.otherOnlineOptions',
         'Other online options'
@@ -343,14 +342,18 @@ export class ButtonInfoService {
       // If the link we pull from the viewModel doesn't already have /nde in the URL and we know we
       // are navigating to the full display page within the NDE site, then we need to add /nde to the URL.
       // Otherwise we may be linking off the NDE site and should not add /nde to the URL.
-      const shouldUseNde =
-        !viewModel.directLink.includes('/nde') && viewModel.directLink.includes('/fulldisplay');
+      // Also, we only want to append the getit anchor to fulldisplay links.
+      const isFullDisplay = viewModel.directLink.includes('/fulldisplay');
+      const hasNde = viewModel.directLink.includes('/nde');
+      const anchor = '&state=#nui.getit.service_viewit';
+
+      const urlBase =
+        isFullDisplay && !hasNde ? `/nde${viewModel.directLink}` : viewModel.directLink;
+      const url = isFullDisplay ? `${urlBase}${anchor}` : urlBase;
 
       return {
         entityType: 'directLink',
-        url: shouldUseNde
-          ? `/nde${viewModel.directLink}${anchor}`
-          : `${viewModel.directLink}${anchor}`,
+        url,
         ariaLabel: viewModel.ariaLabel || '',
         source: 'directLink',
         label: hasOtherLinks ? otherOptions : availableOnline,
