@@ -38,6 +38,21 @@ export class UnpaywallService {
     this.initUnpaywallClient();
 
     if (!this.unpaywallClient?.getUnpaywallUrls) {
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/6f464193-ba2e-4950-8450-e8a059b7fbe3', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          location: 'unpaywall.service.ts:makeUnpaywallCall',
+          message: 'Unpaywall fallback SKIP (client not initialized)',
+          data: { doi, clientReady: false },
+          timestamp: Date.now(),
+          sessionId: 'debug-session',
+          runId: 'pre-fix',
+          hypothesisId: 'B',
+        }),
+      }).catch(() => {});
+      // #endregion
       console.warn('[Unpaywall] client not initialized; skipping unpaywall fallback');
       return of(displayInfo);
     }
@@ -47,25 +62,112 @@ export class UnpaywallService {
       this.httpService.isArticle(data) && data?.avoidUnpaywallPublisherLinks
     );
 
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/6f464193-ba2e-4950-8450-e8a059b7fbe3', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        location: 'unpaywall.service.ts:makeUnpaywallCall',
+        message: 'Unpaywall fallback START (about to call library)',
+        data: { doi, clientReady: true, avoidUnpaywallPublisherLinks },
+        timestamp: Date.now(),
+        sessionId: 'debug-session',
+        runId: 'pre-fix',
+        hypothesisId: 'C',
+      }),
+    }).catch(() => {});
+    // #endregion
+
     // `getUnpaywallUrls()` returns a Promise, so we wrap it with `defer(() => from(...))`
     // to convert it into an Observable that fits cleanly into this RxJS pipeline.
     return defer(() => {
       console.log('[Unpaywall] getUnpaywallUrls start', { doi });
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/6f464193-ba2e-4950-8450-e8a059b7fbe3', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          location: 'unpaywall.service.ts:makeUnpaywallCall:defer',
+          message: 'Unpaywall library getUnpaywallUrls() invoked',
+          data: { doi },
+          timestamp: Date.now(),
+          sessionId: 'debug-session',
+          runId: 'pre-fix',
+          hypothesisId: 'C',
+        }),
+      }).catch(() => {});
+      // #endregion
       return from(this.unpaywallClient.getUnpaywallUrls(doi) as Promise<UnpaywallUrls>);
     }).pipe(
       tap(unpaywallUrls => {
         console.log('[Unpaywall] getUnpaywallUrls result', { doi, unpaywallUrls });
+        // #region agent log
+        fetch('http://127.0.0.1:7243/ingest/6f464193-ba2e-4950-8450-e8a059b7fbe3', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            location: 'unpaywall.service.ts:makeUnpaywallCall:tap',
+            message: 'Unpaywall library getUnpaywallUrls() result',
+            data: { doi, unpaywallUrls },
+            timestamp: Date.now(),
+            sessionId: 'debug-session',
+            runId: 'pre-fix',
+            hypothesisId: 'C',
+          }),
+        }).catch(() => {});
+        // #endregion
       }),
       map(unpaywallUrls =>
         this.unpaywallUrlsToDisplayInfo(unpaywallUrls, avoidUnpaywallPublisherLinks)
       ),
       map(unpaywallButtonInfo => {
-        if (unpaywallButtonInfo.mainUrl && unpaywallButtonInfo.mainUrl !== '') {
+        const usedUnpaywall = !!(unpaywallButtonInfo.mainUrl && unpaywallButtonInfo.mainUrl !== '');
+
+        // #region agent log
+        fetch('http://127.0.0.1:7243/ingest/6f464193-ba2e-4950-8450-e8a059b7fbe3', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            location: 'unpaywall.service.ts:makeUnpaywallCall:map',
+            message: 'Unpaywall mapped result applied?',
+            data: {
+              doi,
+              avoidUnpaywallPublisherLinks,
+              usedUnpaywall,
+              unpaywallMainButtonType: (unpaywallButtonInfo as any)?.mainButtonType,
+              unpaywallMainUrl: (unpaywallButtonInfo as any)?.mainUrl,
+              originalMainButtonType: (displayInfo as any)?.mainButtonType,
+              originalMainUrl: (displayInfo as any)?.mainUrl,
+            },
+            timestamp: Date.now(),
+            sessionId: 'debug-session',
+            runId: 'pre-fix',
+            hypothesisId: 'E',
+          }),
+        }).catch(() => {});
+        // #endregion
+
+        if (usedUnpaywall) {
           return unpaywallButtonInfo;
         }
         return displayInfo;
       }),
       catchError(err => {
+        // #region agent log
+        fetch('http://127.0.0.1:7243/ingest/6f464193-ba2e-4950-8450-e8a059b7fbe3', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            location: 'unpaywall.service.ts:makeUnpaywallCall:catchError',
+            message: 'Unpaywall library call ERROR; returning original displayInfo',
+            data: { doi, errName: err?.name, errMessage: err?.message },
+            timestamp: Date.now(),
+            sessionId: 'debug-session',
+            runId: 'pre-fix',
+            hypothesisId: 'D',
+          }),
+        }).catch(() => {});
+        // #endregion
         console.warn('[Unpaywall] getUnpaywallUrls error; falling back to original displayInfo', {
           doi,
           err,
