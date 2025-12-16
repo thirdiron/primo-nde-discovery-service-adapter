@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { map, mergeMap, Observable, of } from 'rxjs';
+import { catchError, map, mergeMap, Observable, of, throwError } from 'rxjs';
 import { HttpService } from './http.service';
 import { SearchEntityService } from './search-entity.service';
 import { UnpaywallService } from './unpaywall.service';
@@ -40,6 +40,29 @@ export class ButtonInfoService {
       if (entityType === EntityType.Article) {
         const doi = this.searchEntityService.getDoi(entity);
         return this.httpService.getArticle(doi).pipe(
+          catchError(err => {
+            // #region agent log
+            fetch('http://127.0.0.1:7243/ingest/6f464193-ba2e-4950-8450-e8a059b7fbe3', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                location: 'button-info.service.ts:getDisplayInfo:getArticle:catchError',
+                message: 'TI getArticle() errored before display/unpaywall waterfall',
+                data: {
+                  doiPresent: !!doi,
+                  errStatus: err?.status,
+                  errName: err?.name,
+                  errMessage: err?.message,
+                },
+                timestamp: Date.now(),
+                sessionId: 'debug-session',
+                runId: 'pre-fix',
+                hypothesisId: 'F',
+              }),
+            }).catch(() => {});
+            // #endregion
+            return throwError(() => err);
+          }),
           // first, pass article response into display waterfall to get display object
           map((articleResponse): { response: ApiResult; displayInfo: DisplayWaterfallResponse } =>
             this.displayWaterfall(articleResponse, entityType)
