@@ -61,6 +61,35 @@ export class ButtonInfoService {
               }),
             }).catch(() => {});
             // #endregion
+            // If the TI API 404s, our HttpService turns that into an error stream before we can
+            // reach the normal `response.status === 404` fallback logic. In that specific case,
+            // route directly into the Unpaywall fallback instead of failing the entire pipeline.
+            if (err?.status === 404 && doi) {
+              const displayInfo404: DisplayWaterfallResponse = {
+                ...DEFAULT_DISPLAY_WATERFALL_RESPONSE,
+                entityType: EntityType.Article,
+              };
+              const fake404Response: ApiResult = { status: 404, body: { data: {} } } as any;
+
+              // #region agent log
+              fetch('http://127.0.0.1:7243/ingest/6f464193-ba2e-4950-8450-e8a059b7fbe3', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  location: 'button-info.service.ts:getDisplayInfo:getArticle:catchError',
+                  message: 'TI 404 -> forcing Unpaywall fallback path',
+                  data: { doiPresent: true, forcedFallback: true },
+                  timestamp: Date.now(),
+                  sessionId: 'debug-session',
+                  runId: 'pre-fix',
+                  hypothesisId: 'A',
+                }),
+              }).catch(() => {});
+              // #endregion
+
+              return this.unpaywallService.makeUnpaywallCall(fake404Response, displayInfo404, doi);
+            }
+
             return throwError(() => err);
           }),
           // first, pass article response into display waterfall to get display object

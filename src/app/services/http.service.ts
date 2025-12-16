@@ -85,6 +85,10 @@ export class HttpService {
 
   private handleError(error: HttpErrorResponse) {
     // #region agent log
+    const errorMessageRedacted =
+      typeof error?.message === 'string'
+        ? error.message.replace(/access_token=[^&\s]+/g, 'access_token=[REDACTED]')
+        : undefined;
     fetch('http://127.0.0.1:7243/ingest/6f464193-ba2e-4950-8450-e8a059b7fbe3', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -96,7 +100,7 @@ export class HttpService {
           statusText: error?.statusText,
           // Do NOT log error.url because it can contain access tokens.
           hasUrl: !!error?.url,
-          errorMessage: error?.message,
+          errorMessageRedacted,
         },
         timestamp: Date.now(),
         sessionId: 'debug-session',
