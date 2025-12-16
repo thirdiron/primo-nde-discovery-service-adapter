@@ -34,6 +34,21 @@ export class ButtonInfoService {
 
   getDisplayInfo(entity: SearchEntity): Observable<DisplayWaterfallResponse> {
     const entityType = this.searchEntityService.getEntityType(entity);
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/6f464193-ba2e-4950-8450-e8a059b7fbe3', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sessionId: 'debug-session',
+        runId: 'pre-fix',
+        hypothesisId: 'D',
+        location: 'button-info.service.ts:getDisplayInfo',
+        message: 'getDisplayInfo entry',
+        data: { entityType, viewOption: this.configService.getViewOption?.() },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion agent log
 
     // make API call for article or journal
     if (entityType) {
@@ -219,6 +234,35 @@ export class ButtonInfoService {
       showSecondaryButton,
       showBrowzineButton,
     };
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/6f464193-ba2e-4950-8450-e8a059b7fbe3', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sessionId: 'debug-session',
+        runId: 'pre-fix',
+        hypothesisId: 'A',
+        location: 'button-info.service.ts:displayWaterfall',
+        message: 'displayWaterfall computed displayInfo',
+        data: {
+          entityType: type,
+          mainButtonType: buttonType,
+          mainUrlEmpty: !linkUrl,
+          showSecondaryButton,
+          secondaryUrlPresent: !!secondaryButtonUrl,
+          showBrowzineButton,
+          browzineUrlPresent: !!browzineWebLink,
+          config: {
+            showFormatChoice: this.configService.showFormatChoice?.(),
+            showArticleLink: this.configService.showArticleLink?.(),
+            showDirectToPDFLink: this.configService.showDirectToPDFLink?.(),
+            showDocumentDeliveryFulfillment: this.configService.showDocumentDeliveryFulfillment?.(),
+          },
+        },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion agent log
 
     return {
       displayInfo,
@@ -250,6 +294,35 @@ export class ButtonInfoService {
    */
   buildStackOptions(displayInfo: DisplayWaterfallResponse, viewModel: PrimoViewModel): StackLink[] {
     const links: StackLink[] = [];
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/6f464193-ba2e-4950-8450-e8a059b7fbe3', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sessionId: 'debug-session',
+        runId: 'pre-fix',
+        hypothesisId: 'B',
+        location: 'button-info.service.ts:buildStackOptions',
+        message: 'buildStackOptions entry',
+        data: {
+          display: {
+            entityType: displayInfo.entityType,
+            mainButtonType: displayInfo.mainButtonType,
+            mainUrlEmpty: !displayInfo.mainUrl,
+            showSecondaryButton: !!displayInfo.showSecondaryButton,
+            secondaryUrlPresent: !!displayInfo.secondaryUrl,
+            showBrowzineButton: !!displayInfo.showBrowzineButton,
+            browzineUrlPresent: !!displayInfo.browzineUrl,
+          },
+          primo: {
+            onlineLinksCount: viewModel?.onlineLinks?.length || 0,
+            directLinkPresent: !!viewModel?.directLink,
+          },
+        },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion agent log
 
     // Third Iron display options
     if (
@@ -299,6 +372,32 @@ export class ButtonInfoService {
     if (directLink) {
       links.push(directLink);
     }
+
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/6f464193-ba2e-4950-8450-e8a059b7fbe3', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sessionId: 'debug-session',
+        runId: 'pre-fix',
+        hypothesisId: 'B',
+        location: 'button-info.service.ts:buildStackOptions',
+        message: 'buildStackOptions output links',
+        data: {
+          count: links.length,
+          first: {
+            source: links[0]?.source,
+            showSecondaryButton: !!links[0]?.showSecondaryButton,
+            mainButtonType: links[0]?.mainButtonType,
+            label: links[0]?.label,
+            urlPresent: !!links[0]?.url,
+            urlPrefix: (links[0]?.url || '').slice(0, 24),
+          },
+        },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion agent log
 
     return links;
   }

@@ -88,9 +88,61 @@ export class ThirdIronButtonsComponent {
     this.displayInfo$ = this.buttonInfoService.getDisplayInfo(searchResult).pipe(
       combineLatestWith(this.viewModel$),
       map(([displayInfo, viewModel]) => {
+        // #region agent log
+        fetch('http://127.0.0.1:7243/ingest/6f464193-ba2e-4950-8450-e8a059b7fbe3', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            sessionId: 'debug-session',
+            runId: 'pre-fix',
+            hypothesisId: 'B',
+            location: 'third-iron-buttons.component.ts:enhance(map)',
+            message: 'enhance map inputs',
+            data: {
+              viewOption: this.viewOption,
+              display: {
+                entityType: displayInfo?.entityType,
+                mainButtonType: displayInfo?.mainButtonType,
+                mainUrlEmpty: !displayInfo?.mainUrl,
+                showSecondaryButton: !!displayInfo?.showSecondaryButton,
+                secondaryUrlPresent: !!displayInfo?.secondaryUrl,
+                showBrowzineButton: !!displayInfo?.showBrowzineButton,
+              },
+            },
+            timestamp: Date.now(),
+          }),
+        }).catch(() => {});
+        // #endregion agent log
+
         if (this.viewOption !== ViewOptionType.NoStack) {
           // build custom stack options array for StackPlusBrowzine and SingleStack view options
           this.combinedLinks = this.buttonInfoService.buildCombinedLinks(displayInfo, viewModel);
+
+          // #region agent log
+          fetch('http://127.0.0.1:7243/ingest/6f464193-ba2e-4950-8450-e8a059b7fbe3', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              sessionId: 'debug-session',
+              runId: 'pre-fix',
+              hypothesisId: 'B',
+              location: 'third-iron-buttons.component.ts:enhance(map)',
+              message: 'combinedLinks built',
+              data: {
+                count: this.combinedLinks?.length || 0,
+                first: {
+                  source: this.combinedLinks?.[0]?.source,
+                  showSecondaryButton: !!this.combinedLinks?.[0]?.showSecondaryButton,
+                  mainButtonType: this.combinedLinks?.[0]?.mainButtonType,
+                  label: this.combinedLinks?.[0]?.label,
+                  urlPresent: !!this.combinedLinks?.[0]?.url,
+                  urlPrefix: (this.combinedLinks?.[0]?.url || '').slice(0, 24),
+                },
+              },
+              timestamp: Date.now(),
+            }),
+          }).catch(() => {});
+          // #endregion agent log
 
           // remove Primo generated buttons/stack if we have a custom stack
           if (this.combinedLinks.length > 0) {

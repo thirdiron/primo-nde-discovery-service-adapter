@@ -30,6 +30,11 @@ export class StackedDropdownComponent {
   links = input.required<StackLink[]>();
 
   toEntityType(value: unknown): EntityType {
+    // #region agent log
+    const _links = this.links?.() || [];
+    fetch('http://127.0.0.1:7243/ingest/6f464193-ba2e-4950-8450-e8a059b7fbe3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre-fix',hypothesisId:'C',location:'stacked-dropdown.component.ts:toEntityType',message:'stacked-dropdown render snapshot',data:{count:_links.length,first:{source:_links[0]?.source,showSecondaryButton:!!_links[0]?.showSecondaryButton,mainButtonType:_links[0]?.mainButtonType,label:_links[0]?.label,urlPresent:!!_links[0]?.url,urlPrefix:(_links[0]?.url||'').slice(0,24)}},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion agent log
+
     // Accept enum values or string literals and coerce to EntityType
     if (value === EntityType.Article || value === 'Article') {
       return EntityType.Article;
