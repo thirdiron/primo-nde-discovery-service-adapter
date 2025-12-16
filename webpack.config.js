@@ -1,20 +1,20 @@
-const ModuleFederationPlugin = require("webpack/lib/container/ModuleFederationPlugin");
-const mf = require("@angular-architects/module-federation/webpack");
-const CopyWebpackPlugin = require("copy-webpack-plugin");
-const path = require("path");
-const webpack = require("webpack");
+const ModuleFederationPlugin = require('webpack/lib/container/ModuleFederationPlugin');
+const mf = require('@angular-architects/module-federation/webpack');
+const CopyWebpackPlugin = require('copy-webpack-plugin');
+const path = require('path');
+const webpack = require('webpack');
 const share = mf.share;
 
 const sharedMappings = new mf.SharedMappings();
-sharedMappings.register(path.join(__dirname, "tsconfig.json"), [
+sharedMappings.register(path.join(__dirname, 'tsconfig.json'), [
   /* mapped paths to share */
 ]);
 
 module.exports = {
   context: path.resolve(__dirname), // Sets the context to the directory where webpack.config.js is
   output: {
-    uniqueName: "libkeyModule",
-    publicPath: "auto",
+    uniqueName: 'libkeyModule',
+    publicPath: 'auto',
   },
   optimization: {
     minimize: true,
@@ -33,7 +33,7 @@ module.exports = {
       // ... other rules ...
       {
         test: /\.(png|jpe?g|gif|svg)$/i,
-        type: "asset/resource",
+        type: 'asset/resource',
       },
     ],
   },
@@ -41,17 +41,22 @@ module.exports = {
     new CopyWebpackPlugin({
       patterns: [
         {
-          from: "src/assets",
-          to: "assets",
+          from: 'src/assets',
+          to: 'assets',
           noErrorOnMissing: true,
           globOptions: {
             ignore: [
-              "**/.gitkeep", // Make sure this matches exactly the files you want to exclude
-              "**/.*", // This pattern excludes all hidden files
+              '**/.gitkeep', // Make sure this matches exactly the files you want to exclude
+              '**/.*', // This pattern excludes all hidden files
             ],
           },
         }, // Adjust the paths as needed
       ],
+    }),
+    // Ensure a Node-like `global` identifier exists in ESM bundles (Module Federation).
+    // This prevents runtime errors like `ReferenceError: global is not defined` in host apps.
+    new webpack.ProvidePlugin({
+      global: [path.resolve(__dirname, 'src/global-shim.ts'), 'default'],
     }),
     // DISABLE ngDevMode as it is not needed in a remoteEntry work around for issue: https://github.com/angular-architects/module-federation-plugin/issues/458
     // new webpack.DefinePlugin({
@@ -59,13 +64,13 @@ module.exports = {
     // }),
     // END DISABLE ngDevMode as it is not needed in a remoteEntry
     new ModuleFederationPlugin({
-      library: { type: "module" },
+      library: { type: 'module' },
 
       // For remotes (please adjust)
-      name: "LibKey",
-      filename: "remoteEntry.js",
+      name: 'LibKey',
+      filename: 'remoteEntry.js',
       exposes: {
-        "./LibKey": "./src/bootstrapLibKey.ts",
+        './LibKey': './src/bootstrapLibKey.ts',
       },
 
       // For hosts (please adjust)
