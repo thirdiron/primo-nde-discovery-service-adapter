@@ -13,7 +13,7 @@ sharedMappings.register(path.join(__dirname, 'tsconfig.json'), [
 module.exports = {
   context: path.resolve(__dirname), // Sets the context to the directory where webpack.config.js is
   output: {
-    uniqueName: 'libkeyModule',
+    uniqueName: "LibKey",
     publicPath: 'auto',
   },
   optimization: {
@@ -67,7 +67,7 @@ module.exports = {
       library: { type: 'module' },
 
       // For remotes (please adjust)
-      name: 'LibKey',
+      name: "LibKey",
       filename: 'remoteEntry.js',
       exposes: {
         './LibKey': './src/bootstrapLibKey.ts',
