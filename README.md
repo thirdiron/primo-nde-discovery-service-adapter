@@ -1,4 +1,4 @@
-# Third Iron Primo NDE Adapter
+# Third Iron Primo NDE Add-On
 
 - [Using the Add-On](#using-the-third-iron-primo-nde-add-on)
 - [View Options](#view-options)
@@ -8,7 +8,7 @@
 
 ## Overview
 
-The NDE Customization package offers options to enhance and extend the functionality of Primo’s New Discovery Experience (NDE). This Third Iron Adapter adds LibKey support directly into the Primo NDE experience.
+The NDE Customization package offers options to enhance and extend the functionality of Primo’s New Discovery Experience (NDE). This Third Iron Add-On adds LibKey support directly into the Primo NDE experience.
 
 The NDE UI supports loading of custom modules at runtime and also provides infrastructure to dynamically load add-ons developed by vendors, consortia, or community members. This enables seamless integration, allowing institutions to configure and deploy external add-ons through **Add-On Configuration in Alma**.
 
@@ -88,7 +88,7 @@ Default configuration JSON:
 
    Configure the following:
    - **Add-on Name** – The identifier used in Alma’s configuration (View ID set in step 1).
-   - **Add-on URL** – The location where the add-on is hosted (static folder to load the add-on at runtime). The current URL for the LibKey adaptor is `https://thirdiron-adapters.s3.amazonaws.com/primo-nde/production/` (keep the trailing '/')
+   - **Add-on URL** – The location where the add-on is hosted (static folder to load the add-on at runtime). The current URL for the LibKey add-on is `https://discovery-adapters.thirdiron.com/primo-nde/production` (keep the trailing '/')
    - **Add-on Configuration File** – JSON-based config parameters to be referenced at runtime by the add-on. Upload your modified JSON configuration file from Step 2.
 
 ## View Options
