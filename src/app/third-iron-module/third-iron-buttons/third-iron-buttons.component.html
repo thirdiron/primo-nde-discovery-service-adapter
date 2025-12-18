@@ -1,12 +1,12 @@
 @if (viewModel$ | async; as viewModel) {
   @if (displayInfo$ | async; as displayInfo) {
     <!-- DEBUG: dump inputs for troubleshooting -->
-    <div class="ti-debug">
+    <!-- <div class="ti-debug">
       <div class="ti-debug-title">Debug: viewModel</div>
       <pre class="ti-debug-pre">{{ viewModel | json }}</pre>
       <div class="ti-debug-title">Debug: displayInfo</div>
       <pre class="ti-debug-pre">{{ displayInfo | json }}</pre>
-    </div>
+    </div> -->
     @if (combinedLinks.length > 0) {
       <!-- dealing with stack options -->
       @if (viewOption !== ViewOptionType.NoStack) {
