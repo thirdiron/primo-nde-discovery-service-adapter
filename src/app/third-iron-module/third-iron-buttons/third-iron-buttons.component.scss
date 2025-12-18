@@ -12,6 +12,12 @@
   }
 }
 
+.ti-no-stack-container {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+}
+
 .ti-consolidated-coverage {
   font-size: 0.875rem;
   color: var(--sys-primary);
