@@ -13,6 +13,7 @@ type DebugApi = {
 
 type NamespaceApi = {
   debug: DebugApi;
+  debugEnabled?: boolean;
 };
 
 function safeGetLocalStorage(): Storage | null {
@@ -45,13 +46,25 @@ let enabled = readPersistedEnabled();
 const listeners = new Set<DebugChangeListener>();
 
 export function isDebugEnabled(): boolean {
+  // In Module Federation scenarios it’s possible to end up with multiple copies of this module.
+  // Use the global namespace as the source of truth when available.
+  const globalEnabled = (globalThis as any)?.[NAMESPACE]?.debugEnabled;
+  if (typeof globalEnabled === 'boolean') return globalEnabled;
   return enabled;
 }
 
 export function setDebugEnabled(next: boolean): void {
-  if (enabled === next) return;
+  if (isDebugEnabled() === next) return;
   enabled = next;
   writePersistedEnabled(enabled);
+  try {
+    const root: any = globalThis as any;
+    if (root?.[NAMESPACE]) {
+      root[NAMESPACE].debugEnabled = enabled;
+    }
+  } catch {
+    // ignore
+  }
   for (const l of Array.from(listeners)) {
     try {
       l(enabled);
@@ -74,11 +87,29 @@ function ensureNamespace(root: any): NamespaceApi {
 
 export function installDebugApi(root: any = globalThis): NamespaceApi {
   const ns = ensureNamespace(root);
+  // Ensure a single shared boolean lives on the namespace for cross-bundle access.
+  if (typeof ns.debugEnabled !== 'boolean') {
+    ns.debugEnabled = readPersistedEnabled();
+  }
+  enabled = ns.debugEnabled;
 
   // Idempotent install: always (re)bind methods to current module state.
-  ns.debug.enable = () => setDebugEnabled(true);
-  ns.debug.disable = () => setDebugEnabled(false);
-  ns.debug.toggle = () => setDebugEnabled(!isDebugEnabled());
+  ns.debug.enable = () => {
+    setDebugEnabled(true);
+    // eslint-disable-next-line no-console
+    console.info('[TI-NDE] Debug enabled');
+  };
+  ns.debug.disable = () => {
+    setDebugEnabled(false);
+    // eslint-disable-next-line no-console
+    console.info('[TI-NDE] Debug disabled');
+  };
+  ns.debug.toggle = () => {
+    const next = !isDebugEnabled();
+    setDebugEnabled(next);
+    // eslint-disable-next-line no-console
+    console.info(`[TI-NDE] Debug ${next ? 'enabled' : 'disabled'}`);
+  };
   ns.debug.isEnabled = () => isDebugEnabled();
   ns.debug.help = () => {
     // Keep this console output un-gated; it’s explicitly user-invoked.
@@ -93,10 +124,8 @@ export function installDebugApi(root: any = globalThis): NamespaceApi {
     });
   };
 
-  // Sync module state with persisted value each install (helps across reloads)
-  // without forcing a write or a change notification.
-  enabled = readPersistedEnabled();
+  // Keep namespace flag in sync with persisted value each install (helps across reloads).
+  ns.debugEnabled = readPersistedEnabled();
+  enabled = ns.debugEnabled;
   return ns;
 }
-
-

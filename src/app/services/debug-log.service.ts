@@ -67,8 +67,15 @@ export class DebugLogService {
             data,
           };
 
+    // NOTE: Chrome often hides console.debug unless “Verbose” is enabled.
+    // Use console.info for debug-level so it shows up by default.
     // eslint-disable-next-line no-console
-    const fn = console[level] ? (console as any)[level].bind(console) : console.log.bind(console);
+    const fn =
+      level === 'debug'
+        ? console.info.bind(console)
+        : console[level]
+          ? (console as any)[level].bind(console)
+          : console.log.bind(console);
     fn(`[TI-NDE] ${event}`, payload);
   }
 }
