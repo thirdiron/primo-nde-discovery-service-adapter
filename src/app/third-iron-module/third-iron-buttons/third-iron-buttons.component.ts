@@ -7,7 +7,7 @@ import { SearchEntityService } from '../../services/search-entity.service';
 import { ButtonInfoService } from '../../services/button-info.service';
 import { ConfigService } from 'src/app/services/config.service';
 import { ExlibrisStoreService } from 'src/app/services/exlibris-store.service';
-import { AsyncPipe, JsonPipe } from '@angular/common';
+import { AsyncPipe } from '@angular/common';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ArticleLinkButtonComponent } from 'src/app/components/article-link-button/article-link-button.component';
 import { MainButtonComponent } from 'src/app/components/main-button/main-button.component';
@@ -16,6 +16,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatSelectModule } from '@angular/material/select';
 import { ViewOptionType } from 'src/app/shared/view-option.enum';
 import { StackedDropdownComponent } from 'src/app/components/stacked-dropdown/stacked-dropdown.component';
+import { DebugLogService } from 'src/app/services/debug-log.service';
 
 @Component({
   selector: 'custom-third-iron-buttons',
@@ -25,7 +26,6 @@ import { StackedDropdownComponent } from 'src/app/components/stacked-dropdown/st
     BrowzineButtonComponent,
     ArticleLinkButtonComponent,
     AsyncPipe,
-    JsonPipe,
     StackedDropdownComponent,
     MatIconModule,
     MatSelectModule,
@@ -57,6 +57,7 @@ export class ThirdIronButtonsComponent {
     private searchEntityService: SearchEntityService,
     private configService: ConfigService,
     private exlibrisStoreService: ExlibrisStoreService,
+    private debugLog: DebugLogService,
     private destroyRef: DestroyRef,
     elementRef: ElementRef
   ) {
@@ -73,6 +74,10 @@ export class ThirdIronButtonsComponent {
       .getRecordForEntity$(this.hostComponent?.searchResult)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(record => {
+        this.debugLog.debug(
+          'ThirdIronButtons.ngOnInit.record',
+          this.debugLog.safeSearchEntityMeta(record)
+        );
         if (record) {
           this.enhance(record);
         }
@@ -80,9 +85,19 @@ export class ThirdIronButtonsComponent {
   }
 
   enhance = (searchResult: SearchEntity) => {
-    if (!this.searchEntityService.shouldEnhance(searchResult)) {
+    const shouldEnhance = this.searchEntityService.shouldEnhance(searchResult);
+    if (!shouldEnhance) {
+      this.debugLog.debug(
+        'ThirdIronButtons.enhance.skip',
+        this.debugLog.safeSearchEntityMeta(searchResult)
+      );
       return;
     }
+
+    this.debugLog.debug('ThirdIronButtons.enhance.start', {
+      viewOption: this.viewOption,
+      ...this.debugLog.safeSearchEntityMeta(searchResult),
+    });
 
     // Use combineLatestWith to handle both displayInfo$ and viewModel$ observables together
     this.displayInfo$ = this.buttonInfoService.getDisplayInfo(searchResult).pipe(
@@ -95,7 +110,11 @@ export class ThirdIronButtonsComponent {
           // remove Primo generated buttons/stack if we have a custom stack
           if (this.combinedLinks.length > 0) {
             const hostElem = this.elementRef.nativeElement; // this component's template element
-            this.removePrimoOnlineAvailability(hostElem);
+            const removedCount = this.removePrimoOnlineAvailability(hostElem);
+            this.debugLog.debug('ThirdIronButtons.removePrimoOnlineAvailability', {
+              reason: 'combinedLinks>0',
+              removedCount,
+            });
           }
         } else if (this.viewOption === ViewOptionType.NoStack) {
           // Build array of Primo only links, filter based on TI config settings
@@ -104,7 +123,11 @@ export class ThirdIronButtonsComponent {
           // remove Primo "Online Options" button or Primo's stack (quick links and direct link)
           // Will be replaced with our own primoLinks options
           const hostElem = this.elementRef.nativeElement; // this component's template element
-          this.removePrimoOnlineAvailability(hostElem);
+          const removedCount = this.removePrimoOnlineAvailability(hostElem);
+          this.debugLog.debug('ThirdIronButtons.removePrimoOnlineAvailability', {
+            reason: 'NoStack',
+            removedCount,
+          });
         }
 
         return displayInfo;
@@ -112,18 +135,22 @@ export class ThirdIronButtonsComponent {
     );
   };
 
-  removePrimoOnlineAvailability = (hostElement: HTMLElement) => {
-    if (hostElement?.parentElement?.parentElement) {
-      const onlineAvailabilityBlockParent: HTMLElement = hostElement.parentElement.parentElement; // jump up to parent of <nde-online-availability />
-      if (onlineAvailabilityBlockParent) {
-        const onlineAvailabilityElementArray = onlineAvailabilityBlockParent.getElementsByTagName(
-          'nde-online-availability'
-        ) as HTMLCollectionOf<HTMLElement>;
-
-        Array.from(onlineAvailabilityElementArray).forEach(elem => {
-          elem.style.display = 'none';
-        });
-      }
+  removePrimoOnlineAvailability = (hostElement: HTMLElement): number => {
+    const blockParent = hostElement?.parentElement?.parentElement ?? null;
+    if (!blockParent) {
+      this.debugLog.debug('ThirdIronButtons.removePrimoOnlineAvailability.noAncestor', {
+        hasParent: !!hostElement?.parentElement,
+      });
+      return 0;
     }
+
+    const elems = blockParent.getElementsByTagName(
+      'nde-online-availability'
+    ) as HTMLCollectionOf<HTMLElement>;
+    const arr = Array.from(elems);
+    for (const elem of arr) {
+      elem.style.display = 'none';
+    }
+    return arr.length;
   };
 }

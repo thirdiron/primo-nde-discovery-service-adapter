@@ -164,6 +164,48 @@ Button label text can be customized and translated by setting up label codes in 
 
 ## Developer notes
 
+### Debug mode
+
+This add-on supports a **runtime-toggleable debug mode**. When enabled, the add-on will emit structured log messages to the browser console at key points in the app flow (API calls, decision points, DOM removal, etc.).
+
+**Console API**
+
+- Enable: `window.__TI_NDE__.debug.enable()`
+- Disable: `window.__TI_NDE__.debug.disable()`
+- Toggle: `window.__TI_NDE__.debug.toggle()`
+- Check: `window.__TI_NDE__.debug.isEnabled()`
+- Help: `window.__TI_NDE__.debug.help()`
+
+**Persistence**
+
+Debug mode persists across reloads via `localStorage` key `__TI_NDE_DEBUG__`:
+
+- Force ON: `localStorage.setItem('__TI_NDE_DEBUG__', '1')`
+- Force OFF: `localStorage.setItem('__TI_NDE_DEBUG__', '0')`
+- Clear: `localStorage.removeItem('__TI_NDE_DEBUG__')`
+
+**Redaction policy**
+
+- Never log API keys, `access_token` values, or full PNX/record payloads.
+- Logs should contain small identifiers/booleans and other non-sensitive metadata.
+
+**Simple flow**
+
+```mermaid
+sequenceDiagram
+participant HostPage
+participant RemoteBootstrap as bootstrapRemoteApp
+participant DebugApi as window.__TI_NDE__.debug
+participant App as AngularServices_Components
+
+HostPage->>RemoteBootstrap: loads remoteEntry + calls bootstrapRemoteApp()
+RemoteBootstrap->>DebugApi: installDebugApi() (reads localStorage)
+RemoteBootstrap->>App: bootstrap(AppModule)
+HostPage->>DebugApi: debug.enable()/disable() at runtime
+DebugApi->>App: notify subscribers (optional)
+App->>HostPage: console logs gated by debug state
+```
+
 ### Sync the forked repo
 
 1. Verify existing remotes by running: `git remote -v`. You should see an `origin` remote pointing to your fork on GitHub.

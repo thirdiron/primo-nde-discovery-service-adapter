@@ -3,6 +3,7 @@ import { HttpClient, HttpErrorResponse, HttpResponse } from '@angular/common/htt
 import { catchError, Observable, throwError } from 'rxjs';
 import { ApiResult, ArticleData, JournalData } from '../types/tiData.types';
 import { ConfigService } from './config.service';
+import { DebugLogService } from './debug-log.service';
 
 /**
  * This Service is responsible for all HTTP requests and includes some
@@ -18,7 +19,8 @@ export class HttpService {
 
   constructor(
     private http: HttpClient,
-    private configService: ConfigService
+    private configService: ConfigService,
+    private debugLog: DebugLogService
   ) {}
 
   getArticle(doi: string): Observable<any> {
@@ -26,19 +28,25 @@ export class HttpService {
       this.apiUrl
     }/articles/doi/${doi}?include=journal,library${this.appendAccessToken()}`;
 
-    return this.http.get(endpoint, { observe: 'response' }).pipe(catchError(this.handleError));
+    return this.http
+      .get(endpoint, { observe: 'response' })
+      .pipe(catchError(err => this.handleError(err)));
   }
 
   getJournal(issn: string): Observable<any> {
     const endpoint = `${this.apiUrl}/search?issns=${issn}${this.appendAccessToken()}`;
-    return this.http.get(endpoint, { observe: 'response' }).pipe(catchError(this.handleError));
+    return this.http
+      .get(endpoint, { observe: 'response' })
+      .pipe(catchError(err => this.handleError(err)));
   }
 
   getUnpaywall(doi: string): Observable<HttpResponse<Object>> {
     const email = this.configService.getEmailAddressKey();
 
     const endpoint = `https://api.unpaywall.org/v2/${doi}?email=${email}`;
-    return this.http.get(endpoint, { observe: 'response' }).pipe(catchError(this.handleError));
+    return this.http
+      .get(endpoint, { observe: 'response' })
+      .pipe(catchError(err => this.handleError(err)));
   }
 
   getData(response: ApiResult): ArticleData | JournalData | {} {
@@ -84,31 +92,17 @@ export class HttpService {
   }
 
   private handleError(error: HttpErrorResponse) {
-    // #region agent log
     const errorMessageRedacted =
       typeof error?.message === 'string'
-        ? error.message.replace(/access_token=[^&\s]+/g, 'access_token=[REDACTED]')
+        ? this.debugLog.redactUrlTokens(error.message)
         : undefined;
-    fetch('http://127.0.0.1:7243/ingest/6f464193-ba2e-4950-8450-e8a059b7fbe3', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        location: 'http.service.ts:handleError',
-        message: 'HTTP error from TI API (caught by HttpService)',
-        data: {
-          status: error?.status,
-          statusText: error?.statusText,
-          // Do NOT log error.url because it can contain access tokens.
-          hasUrl: !!error?.url,
-          errorMessageRedacted,
-        },
-        timestamp: Date.now(),
-        sessionId: 'debug-session',
-        runId: 'pre-fix',
-        hypothesisId: 'F',
-      }),
-    }).catch(() => {});
-    // #endregion
+    this.debugLog.warn('HttpService.handleError', {
+      status: error?.status,
+      statusText: error?.statusText,
+      // Do NOT log error.url because it can contain access tokens.
+      hasUrl: !!error?.url,
+      errorMessageRedacted,
+    });
 
     // Return an observable with a user-facing error message.
     console.error(`Backend returned code ${error.status}, body was: `, error.error);

@@ -3,6 +3,7 @@ import { Store } from '@ngrx/store';
 import { Observable, combineLatest } from 'rxjs';
 import { distinctUntilChanged, map } from 'rxjs/operators';
 import { SearchEntity } from '../types/searchEntity.types';
+import { DebugLogService } from './debug-log.service';
 
 /**
  * This Service is responsible for getting state values from the ExLibris NDE store.
@@ -12,7 +13,10 @@ import { SearchEntity } from '../types/searchEntity.types';
   providedIn: 'root',
 })
 export class ExlibrisStoreService {
-  constructor(private store: Store<any>) {}
+  constructor(
+    private store: Store<any>,
+    private debugLog: DebugLogService
+  ) {}
 
   /**
    * Selects the currently active Full Display record id from the host store.
@@ -52,7 +56,14 @@ export class ExlibrisStoreService {
     return combineLatest([this.selectSelectedRecordId$(), this.selectSearchEntities$()]).pipe(
       map(([selectedRecordId, entities]) => {
         const id = selectedRecordId || fallbackId;
-        return id ? (entities[id] ?? null) : null;
+        const record = id ? (entities[id] ?? null) : null;
+        this.debugLog.debug('ExlibrisStore.getRecordForEntity$', {
+          selectedRecordId: selectedRecordId ?? null,
+          fallbackId,
+          chosenId: id ?? null,
+          recordFound: !!record,
+        });
+        return record;
       }),
       distinctUntilChanged()
     );
