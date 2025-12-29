@@ -21,10 +21,12 @@ describe('StackedButtonComponent', () => {
     expect(component).toBeDefined();
   });
 
-  it('openLink should open in same tab for directLink source', () => {
+  it('openLink should open in same tab for same-origin URLs', () => {
     const link: StackLink = {
       entityType: 'directLink',
-      url: 'https://example.com',
+      // Same-origin URLs should be treated as in-app navigation (same tab).
+      // Use a relative path so this stays stable regardless of Karma's origin.
+      url: '/record/123',
       source: 'directLink',
     };
 
@@ -34,10 +36,10 @@ describe('StackedButtonComponent', () => {
 
     const openSpy = spyOn(window, 'open');
     component.openLink();
-    expect(openSpy).toHaveBeenCalledWith('https://example.com', '_self');
+    expect(openSpy).toHaveBeenCalledWith('/record/123', '_self');
   });
 
-  it('openLink should open in new tab for non-directLink source', () => {
+  it('openLink should open in new tab for external-origin URLs', () => {
     const link: StackLink = {
       entityType: 'PDF',
       url: 'https://example.com/pdf',
