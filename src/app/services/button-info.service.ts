@@ -44,7 +44,15 @@ export class ButtonInfoService {
     // make API call for article or journal
     if (entityType) {
       if (entityType === EntityType.Article) {
+        const rawDoi = entity?.pnx?.addata?.doi?.[0]?.trim?.() ?? '';
         const doi = this.searchEntityService.getDoi(entity);
+
+        this.debugLog.debug('ButtonInfo.getDisplayInfo.article.doi', {
+          rawDoi: rawDoi || null,
+          encodedDoi: doi || null,
+          changed: !!rawDoi && doi !== rawDoi,
+        });
+
         return this.httpService.getArticle(doi).pipe(
           catchError(err => {
             this.debugLog.warn('ButtonInfo.getDisplayInfo.article.error', {
