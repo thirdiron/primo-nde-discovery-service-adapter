@@ -44,6 +44,7 @@ export class UnpaywallService {
     if (!this.unpaywallClient?.getUnpaywallUrls) {
       this.debugLog.warn('Unpaywall.makeUnpaywallCall.skip_client_not_ready', {
         doi,
+        doiUnencoded,
         clientReady: false,
       });
       return of(displayInfo);
@@ -56,6 +57,7 @@ export class UnpaywallService {
 
     this.debugLog.debug('Unpaywall.makeUnpaywallCall.start', {
       doi,
+      doiUnencoded,
       clientReady: true,
       avoidUnpaywallPublisherLinks,
     });
@@ -63,12 +65,16 @@ export class UnpaywallService {
     // `getUnpaywallUrls()` returns a Promise, so we wrap it with `defer(() => from(...))`
     // to convert it into an Observable that fits cleanly into this RxJS pipeline.
     return defer(() => {
-      this.debugLog.debug('Unpaywall.getUnpaywallUrls.invoke', { doi });
-      return from(this.unpaywallClient.getUnpaywallUrls(doi) as Promise<UnpaywallUrls>);
+      this.debugLog.debug('Unpaywall.getUnpaywallUrls.invoke', { doi, doiUnencoded });
+      // IMPORTANT: the underlying library constructs the Unpaywall URL and (typically) URL-encodes
+      // the DOI. Our upstream `SearchEntityService.getDoi()` returns an encoded DOI for TI API paths,
+      // so we decode here to prevent double-encoding (%2F -> %252F).
+      return from(this.unpaywallClient.getUnpaywallUrls(doiUnencoded) as Promise<UnpaywallUrls>);
     }).pipe(
       tap(unpaywallUrls => {
         this.debugLog.debug('Unpaywall.getUnpaywallUrls.result', {
           doi,
+          doiUnencoded,
           // Strict: do not log full payload; only whether URLs exist.
           hasArticlePDFUrl: !!unpaywallUrls?.articlePDFUrl,
           hasArticleLinkUrl: !!unpaywallUrls?.articleLinkUrl,
@@ -99,6 +105,7 @@ export class UnpaywallService {
       catchError(err => {
         this.debugLog.warn('Unpaywall.getUnpaywallUrls.error', {
           doi,
+          doiUnencoded,
           err: this.debugLog.safeError(err),
         });
         return of(displayInfo);
