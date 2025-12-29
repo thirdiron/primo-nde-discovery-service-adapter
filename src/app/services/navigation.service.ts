@@ -1,6 +1,7 @@
 import { Inject, Injectable, Optional, NgZone } from '@angular/core';
 import { SHELL_ROUTER } from '../injection-tokens';
 import { Router } from '@angular/router';
+import { DebugLogService } from './debug-log.service';
 
 export type NavigationTarget = '_self' | '_blank';
 
@@ -8,7 +9,8 @@ export type NavigationTarget = '_self' | '_blank';
 export class NavigationService {
   constructor(
     private ngZone: NgZone,
-    @Optional() @Inject(SHELL_ROUTER) private shellRouter: Router | null
+    @Optional() @Inject(SHELL_ROUTER) private shellRouter: Router | null,
+    private debugLog: DebugLogService
   ) {}
 
   /**
@@ -17,15 +19,37 @@ export class NavigationService {
    */
   openUrl(rawUrl: string, target?: NavigationTarget): void {
     const url = (rawUrl ?? '').trim();
-    if (!url) return;
+    if (!url) {
+      this.debugLog.debug('Navigation.openUrl.skip.emptyUrl', { rawUrl });
+      return;
+    }
+
+    this.debugLog.debug('Navigation.openUrl.start', {
+      url: this.debugLog.redactUrlTokens(url),
+      target,
+      locationOrigin: window.location.origin,
+      hasShellRouter: !!this.shellRouter,
+    });
 
     const resolvedTarget = target ?? this.inferTarget(url);
+    this.debugLog.debug('Navigation.openUrl.resolvedTarget', {
+      url: this.debugLog.redactUrlTokens(url),
+      resolvedTarget,
+    });
 
     // Same-tab navigation: prefer the host/shell router to preserve SPA behavior.
     if (resolvedTarget === '_self') {
       const routerUrl = this.toRouterUrl(url);
+      this.debugLog.debug('Navigation.openUrl.sameTab', {
+        url: this.debugLog.redactUrlTokens(url),
+        routerUrl,
+        willAttemptRouter: !!this.shellRouter && !!routerUrl,
+      });
       if (this.shellRouter && routerUrl) {
         // Ensure we run inside Angular zone even if this code is invoked from a custom element.
+        this.debugLog.debug('Navigation.openUrl.router.navigateByUrl', {
+          routerUrl,
+        });
         this.ngZone.run(() => {
           void this.shellRouter!.navigateByUrl(routerUrl);
         });
@@ -34,6 +58,10 @@ export class NavigationService {
     }
 
     // Browser navigation (new tab or same tab). Use window.open so it's spyable in tests.
+    this.debugLog.debug('Navigation.openUrl.window.open', {
+      url: this.debugLog.redactUrlTokens(url),
+      target: resolvedTarget,
+    });
     window.open(url, resolvedTarget);
   }
 
@@ -43,7 +71,12 @@ export class NavigationService {
    */
   private toRouterUrl(url: string): string | null {
     // Don't try to route special schemes.
-    if (/^(mailto:|tel:|sms:|data:|blob:|javascript:)/i.test(url)) return null;
+    if (/^(mailto:|tel:|sms:|data:|blob:|javascript:)/i.test(url)) {
+      this.debugLog.debug('Navigation.toRouterUrl.skip.scheme', {
+        url: this.debugLog.redactUrlTokens(url),
+      });
+      return null;
+    }
 
     // Fragment-only navigation is safe to pass to the router as-is.
     if (url.startsWith('#')) return url;
@@ -52,11 +85,21 @@ export class NavigationService {
     try {
       parsed = new URL(url, window.location.href);
     } catch {
+      this.debugLog.warn('Navigation.toRouterUrl.parseError', {
+        url: this.debugLog.redactUrlTokens(url),
+      });
       return null;
     }
 
     // Only route within the current origin.
-    if (parsed.origin !== window.location.origin) return null;
+    if (parsed.origin !== window.location.origin) {
+      this.debugLog.debug('Navigation.toRouterUrl.skip.externalOrigin', {
+        url: this.debugLog.redactUrlTokens(url),
+        urlOrigin: parsed.origin,
+        locationOrigin: window.location.origin,
+      });
+      return null;
+    }
 
     return `${parsed.pathname}${parsed.search}${parsed.hash}`;
   }
@@ -80,9 +123,20 @@ export class NavigationService {
       parsed = new URL(url, window.location.href);
     } catch {
       // If we can't parse, safest is to open in a new tab.
+      this.debugLog.warn('Navigation.inferTarget.parseError', {
+        url: this.debugLog.redactUrlTokens(url),
+      });
       return '_blank';
     }
 
-    return parsed.origin === window.location.origin ? '_self' : '_blank';
+    const inferred: NavigationTarget =
+      parsed.origin === window.location.origin ? '_self' : '_blank';
+    this.debugLog.debug('Navigation.inferTarget.result', {
+      url: this.debugLog.redactUrlTokens(url),
+      inferred,
+      urlOrigin: parsed.origin,
+      locationOrigin: window.location.origin,
+    });
+    return inferred;
   }
 }
