@@ -31,6 +31,13 @@ function readPersistedEnabled(): boolean {
   return raw === '1' || raw === 'true';
 }
 
+function readPersistedEnabledIfAvailable(): boolean | undefined {
+  const ls = safeGetLocalStorage();
+  if (!ls) return undefined;
+  const raw = ls.getItem(STORAGE_KEY);
+  return raw === '1' || raw === 'true';
+}
+
 function writePersistedEnabled(enabled: boolean): void {
   const ls = safeGetLocalStorage();
   if (!ls) return;
@@ -124,8 +131,16 @@ export function installDebugApi(root: any = globalThis): NamespaceApi {
     });
   };
 
-  // Keep namespace flag in sync with persisted value each install (helps across reloads).
-  ns.debugEnabled = readPersistedEnabled();
-  enabled = ns.debugEnabled;
+  // Keep namespace flag in sync with persisted value when localStorage is available.
+  // IMPORTANT: do NOT overwrite a runtime-enabled debug flag with `false` when storage is blocked
+  // (private mode, storage denied) because `readPersistedEnabled()` must default to false.
+  const persisted = readPersistedEnabledIfAvailable();
+  if (typeof persisted === 'boolean') {
+    ns.debugEnabled = persisted;
+    enabled = persisted;
+  } else {
+    // Ensure module-level state matches the namespace runtime state.
+    enabled = ns.debugEnabled;
+  }
   return ns;
 }

@@ -75,11 +75,10 @@ export class UnpaywallService {
         this.debugLog.debug('Unpaywall.getUnpaywallUrls.result', {
           doi,
           doiUnencoded,
-          // Strict: do not log full payload; only whether URLs exist.
-          hasArticlePDFUrl: !!unpaywallUrls?.articlePDFUrl,
-          hasArticleLinkUrl: !!unpaywallUrls?.articleLinkUrl,
-          hasManuscriptPDFUrl: !!unpaywallUrls?.manuscriptArticlePDFUrl,
-          hasManuscriptLinkUrl: !!unpaywallUrls?.manuscriptArticleLinkUrl,
+          articlePDFUrl: unpaywallUrls?.articlePDFUrl,
+          articleLinkUrl: unpaywallUrls?.articleLinkUrl,
+          manuscriptPDFUrl: unpaywallUrls?.manuscriptArticlePDFUrl,
+          manuscriptLinkUrl: unpaywallUrls?.manuscriptArticleLinkUrl,
           linkHostType: unpaywallUrls?.linkHostType,
         });
       }),
