@@ -99,7 +99,7 @@ export class UnpaywallService {
         }),
       }).catch(() => {});
       // #endregion
-      return from(this.unpaywallClient.getUnpaywallUrls(doi) as Promise<UnpaywallUrls>);
+      return from(this.unpaywallClient.getUnpaywallUrls(doiUnencoded) as Promise<UnpaywallUrls>);
     }).pipe(
       tap(unpaywallUrls => {
         console.log('[Unpaywall] getUnpaywallUrls result', { doi, unpaywallUrls });
