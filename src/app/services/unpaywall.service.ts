@@ -37,6 +37,8 @@ export class UnpaywallService {
   ): Observable<DisplayWaterfallResponse> {
     this.initUnpaywallClient();
 
+    const doiUnencoded = this.decodeDoiForUnpaywall(doi);
+
     if (!this.unpaywallClient?.getUnpaywallUrls) {
       // #region agent log
       fetch('http://127.0.0.1:7243/ingest/6f464193-ba2e-4950-8450-e8a059b7fbe3', {
@@ -237,5 +239,16 @@ export class UnpaywallService {
       entityType: EntityType.Article,
       mainUrl,
     };
+  }
+
+  private decodeDoiForUnpaywall(input: string): string {
+    const trimmed = (input ?? '').trim();
+    try {
+      // For the normal case: "10.1038%2F..." -> "10.1038/..."
+      return decodeURIComponent(trimmed);
+    } catch {
+      // If input has malformed percent-encoding, fall back to original.
+      return trimmed;
+    }
   }
 }
