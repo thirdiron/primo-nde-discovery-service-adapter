@@ -53,7 +53,6 @@ export class UnpaywallService {
     return defer(() => {
       return from(this.unpaywallClient.getUnpaywallUrls(doiUnencoded) as Promise<UnpaywallUrls>);
     }).pipe(
-      tap(unpaywallUrls => {}),
       map(unpaywallUrls =>
         this.unpaywallUrlsToDisplayInfo(unpaywallUrls, avoidUnpaywallPublisherLinks)
       ),
@@ -61,7 +60,9 @@ export class UnpaywallService {
         const usedUnpaywall = !!(unpaywallButtonInfo.mainUrl && unpaywallButtonInfo.mainUrl !== '');
 
         if (usedUnpaywall) {
-          return unpaywallButtonInfo;
+          // Preserve any non-main-button display info (e.g., Browzine / secondary button)
+          // while overriding only the main button fields from the Unpaywall result.
+          return { ...displayInfo, ...unpaywallButtonInfo };
         }
         return displayInfo;
       }),
