@@ -404,17 +404,7 @@ export class ButtonInfoService {
         'Available Online'
       );
 
-      // If the link we pull from the viewModel doesn't already have /nde in the URL and we know we
-      // are navigating to the full display page within the NDE site, then we need to add /nde to the URL.
-      // Otherwise we may be linking off the NDE site and should not add /nde to the URL.
-      // Also, we only want to append the getit anchor to fulldisplay links.
-      const isFullDisplay = viewModel.directLink.includes('/fulldisplay');
-      const hasNde = viewModel.directLink.includes('/nde');
-      const anchor = '&state=#nui.getit.service_viewit';
-
-      const urlBase =
-        isFullDisplay && !hasNde ? `/nde${viewModel.directLink}` : viewModel.directLink;
-      const url = isFullDisplay ? `${urlBase}${anchor}` : urlBase;
+      const url = this.normalizePrimoDirectLink(viewModel.directLink);
 
       return {
         entityType: 'directLink',
@@ -425,6 +415,56 @@ export class ButtonInfoService {
       };
     }
     return null;
+  }
+
+  /**
+   * Primo directLink handling:
+   * - For fulldisplay links, ensure a single `/nde` prefix (avoid `/nde/nde`) and preserve/ensure
+   *   the getit fragment (`#nui.getit.service_viewit`) without duplicating `state` params.
+   * - For non-fulldisplay links, return as-is.
+   */
+  private normalizePrimoDirectLink(directLinkRaw: string): string {
+    const directLink = (directLinkRaw ?? '').trim();
+    if (!directLink) return directLink;
+
+    const isFullDisplay = directLink.includes('/fulldisplay');
+    if (!isFullDisplay) return directLink;
+
+    let parsed: URL;
+    try {
+      // Assume Primo always provides an absolute URL.
+      parsed = new URL(directLink);
+    } catch {
+      // If parsing fails, fall back to the previous behavior without adding more complexity.
+      return directLink;
+    }
+
+    // Ensure /nde prefix exactly once for fulldisplay paths.
+    // e.g. "/nde/nde/fulldisplay" => "/nde/fulldisplay"
+    const normalizeNdePath = (pathname: string): string => {
+      const p = pathname || '/';
+      if (p.startsWith('/nde/nde/')) return `/nde/${p.slice('/nde/nde/'.length)}`;
+      if (p.startsWith('/nde/')) return p;
+      if (p.startsWith('/fulldisplay')) return `/nde${p}`;
+      return p;
+    };
+    parsed.pathname = normalizeNdePath(parsed.pathname);
+
+    // If upstream has empty `state=` params (often produced by older "&state=#fragment" logic),
+    // drop only the empty ones and keep any non-empty states.
+    const states = parsed.searchParams.getAll('state');
+    if (states.some(s => s === '')) {
+      const nonEmpty = states.filter(Boolean);
+      parsed.searchParams.delete('state');
+      nonEmpty.forEach(s => parsed.searchParams.append('state', s));
+    }
+
+    // Ensure the anchor exists for fulldisplay links; keep any existing fragment.
+    if (!parsed.hash) {
+      parsed.hash = '#nui.getit.service_viewit';
+    }
+
+    return parsed.toString();
   }
 
   private getBrowZineWebLink(data: ArticleData | JournalData): string {

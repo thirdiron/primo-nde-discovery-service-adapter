@@ -1302,7 +1302,7 @@ describe('ButtonInfoService', () => {
 
       const viewModel: any = {
         onlineLinks: [],
-        directLink: '/fulldisplay/some/direct/link',
+        directLink: 'https://example.com/fulldisplay/some/direct/link',
         ariaLabel: 'Direct link aria label',
       };
 
@@ -1312,7 +1312,7 @@ describe('ButtonInfoService', () => {
       expect(result[1]).toEqual({
         source: 'directLink',
         entityType: 'directLink',
-        url: '/nde/fulldisplay/some/direct/link&state=#nui.getit.service_viewit',
+        url: 'https://example.com/nde/fulldisplay/some/direct/link#nui.getit.service_viewit',
         ariaLabel: 'Direct link aria label',
         label: 'Other online options', // From mock translation service, option when more than one item in the stack
       });
@@ -1337,7 +1337,7 @@ describe('ButtonInfoService', () => {
 
       const viewModel: any = {
         onlineLinks: [],
-        directLink: '/fulldisplay/some/direct/link',
+        directLink: 'https://example.com/fulldisplay/some/direct/link',
         ariaLabel: 'Direct link aria label',
       };
 
@@ -1347,7 +1347,7 @@ describe('ButtonInfoService', () => {
       expect(result[0]).toEqual({
         source: 'directLink',
         entityType: 'directLink',
-        url: '/nde/fulldisplay/some/direct/link&state=#nui.getit.service_viewit',
+        url: 'https://example.com/nde/fulldisplay/some/direct/link#nui.getit.service_viewit',
         ariaLabel: 'Direct link aria label',
         label: 'Available Online', // From mock translation service when only one option
       });
@@ -1372,13 +1372,13 @@ describe('ButtonInfoService', () => {
 
       const viewModel: any = {
         onlineLinks: [],
-        directLink: '/nde/some/direct/link',
+        directLink: 'https://example.com/nde/some/direct/link',
         ariaLabel: 'Direct link aria label',
       };
 
       const result = testService.buildCombinedLinks(displayInfo, viewModel);
 
-      expect(result[1].url).toBe('/nde/some/direct/link');
+      expect(result[1].url).toBe('https://example.com/nde/some/direct/link');
     });
 
     it('should build direct link with "/nde" path and anchor when directLink does not include /nde but includes /fulldisplay', async () => {
@@ -1400,14 +1400,14 @@ describe('ButtonInfoService', () => {
 
       const viewModel: any = {
         onlineLinks: [],
-        directLink: '/fulldisplay/some/direct/link',
+        directLink: 'https://example.com/fulldisplay/some/direct/link',
         ariaLabel: 'Direct link aria label',
       };
 
       const result = testService.buildCombinedLinks(displayInfo, viewModel);
 
       expect(result[1].url).toBe(
-        '/nde/fulldisplay/some/direct/link&state=#nui.getit.service_viewit'
+        'https://example.com/nde/fulldisplay/some/direct/link#nui.getit.service_viewit'
       );
     });
 
@@ -1430,13 +1430,13 @@ describe('ButtonInfoService', () => {
 
       const viewModel: any = {
         onlineLinks: [],
-        directLink: '/some/direct/link',
+        directLink: 'https://example.com/some/direct/link',
         ariaLabel: 'Direct link aria label',
       };
 
       const result = testService.buildCombinedLinks(displayInfo, viewModel);
 
-      expect(result[1].url).toBe('/some/direct/link');
+      expect(result[1].url).toBe('https://example.com/some/direct/link');
     });
 
     it('should not build direct link when showLinkResolverLink is false', async () => {
