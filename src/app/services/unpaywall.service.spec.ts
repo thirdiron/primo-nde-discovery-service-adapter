@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { firstValueFrom } from 'rxjs';
 
 import { UnpaywallService } from './unpaywall.service';
 import { MOCK_MODULE_PARAMETERS } from './config.service.spec';
@@ -33,6 +34,71 @@ describe('UnpaywallService', () => {
 
   it('should be created', () => {
     expect(service).toBeTruthy();
+  });
+
+  describe('makeUnpaywallCall (doi decoding)', () => {
+    it('should decode an encoded DOI before passing it to the Unpaywall library (prevents %2F -> %252F)', async () => {
+      const encodedDoi = '10.1038%2Fs41467-021-26227-6';
+      const expectedUnencodedDoi = '10.1038/s41467-021-26227-6';
+
+      const getUnpaywallUrls = jasmine
+        .createSpy('getUnpaywallUrls')
+        .and.returnValue(Promise.resolve({} as UnpaywallUrls));
+
+      // Ensure initUnpaywallClient() short-circuits and uses our spy client.
+      (service as any).unpaywallClient = { getUnpaywallUrls };
+
+      await firstValueFrom(
+        service.makeUnpaywallCall(
+          { status: 404, body: { data: {} } } as any,
+          DEFAULT_DISPLAY_WATERFALL_RESPONSE,
+          encodedDoi
+        )
+      );
+
+      expect(getUnpaywallUrls).toHaveBeenCalledWith(expectedUnencodedDoi);
+    });
+
+    it('should pass through an already-unencoded DOI unchanged', async () => {
+      const unencodedDoi = '10.1038/s41467-021-26227-6';
+
+      const getUnpaywallUrls = jasmine
+        .createSpy('getUnpaywallUrls')
+        .and.returnValue(Promise.resolve({} as UnpaywallUrls));
+
+      (service as any).unpaywallClient = { getUnpaywallUrls };
+
+      await firstValueFrom(
+        service.makeUnpaywallCall(
+          { status: 404, body: { data: {} } } as any,
+          DEFAULT_DISPLAY_WATERFALL_RESPONSE,
+          unencodedDoi
+        )
+      );
+
+      expect(getUnpaywallUrls).toHaveBeenCalledWith(unencodedDoi);
+    });
+
+    it('should fall back safely when DOI contains malformed percent-encoding', async () => {
+      // decodeURIComponent('...%2G...') throws, so we should pass the original string through.
+      const malformedEncodedDoi = '10.1038%2Gs41467-021-26227-6';
+
+      const getUnpaywallUrls = jasmine
+        .createSpy('getUnpaywallUrls')
+        .and.returnValue(Promise.resolve({} as UnpaywallUrls));
+
+      (service as any).unpaywallClient = { getUnpaywallUrls };
+
+      await firstValueFrom(
+        service.makeUnpaywallCall(
+          { status: 404, body: { data: {} } } as any,
+          DEFAULT_DISPLAY_WATERFALL_RESPONSE,
+          malformedEncodedDoi
+        )
+      );
+
+      expect(getUnpaywallUrls).toHaveBeenCalledWith(malformedEncodedDoi);
+    });
   });
 
   describe('unpaywallUrlsToDisplayInfo (mapping)', () => {

@@ -39,6 +39,8 @@ export class UnpaywallService {
   ): Observable<DisplayWaterfallResponse> {
     this.initUnpaywallClient();
 
+    const doiUnencoded = this.decodeDoiForUnpaywall(doi);
+
     if (!this.unpaywallClient?.getUnpaywallUrls) {
       this.debugLog.warn('Unpaywall.makeUnpaywallCall.skip_client_not_ready', {
         doi,
@@ -168,5 +170,16 @@ export class UnpaywallService {
       entityType: EntityType.Article,
       mainUrl,
     };
+  }
+
+  private decodeDoiForUnpaywall(input: string): string {
+    const trimmed = (input ?? '').trim();
+    try {
+      // For the normal case: "10.1038%2F..." -> "10.1038/..."
+      return decodeURIComponent(trimmed);
+    } catch {
+      // If input has malformed percent-encoding, fall back to original.
+      return trimmed;
+    }
   }
 }
