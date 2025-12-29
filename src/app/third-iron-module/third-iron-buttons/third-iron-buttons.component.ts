@@ -7,7 +7,7 @@ import { SearchEntityService } from '../../services/search-entity.service';
 import { ButtonInfoService } from '../../services/button-info.service';
 import { ConfigService } from 'src/app/services/config.service';
 import { ExlibrisStoreService } from 'src/app/services/exlibris-store.service';
-import { AsyncPipe, JsonPipe } from '@angular/common';
+import { AsyncPipe } from '@angular/common';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ArticleLinkButtonComponent } from 'src/app/components/article-link-button/article-link-button.component';
 import { MainButtonComponent } from 'src/app/components/main-button/main-button.component';
@@ -25,7 +25,6 @@ import { StackedDropdownComponent } from 'src/app/components/stacked-dropdown/st
     BrowzineButtonComponent,
     ArticleLinkButtonComponent,
     AsyncPipe,
-    JsonPipe,
     StackedDropdownComponent,
     MatIconModule,
     MatSelectModule,

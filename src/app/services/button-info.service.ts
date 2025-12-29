@@ -41,26 +41,6 @@ export class ButtonInfoService {
         const doi = this.searchEntityService.getDoi(entity);
         return this.httpService.getArticle(doi).pipe(
           catchError(err => {
-            // #region agent log
-            fetch('http://127.0.0.1:7243/ingest/6f464193-ba2e-4950-8450-e8a059b7fbe3', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                location: 'button-info.service.ts:getDisplayInfo:getArticle:catchError',
-                message: 'TI getArticle() errored before display/unpaywall waterfall',
-                data: {
-                  doiPresent: !!doi,
-                  errStatus: err?.status,
-                  errName: err?.name,
-                  errMessage: err?.message,
-                },
-                timestamp: Date.now(),
-                sessionId: 'debug-session',
-                runId: 'pre-fix',
-                hypothesisId: 'F',
-              }),
-            }).catch(() => {});
-            // #endregion
             // If the TI API 404s, our HttpService turns that into an error stream before we can
             // reach the normal `response.status === 404` fallback logic. In that specific case,
             // route directly into the Unpaywall fallback instead of failing the entire pipeline.
@@ -70,22 +50,6 @@ export class ButtonInfoService {
                 entityType: EntityType.Article,
               };
               const fake404Response: ApiResult = { status: 404, body: { data: {} } } as any;
-
-              // #region agent log
-              fetch('http://127.0.0.1:7243/ingest/6f464193-ba2e-4950-8450-e8a059b7fbe3', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  location: 'button-info.service.ts:getDisplayInfo:getArticle:catchError',
-                  message: 'TI 404 -> forcing Unpaywall fallback path',
-                  data: { doiPresent: true, forcedFallback: true },
-                  timestamp: Date.now(),
-                  sessionId: 'debug-session',
-                  runId: 'pre-fix',
-                  hypothesisId: 'A',
-                }),
-              }).catch(() => {});
-              // #endregion
 
               return this.unpaywallService.makeUnpaywallCall(fake404Response, displayInfo404, doi);
             }
@@ -106,28 +70,6 @@ export class ButtonInfoService {
                     entityType,
                     displayInfo.mainButtonType
                   ) && !!doi;
-
-                // #region agent log
-                fetch('http://127.0.0.1:7243/ingest/6f464193-ba2e-4950-8450-e8a059b7fbe3', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    location: 'button-info.service.ts:getDisplayInfo:mergeMap',
-                    message: 'Unpaywall fallback branch decision',
-                    data: {
-                      entityType,
-                      doiPresent: !!doi,
-                      tiStatus: (articleRes as any)?.status,
-                      mainButtonType: displayInfo?.mainButtonType,
-                      shouldFallback,
-                    },
-                    timestamp: Date.now(),
-                    sessionId: 'debug-session',
-                    runId: 'pre-fix',
-                    hypothesisId: 'A',
-                  }),
-                }).catch(() => {});
-                // #endregion
 
                 return shouldFallback
                   ? // fallback to Unpaywall
@@ -559,63 +501,18 @@ export class ButtonInfoService {
 
     // If we aren't dealing with an Article, don't continue with Unpaywall call
     if (!this.httpService.isArticle(data)) {
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/6f464193-ba2e-4950-8450-e8a059b7fbe3', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          location: 'button-info.service.ts:shouldMakeUnpaywallCall',
-          message: 'Unpaywall fallback REJECT (not an article)',
-          data: { entityType, tiStatus: (response as any)?.status, buttonType },
-          timestamp: Date.now(),
-          sessionId: 'debug-session',
-          runId: 'pre-fix',
-          hypothesisId: 'A',
-        }),
-      }).catch(() => {});
-      // #endregion
       return false;
     }
 
     // If unpaywall config is not enabled, don't continue with Unpaywall call
     const unpaywallEnabled = this.isUnpaywallEnabled();
     if (!unpaywallEnabled) {
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/6f464193-ba2e-4950-8450-e8a059b7fbe3', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          location: 'button-info.service.ts:shouldMakeUnpaywallCall',
-          message: 'Unpaywall fallback REJECT (unpaywall disabled)',
-          data: { entityType, tiStatus: (response as any)?.status, buttonType, unpaywallEnabled },
-          timestamp: Date.now(),
-          sessionId: 'debug-session',
-          runId: 'pre-fix',
-          hypothesisId: 'A',
-        }),
-      }).catch(() => {});
-      // #endregion
       return false;
     }
 
     // if we have an alert type button (retraction, EOC, problematic journal),
     // don't continue with Unpaywall call
     if (this.isAlertButton(buttonType)) {
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/6f464193-ba2e-4950-8450-e8a059b7fbe3', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          location: 'button-info.service.ts:shouldMakeUnpaywallCall',
-          message: 'Unpaywall fallback REJECT (alert button type)',
-          data: { entityType, tiStatus: (response as any)?.status, buttonType, unpaywallEnabled },
-          timestamp: Date.now(),
-          sessionId: 'debug-session',
-          runId: 'pre-fix',
-          hypothesisId: 'A',
-        }),
-      }).catch(() => {});
-      // #endregion
       return false;
     }
 
@@ -627,32 +524,6 @@ export class ButtonInfoService {
     const shouldFallback =
       response.status === 404 ||
       (!directToPDFUrl && !articleLinkUrl && !shouldAvoidUnpaywall && isUnpaywallUsable);
-
-    // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/6f464193-ba2e-4950-8450-e8a059b7fbe3', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        location: 'button-info.service.ts:shouldMakeUnpaywallCall',
-        message: 'Unpaywall fallback decision computed',
-        data: {
-          entityType,
-          tiStatus: (response as any)?.status,
-          buttonType,
-          unpaywallEnabled,
-          hasDirectToPDF: !!directToPDFUrl,
-          hasArticleLink: !!articleLinkUrl,
-          shouldAvoidUnpaywall,
-          isUnpaywallUsable,
-          shouldFallback,
-        },
-        timestamp: Date.now(),
-        sessionId: 'debug-session',
-        runId: 'pre-fix',
-        hypothesisId: 'A',
-      }),
-    }).catch(() => {});
-    // #endregion
 
     return shouldFallback;
   }

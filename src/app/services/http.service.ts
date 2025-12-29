@@ -84,32 +84,6 @@ export class HttpService {
   }
 
   private handleError(error: HttpErrorResponse) {
-    // #region agent log
-    const errorMessageRedacted =
-      typeof error?.message === 'string'
-        ? error.message.replace(/access_token=[^&\s]+/g, 'access_token=[REDACTED]')
-        : undefined;
-    fetch('http://127.0.0.1:7243/ingest/6f464193-ba2e-4950-8450-e8a059b7fbe3', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        location: 'http.service.ts:handleError',
-        message: 'HTTP error from TI API (caught by HttpService)',
-        data: {
-          status: error?.status,
-          statusText: error?.statusText,
-          // Do NOT log error.url because it can contain access tokens.
-          hasUrl: !!error?.url,
-          errorMessageRedacted,
-        },
-        timestamp: Date.now(),
-        sessionId: 'debug-session',
-        runId: 'pre-fix',
-        hypothesisId: 'F',
-      }),
-    }).catch(() => {});
-    // #endregion
-
     // Return an observable with a user-facing error message.
     console.error(`Backend returned code ${error.status}, body was: `, error.error);
 
