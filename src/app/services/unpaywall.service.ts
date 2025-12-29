@@ -97,7 +97,9 @@ export class UnpaywallService {
         });
 
         if (usedUnpaywall) {
-          return unpaywallButtonInfo;
+          // Preserve any non-main-button display info (e.g., Browzine / secondary button)
+          // while overriding only the main button fields from the Unpaywall result.
+          return { ...displayInfo, ...unpaywallButtonInfo };
         }
         return displayInfo;
       }),
