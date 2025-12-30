@@ -1,4 +1,4 @@
-import { TestBed } from '@angular/core/testing';
+import { fakeAsync, TestBed, tick } from '@angular/core/testing';
 import { NgZone } from '@angular/core';
 import { SHELL_ROUTER } from '../injection-tokens';
 import { NavigationService } from './navigation.service';
@@ -40,14 +40,12 @@ describe('NavigationService', () => {
 
     it('uses router.navigateByUrl for same-origin absolute URLs (same-tab)', () => {
       const origin = window.location.origin;
-      const url = `${origin}/fulldisplay?state=%23nui.getit.service_viewit`;
+      const url = `${origin}/fulldisplay#nui.getit.service_viewit`;
 
       const openSpy = spyOn(window, 'open');
       service.openUrl(url);
 
-      expect(routerNavigateByUrl).toHaveBeenCalledWith(
-        '/fulldisplay?state=%23nui.getit.service_viewit'
-      );
+      expect(routerNavigateByUrl).toHaveBeenCalledWith('/fulldisplay#nui.getit.service_viewit');
       expect(openSpy).not.toHaveBeenCalled();
     });
 
@@ -61,6 +59,28 @@ describe('NavigationService', () => {
       expect(openSpy).not.toHaveBeenCalled();
     });
 
+    it('re-applies hash after router navigation for fulldisplay links (patch to fix scrolling issue)', fakeAsync(() => {
+      const origin = window.location.origin;
+      const url = `${origin}/fulldisplay?x=1#nui.getit.service_viewit`;
+
+      window.location.hash = '';
+
+      const openSpy = spyOn(window, 'open');
+      service.openUrl(url);
+
+      // navigateByUrl should be called immediately
+      expect(routerNavigateByUrl).toHaveBeenCalledWith('/fulldisplay?x=1#nui.getit.service_viewit');
+      expect(openSpy).not.toHaveBeenCalled();
+
+      // Hash re-apply scheduled (0ms and 250ms). Tick enough to run the first attempt.
+      tick(0);
+      expect(window.location.hash).toBe('#nui.getit.service_viewit');
+
+      // Second attempt should not break anything.
+      tick(250);
+      expect(window.location.hash).toBe('#nui.getit.service_viewit');
+    }));
+
     it('does not use router.navigateByUrl for external-origin URLs (opens new tab)', () => {
       const url = 'https://example.com/external/link';
 
@@ -73,7 +93,7 @@ describe('NavigationService', () => {
 
     it('respects explicit target override (_blank) even for same-origin URLs', () => {
       const origin = window.location.origin;
-      const url = `${origin}/fulldisplay?state=%23nui.getit.service_viewit`;
+      const url = `${origin}/fulldisplay?#nui.getit.service_viewit`;
 
       const openSpy = spyOn(window, 'open');
       service.openUrl(url, '_blank');
@@ -115,7 +135,7 @@ describe('NavigationService', () => {
     });
 
     it('opens same-origin URLs in the same tab when no router is available', () => {
-      const url = '/fulldisplay?state=%23nui.getit.service_viewit';
+      const url = '/fulldisplay?#nui.getit.service_viewit';
 
       const openSpy = spyOn(window, 'open');
       service.openUrl(url);

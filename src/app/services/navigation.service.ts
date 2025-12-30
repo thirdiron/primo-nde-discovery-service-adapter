@@ -46,12 +46,22 @@ export class NavigationService {
         willAttemptRouter: !!this.shellRouter && !!routerUrl,
       });
       if (this.shellRouter && routerUrl) {
+        const postNavHash = this.getFulldisplayHash(routerUrl);
         // Ensure we run inside Angular zone even if this code is invoked from a custom element.
         this.debugLog.debug('Navigation.openUrl.router.navigateByUrl', {
           routerUrl,
         });
         this.ngZone.run(() => {
-          void this.shellRouter!.navigateByUrl(routerUrl);
+          void this.shellRouter!.navigateByUrl(routerUrl).then(
+            () => {
+              if (postNavHash) this.reapplyHashForScroll(postNavHash);
+            },
+            err => {
+              this.debugLog.warn('Navigation.openUrl.router.navigateByUrl.error', {
+                err: this.debugLog.safeError(err),
+              });
+            }
+          );
         });
         return;
       }
@@ -138,5 +148,49 @@ export class NavigationService {
       locationOrigin: window.location.origin,
     });
     return inferred;
+  }
+
+  /**
+   * When we navigate to fulldisplay via SPA routing, some host apps do not perform anchor scrolling
+   * (or they attempt it before the target element exists). As a best-effort workaround, if the URL
+   * includes a fragment for a fulldisplay link, we re-apply the fragment after navigation completes.
+   */
+  private getFulldisplayHash(routerUrl: string): string | null {
+    let parsed: URL;
+    try {
+      parsed = new URL(routerUrl, window.location.href);
+    } catch {
+      return null;
+    }
+
+    if (!parsed.pathname.includes('/fulldisplay')) return null;
+    if (!parsed.hash) return null;
+    return parsed.hash;
+  }
+
+  private reapplyHashForScroll(hash: string): void {
+    // Normalize to include leading '#'
+    const normalized = hash.startsWith('#') ? hash : `#${hash}`;
+
+    this.debugLog.debug('Navigation.reapplyHashForScroll.schedule', { hash: normalized });
+
+    // Try soon, then once more after a short delay to account for async rendering.
+    const apply = () => {
+      try {
+        // Setting the same hash often won't trigger scrolling; clear first, then set.
+        if (window.location.hash === normalized) {
+          window.location.hash = '';
+        }
+        window.location.hash = normalized;
+        this.debugLog.debug('Navigation.reapplyHashForScroll.applied', { hash: normalized });
+      } catch (err) {
+        this.debugLog.warn('Navigation.reapplyHashForScroll.error', {
+          err: this.debugLog.safeError(err),
+        });
+      }
+    };
+
+    setTimeout(apply, 0);
+    setTimeout(apply, 250);
   }
 }
