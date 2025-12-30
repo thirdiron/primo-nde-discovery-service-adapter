@@ -419,8 +419,8 @@ export class ButtonInfoService {
 
   /**
    * Primo directLink handling:
-   * - Preserve/ensure the getit `state` query param (`state=%23nui.getit.service_viewit`)
-   *   without duplicating `state` params.
+   * - For fulldisplay links, ensure the fragment `#nui.getit.service_viewit` so the host page
+   *   can jump/scroll to the "Get It" section.
    */
   private normalizePrimoDirectLink(directLinkRaw: string): string {
     const directLink = (directLinkRaw ?? '').trim();
@@ -461,17 +461,20 @@ export class ButtonInfoService {
       hash: parsed.hash,
     });
 
-    // Fulldisplay links: normalize to a single desired state param.
-    // IMPORTANT: `#` must be URL-encoded to be part of a query param; URLSearchParams handles this
-    // automatically when the URL is serialized (e.g. `%23nui.getit.service_viewit`).
-    const desiredState = '#nui.getit.service_viewit';
-    const existingStates = parsed.searchParams.getAll('state');
-    parsed.searchParams.delete('state');
-    parsed.searchParams.set('state', desiredState);
-    this.debugLog.debug('ButtonInfo.normalizePrimoDirectLink.stateParams.set', {
-      before: existingStates,
-      after: [desiredState],
-    });
+    // Fulldisplay links: ensure the fragment is set for anchor scrolling.
+    const desiredHash = '#nui.getit.service_viewit';
+    const beforeHash = parsed.hash;
+    if (beforeHash !== desiredHash) {
+      parsed.hash = desiredHash;
+      this.debugLog.debug('ButtonInfo.normalizePrimoDirectLink.hash.set', {
+        before: beforeHash,
+        after: parsed.hash,
+      });
+    } else {
+      this.debugLog.debug('ButtonInfo.normalizePrimoDirectLink.hash.keep', {
+        hash: beforeHash,
+      });
+    }
 
     const out = isAbsolute ? parsed.toString() : `${parsed.pathname}${parsed.search}${parsed.hash}`;
     this.debugLog.debug('ButtonInfo.normalizePrimoDirectLink.result', {
