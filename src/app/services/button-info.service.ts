@@ -463,6 +463,22 @@ export class ButtonInfoService {
 
     // Fulldisplay links: ensure the fragment is set for anchor scrolling.
     const desiredHash = '#nui.getit.service_viewit';
+    // If the incoming link already has a `state` query param that encodes this anchor,
+    // remove it so the router URL doesn't end up as `...&state=%23nui.getit.service_viewit`
+    // (we want a real fragment for scrolling).
+    const existingStates = parsed.searchParams.getAll('state');
+    if (existingStates.length) {
+      const keep = existingStates.filter(s => !String(s).includes('nui.getit.service_viewit'));
+      if (keep.length !== existingStates.length) {
+        parsed.searchParams.delete('state');
+        keep.forEach(s => parsed.searchParams.append('state', s));
+        this.debugLog.debug('ButtonInfo.normalizePrimoDirectLink.stateParams.removedGetIt', {
+          before: existingStates,
+          after: keep,
+        });
+      }
+    }
+
     const beforeHash = parsed.hash;
     if (beforeHash !== desiredHash) {
       parsed.hash = desiredHash;
