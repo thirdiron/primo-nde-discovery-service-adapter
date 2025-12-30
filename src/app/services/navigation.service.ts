@@ -50,6 +50,7 @@ export class NavigationService {
         // Ensure we run inside Angular zone even if this code is invoked from a custom element.
         this.debugLog.debug('Navigation.openUrl.router.navigateByUrl', {
           routerUrl,
+          postNavHash,
         });
         this.ngZone.run(() => {
           void this.shellRouter!.navigateByUrl(routerUrl).then(
