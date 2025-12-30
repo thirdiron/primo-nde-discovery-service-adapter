@@ -419,9 +419,8 @@ export class ButtonInfoService {
 
   /**
    * Primo directLink handling:
-   * - For fulldisplay links, ensure a single `/nde` prefix (avoid `/nde/nde`) and preserve/ensure
-   *   the getit fragment (`#nui.getit.service_viewit`) without duplicating `state` params.
-   * - For non-fulldisplay links, return as-is.
+   * - Preserve/ensure the getit `state` query param (`state=%23nui.getit.service_viewit`)
+   *   without duplicating `state` params.
    */
   private normalizePrimoDirectLink(directLinkRaw: string): string {
     const directLink = (directLinkRaw ?? '').trim();
@@ -462,52 +461,17 @@ export class ButtonInfoService {
       hash: parsed.hash,
     });
 
-    // Ensure /nde prefix exactly once for fulldisplay paths.
-    // e.g. "/nde/nde/fulldisplay" => "/nde/fulldisplay"
-    const normalizeNdePath = (pathname: string): string => {
-      const p = pathname || '/';
-      if (p.startsWith('/nde/nde/')) return `/nde/${p.slice('/nde/nde/'.length)}`;
-      if (p.startsWith('/nde/')) return p;
-      if (p.startsWith('/fulldisplay')) return `/nde${p}`;
-      return p;
-    };
-    const originalPathname = parsed.pathname;
-    parsed.pathname = normalizeNdePath(parsed.pathname);
-    if (parsed.pathname !== originalPathname) {
-      this.debugLog.debug('ButtonInfo.normalizePrimoDirectLink.pathname.normalized', {
-        before: originalPathname,
-        after: parsed.pathname,
-      });
-    }
-
-    // If upstream has empty `state=` params (often produced by older "&state=#fragment" logic),
-    // drop only the empty ones and keep any non-empty states.
-    const states = parsed.searchParams.getAll('state');
-    if (states.some(s => s === '')) {
-      const nonEmpty = states.filter(Boolean);
-      parsed.searchParams.delete('state');
-      nonEmpty.forEach(s => parsed.searchParams.append('state', s));
-      this.debugLog.debug('ButtonInfo.normalizePrimoDirectLink.stateParams.cleaned', {
-        before: states,
-        after: nonEmpty,
-      });
-    }
-
-    // Ensure the "Get It" fragment is set for fulldisplay links.
-    // We’ve seen real-world fulldisplay URLs arrive with empty or unrelated hashes; enforce the desired one.
-    const desiredHash = '#nui.getit.service_viewit';
-    const beforeHash = parsed.hash;
-    if (!beforeHash || beforeHash === '#' || !beforeHash.includes('nui.getit.service_viewit')) {
-      parsed.hash = desiredHash;
-      this.debugLog.debug('ButtonInfo.normalizePrimoDirectLink.hash.set', {
-        before: beforeHash,
-        after: parsed.hash,
-      });
-    } else {
-      this.debugLog.debug('ButtonInfo.normalizePrimoDirectLink.hash.keep', {
-        hash: beforeHash,
-      });
-    }
+    // Fulldisplay links: normalize to a single desired state param.
+    // IMPORTANT: `#` must be URL-encoded to be part of a query param; URLSearchParams handles this
+    // automatically when the URL is serialized (e.g. `%23nui.getit.service_viewit`).
+    const desiredState = '#nui.getit.service_viewit';
+    const existingStates = parsed.searchParams.getAll('state');
+    parsed.searchParams.delete('state');
+    parsed.searchParams.set('state', desiredState);
+    this.debugLog.debug('ButtonInfo.normalizePrimoDirectLink.stateParams.set', {
+      before: existingStates,
+      after: [desiredState],
+    });
 
     const out = isAbsolute ? parsed.toString() : `${parsed.pathname}${parsed.search}${parsed.hash}`;
     this.debugLog.debug('ButtonInfo.normalizePrimoDirectLink.result', {

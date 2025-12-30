@@ -1312,7 +1312,7 @@ describe('ButtonInfoService', () => {
       expect(result[1]).toEqual({
         source: 'directLink',
         entityType: 'directLink',
-        url: 'https://example.com/nde/fulldisplay/some/direct/link#nui.getit.service_viewit',
+        url: 'https://example.com/fulldisplay/some/direct/link?state=%23nui.getit.service_viewit',
         ariaLabel: 'Direct link aria label',
         label: 'Other online options', // From mock translation service, option when more than one item in the stack
       });
@@ -1347,13 +1347,13 @@ describe('ButtonInfoService', () => {
       expect(result[0]).toEqual({
         source: 'directLink',
         entityType: 'directLink',
-        url: 'https://example.com/nde/fulldisplay/some/direct/link#nui.getit.service_viewit',
+        url: 'https://example.com/fulldisplay/some/direct/link?state=%23nui.getit.service_viewit',
         ariaLabel: 'Direct link aria label',
         label: 'Available Online', // From mock translation service when only one option
       });
     });
 
-    it('should build direct link with "/nde" path and without anchor when directLink includes /nde but not /fulldisplay', async () => {
+    it('should build direct link without anchor when directLink does not include /fulldisplay', async () => {
       const mockConfig = { ...MOCK_MODULE_PARAMETERS };
       mockConfig.showLinkResolverLink = true;
 
@@ -1381,7 +1381,7 @@ describe('ButtonInfoService', () => {
       expect(result[1].url).toBe('https://example.com/nde/some/direct/link');
     });
 
-    it('should build direct link with "/nde" path and anchor when directLink does not include /nde but includes /fulldisplay', async () => {
+    it('should build direct link with anchor when directLink includes /fulldisplay', async () => {
       const mockConfig = { ...MOCK_MODULE_PARAMETERS };
       mockConfig.showLinkResolverLink = true;
 
@@ -1400,43 +1400,15 @@ describe('ButtonInfoService', () => {
 
       const viewModel: any = {
         onlineLinks: [],
-        directLink: 'https://example.com/fulldisplay/some/direct/link',
+        directLink: 'https://example.com/nde/fulldisplay/some/direct/link',
         ariaLabel: 'Direct link aria label',
       };
 
       const result = testService.buildCombinedLinks(displayInfo, viewModel);
 
       expect(result[1].url).toBe(
-        'https://example.com/nde/fulldisplay/some/direct/link#nui.getit.service_viewit'
+        'https://example.com/nde/fulldisplay/some/direct/link?state=%23nui.getit.service_viewit'
       );
-    });
-
-    it('should build direct link without "/nde" path and without anchor when directLink does not include /nde and does not include /fulldisplay', async () => {
-      const mockConfig = { ...MOCK_MODULE_PARAMETERS };
-      mockConfig.showLinkResolverLink = true;
-
-      const testBed = await createTestModule(mockConfig);
-      const testService = testBed.inject(ButtonInfoService);
-
-      const displayInfo: DisplayWaterfallResponse = {
-        entityType: EntityType.Article,
-        mainButtonType: ButtonType.DirectToPDF,
-        mainUrl: 'https://example.com/pdf',
-        secondaryUrl: '',
-        showSecondaryButton: false,
-        showBrowzineButton: false,
-        browzineUrl: '',
-      };
-
-      const viewModel: any = {
-        onlineLinks: [],
-        directLink: 'https://example.com/some/direct/link',
-        ariaLabel: 'Direct link aria label',
-      };
-
-      const result = testService.buildCombinedLinks(displayInfo, viewModel);
-
-      expect(result[1].url).toBe('https://example.com/some/direct/link');
     });
 
     it('should build fulldisplay direct link as a relative URL when Primo provides a relative URL', async () => {
@@ -1458,39 +1430,14 @@ describe('ButtonInfoService', () => {
 
       const viewModel: any = {
         onlineLinks: [],
-        directLink: '/fulldisplay/some/direct/link',
+        directLink: '/nde/fulldisplay/some/direct/link',
         ariaLabel: 'Direct link aria label',
       };
 
       const result = testService.buildCombinedLinks(displayInfo, viewModel);
-      expect(result[1].url).toBe('/nde/fulldisplay/some/direct/link#nui.getit.service_viewit');
-    });
-
-    it('should de-duplicate /nde/nde in fulldisplay relative URLs', async () => {
-      const mockConfig = { ...MOCK_MODULE_PARAMETERS };
-      mockConfig.showLinkResolverLink = true;
-
-      const testBed = await createTestModule(mockConfig);
-      const testService = testBed.inject(ButtonInfoService);
-
-      const displayInfo: DisplayWaterfallResponse = {
-        entityType: EntityType.Article,
-        mainButtonType: ButtonType.DirectToPDF,
-        mainUrl: 'https://example.com/pdf',
-        secondaryUrl: '',
-        showSecondaryButton: false,
-        showBrowzineButton: false,
-        browzineUrl: '',
-      };
-
-      const viewModel: any = {
-        onlineLinks: [],
-        directLink: '/nde/nde/fulldisplay/some/direct/link',
-        ariaLabel: 'Direct link aria label',
-      };
-
-      const result = testService.buildCombinedLinks(displayInfo, viewModel);
-      expect(result[1].url).toBe('/nde/fulldisplay/some/direct/link#nui.getit.service_viewit');
+      expect(result[1].url).toBe(
+        '/nde/fulldisplay/some/direct/link?state=%23nui.getit.service_viewit'
+      );
     });
 
     it('should not build direct link when showLinkResolverLink is false', async () => {
