@@ -1439,6 +1439,60 @@ describe('ButtonInfoService', () => {
       expect(result[1].url).toBe('https://example.com/some/direct/link');
     });
 
+    it('should build fulldisplay direct link as a relative URL when Primo provides a relative URL', async () => {
+      const mockConfig = { ...MOCK_MODULE_PARAMETERS };
+      mockConfig.showLinkResolverLink = true;
+
+      const testBed = await createTestModule(mockConfig);
+      const testService = testBed.inject(ButtonInfoService);
+
+      const displayInfo: DisplayWaterfallResponse = {
+        entityType: EntityType.Article,
+        mainButtonType: ButtonType.DirectToPDF,
+        mainUrl: 'https://example.com/pdf',
+        secondaryUrl: '',
+        showSecondaryButton: false,
+        showBrowzineButton: false,
+        browzineUrl: '',
+      };
+
+      const viewModel: any = {
+        onlineLinks: [],
+        directLink: '/fulldisplay/some/direct/link',
+        ariaLabel: 'Direct link aria label',
+      };
+
+      const result = testService.buildCombinedLinks(displayInfo, viewModel);
+      expect(result[1].url).toBe('/nde/fulldisplay/some/direct/link#nui.getit.service_viewit');
+    });
+
+    it('should de-duplicate /nde/nde in fulldisplay relative URLs', async () => {
+      const mockConfig = { ...MOCK_MODULE_PARAMETERS };
+      mockConfig.showLinkResolverLink = true;
+
+      const testBed = await createTestModule(mockConfig);
+      const testService = testBed.inject(ButtonInfoService);
+
+      const displayInfo: DisplayWaterfallResponse = {
+        entityType: EntityType.Article,
+        mainButtonType: ButtonType.DirectToPDF,
+        mainUrl: 'https://example.com/pdf',
+        secondaryUrl: '',
+        showSecondaryButton: false,
+        showBrowzineButton: false,
+        browzineUrl: '',
+      };
+
+      const viewModel: any = {
+        onlineLinks: [],
+        directLink: '/nde/nde/fulldisplay/some/direct/link',
+        ariaLabel: 'Direct link aria label',
+      };
+
+      const result = testService.buildCombinedLinks(displayInfo, viewModel);
+      expect(result[1].url).toBe('/nde/fulldisplay/some/direct/link#nui.getit.service_viewit');
+    });
+
     it('should not build direct link when showLinkResolverLink is false', async () => {
       const mockConfig = { ...MOCK_MODULE_PARAMETERS };
       mockConfig.showLinkResolverLink = false;

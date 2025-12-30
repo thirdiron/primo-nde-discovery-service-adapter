@@ -438,10 +438,13 @@ export class ButtonInfoService {
       return directLink;
     }
 
+    // Primo sometimes gives absolute URLs and sometimes root-relative URLs.
+    // Preserve the "shape" of the input when returning the normalized link.
+    const isAbsolute = /^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(directLink) || directLink.startsWith('//');
+
     let parsed: URL;
     try {
-      // Assume Primo always provides an absolute URL.
-      parsed = new URL(directLink);
+      parsed = new URL(directLink, window.location.href);
     } catch {
       // If parsing fails, fall back to the previous behavior without adding more complexity.
       this.debugLog.warn('ButtonInfo.normalizePrimoDirectLink.parseError', {
@@ -452,6 +455,7 @@ export class ButtonInfoService {
 
     this.debugLog.debug('ButtonInfo.normalizePrimoDirectLink.parsed', {
       href: this.debugLog.redactUrlTokens(parsed.href),
+      isAbsoluteInput: isAbsolute,
       origin: parsed.origin,
       pathname: parsed.pathname,
       search: parsed.search,
@@ -505,9 +509,10 @@ export class ButtonInfoService {
       });
     }
 
-    const out = parsed.toString();
+    const out = isAbsolute ? parsed.toString() : `${parsed.pathname}${parsed.search}${parsed.hash}`;
     this.debugLog.debug('ButtonInfo.normalizePrimoDirectLink.result', {
       url: this.debugLog.redactUrlTokens(out),
+      isAbsoluteOutput: isAbsolute,
     });
     return out;
   }
