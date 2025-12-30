@@ -425,10 +425,18 @@ export class ButtonInfoService {
    */
   private normalizePrimoDirectLink(directLinkRaw: string): string {
     const directLink = (directLinkRaw ?? '').trim();
-    if (!directLink) return directLink;
+    if (!directLink) {
+      this.debugLog.debug('ButtonInfo.normalizePrimoDirectLink.skip.empty', { directLinkRaw });
+      return directLink;
+    }
 
     const isFullDisplay = directLink.includes('/fulldisplay');
-    if (!isFullDisplay) return directLink;
+    if (!isFullDisplay) {
+      this.debugLog.debug('ButtonInfo.normalizePrimoDirectLink.skip.notFullDisplay', {
+        directLink: this.debugLog.redactUrlTokens(directLink),
+      });
+      return directLink;
+    }
 
     let parsed: URL;
     try {
@@ -436,8 +444,19 @@ export class ButtonInfoService {
       parsed = new URL(directLink);
     } catch {
       // If parsing fails, fall back to the previous behavior without adding more complexity.
+      this.debugLog.warn('ButtonInfo.normalizePrimoDirectLink.parseError', {
+        directLink: this.debugLog.redactUrlTokens(directLink),
+      });
       return directLink;
     }
+
+    this.debugLog.debug('ButtonInfo.normalizePrimoDirectLink.parsed', {
+      href: this.debugLog.redactUrlTokens(parsed.href),
+      origin: parsed.origin,
+      pathname: parsed.pathname,
+      search: parsed.search,
+      hash: parsed.hash,
+    });
 
     // Ensure /nde prefix exactly once for fulldisplay paths.
     // e.g. "/nde/nde/fulldisplay" => "/nde/fulldisplay"
@@ -448,7 +467,14 @@ export class ButtonInfoService {
       if (p.startsWith('/fulldisplay')) return `/nde${p}`;
       return p;
     };
+    const originalPathname = parsed.pathname;
     parsed.pathname = normalizeNdePath(parsed.pathname);
+    if (parsed.pathname !== originalPathname) {
+      this.debugLog.debug('ButtonInfo.normalizePrimoDirectLink.pathname.normalized', {
+        before: originalPathname,
+        after: parsed.pathname,
+      });
+    }
 
     // If upstream has empty `state=` params (often produced by older "&state=#fragment" logic),
     // drop only the empty ones and keep any non-empty states.
@@ -457,14 +483,33 @@ export class ButtonInfoService {
       const nonEmpty = states.filter(Boolean);
       parsed.searchParams.delete('state');
       nonEmpty.forEach(s => parsed.searchParams.append('state', s));
+      this.debugLog.debug('ButtonInfo.normalizePrimoDirectLink.stateParams.cleaned', {
+        before: states,
+        after: nonEmpty,
+      });
     }
 
-    // Ensure the anchor exists for fulldisplay links; keep any existing fragment.
-    if (!parsed.hash) {
-      parsed.hash = '#nui.getit.service_viewit';
+    // Ensure the "Get It" fragment is set for fulldisplay links.
+    // We’ve seen real-world fulldisplay URLs arrive with empty or unrelated hashes; enforce the desired one.
+    const desiredHash = '#nui.getit.service_viewit';
+    const beforeHash = parsed.hash;
+    if (!beforeHash || beforeHash === '#' || !beforeHash.includes('nui.getit.service_viewit')) {
+      parsed.hash = desiredHash;
+      this.debugLog.debug('ButtonInfo.normalizePrimoDirectLink.hash.set', {
+        before: beforeHash,
+        after: parsed.hash,
+      });
+    } else {
+      this.debugLog.debug('ButtonInfo.normalizePrimoDirectLink.hash.keep', {
+        hash: beforeHash,
+      });
     }
 
-    return parsed.toString();
+    const out = parsed.toString();
+    this.debugLog.debug('ButtonInfo.normalizePrimoDirectLink.result', {
+      url: this.debugLog.redactUrlTokens(out),
+    });
+    return out;
   }
 
   private getBrowZineWebLink(data: ArticleData | JournalData): string {
