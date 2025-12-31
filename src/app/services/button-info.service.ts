@@ -441,14 +441,35 @@ export class ButtonInfoService {
       // (`/view/action/uresolver.do?...`). For "Other online options" we want to navigate to fulldisplay
       // for the currently selected record, so if we detect a resolver-style directLink, fall back to
       // the current window location (which carries the correct docid).
-      // IMPORTANT: Only apply this fallback when we are rendering "Other online options" (hasOtherLinks).
-      // For the primary "Available Online" button, the resolver URL may be the desired target.
-      const isResolverDirectLink = raw.includes('/view/action/uresolver.do');
+      const isResolverDirectLink = !raw.includes('/fulldisplay');
       const isOnFullDisplay = window.location.pathname.includes('/fulldisplay');
-      const shouldUseWindowLocation = hasOtherLinks && isResolverDirectLink && isOnFullDisplay;
+      const urlDocid = (() => {
+        try {
+          return new URL(window.location.href).searchParams.get('docid');
+        } catch {
+          return null;
+        }
+      })();
+      const directLinkDocid = (() => {
+        try {
+          // directLink can be absolute or relative
+          return new URL(raw, window.location.href).searchParams.get('docid');
+        } catch {
+          return null;
+        }
+      })();
+      const hasUrlDocid = !!urlDocid;
+      const hasDirectLinkDocid = !!directLinkDocid;
+      const isDocidMatch = hasUrlDocid && hasDirectLinkDocid && urlDocid === directLinkDocid;
+      const isDocidMismatch = hasUrlDocid && hasDirectLinkDocid && urlDocid !== directLinkDocid;
+
+      // Policy (applies for BOTH labels):
+      // - If directLink has a docid and it matches the current URL docid, trust directLink.
+      // - Otherwise, if we're on fulldisplay, use window.location (which is the host's own fulldisplay URL).
+      const shouldUseWindowLocation = !isDocidMatch && isOnFullDisplay;
 
       // #region agent log
-      if ((globalThis as any).__TI_NDE_AGENT_LOG_ENABLED__ === true && shouldUseWindowLocation) {
+      if ((globalThis as any).__TI_NDE_AGENT_LOG_ENABLED__ === true && isOnFullDisplay) {
         fetch('http://127.0.0.1:7243/ingest/6f464193-ba2e-4950-8450-e8a059b7fbe3', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -457,11 +478,17 @@ export class ButtonInfoService {
             runId: 'run7',
             hypothesisId: 'H10',
             location: 'button-info.service.ts:buildPrimoDirectLinkBase',
-            message: 'directLink is resolver; using window.location for fulldisplay link',
+            message: shouldUseWindowLocation
+              ? 'using window.location for fulldisplay link (docid mismatch or missing)'
+              : 'using viewModel.directLink (docid match)',
             data: {
               hasOtherLinks,
               isResolverDirectLink,
               isOnFullDisplay,
+              isDocidMismatch,
+              urlDocid,
+              directLinkDocid,
+              isDocidMatch,
               directLink: this.debugLog.redactUrlTokens(raw),
               hrefPath: `${window.location.pathname}${window.location.search}${window.location.hash}`,
             },
