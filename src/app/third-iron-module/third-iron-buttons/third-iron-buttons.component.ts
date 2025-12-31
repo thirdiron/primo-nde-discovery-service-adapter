@@ -39,20 +39,60 @@ import { DebugLogService } from 'src/app/services/debug-log.service';
   encapsulation: ViewEncapsulation.None,
 })
 export class ThirdIronButtonsComponent {
-  // This holds the latest hostComponent.searchResult record and replays it to new subscribers.
-  // This matters because the host can change records over time, and we want our addon to react (re-run enhance() with the new record)
-  // even if the host doesn’t update the store selection immediately.
+  /**
+   * **Host record proxy stream**.
+   * We push whatever the host considers the "current record" (`hostComponent.searchResult`) into this
+   * ReplaySubject so:
+   * - new subscribers immediately receive the latest record (ReplaySubject(1))
+   * - we can react when the host navigates records even if ExLibris store selection is stale/unset
+   */
   private hostSearchResult$ = new ReplaySubject<SearchEntity | null>(1);
+
+  /**
+   * **Host view model proxy stream**.
+   * The host provides `hostComponent.viewModel$`, but in practice the host may:
+   * - swap the observable instance over time, or
+   * - mutate hostComponent without re-triggering Angular @Input setters here.
+   *
+   * We subscribe to the current host `viewModel$` and proxy emissions into this stable ReplaySubject
+   * so our link-building always uses the latest PrimoViewModel.
+   */
   private hostViewModel$ = new ReplaySubject<PrimoViewModel>(1);
   private hostViewModelSub: Subscription | null = null;
   private lastHostViewModelRef: unknown = null;
   private lastHostRecordId: string | null = null;
+
+  /**
+   * Backing field for the `@Input() hostComponent` setter/getter.
+   * We use a setter so we can run side-effects (push latest record + bind viewModel$) whenever the
+   * host updates the input.
+   */
   private _hostComponent!: any;
 
   // Setup setter/getter to keep hostComponent up to date when user navigates records
   @Input()
   set hostComponent(value: any) {
     this._hostComponent = value;
+
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/6f464193-ba2e-4950-8450-e8a059b7fbe3', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sessionId: 'debug-session',
+        runId: 'run1',
+        hypothesisId: 'H1',
+        location: 'third-iron-buttons.component.ts:hostComponent:set',
+        message: 'hostComponent setter called',
+        data: {
+          hasHost: !!value,
+          recordId: value?.searchResult?.pnx?.control?.recordid?.[0] ?? null,
+          hasViewModel$: !!value?.viewModel$,
+        },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion agent log
 
     // Push the latest host searchResult so we can react when host navigates records.
     this.hostSearchResult$.next((this._hostComponent?.searchResult as SearchEntity) ?? null);
@@ -96,6 +136,23 @@ export class ThirdIronButtonsComponent {
     const host = this._hostComponent;
     const nextRecord = (host?.searchResult as SearchEntity) ?? null;
     const nextId = nextRecord?.pnx?.control?.recordid?.[0] ?? null;
+
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/6f464193-ba2e-4950-8450-e8a059b7fbe3', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sessionId: 'debug-session',
+        runId: 'run1',
+        hypothesisId: 'H1',
+        location: 'third-iron-buttons.component.ts:ngDoCheck',
+        message: 'ngDoCheck host record id check',
+        data: { nextId, lastId: this.lastHostRecordId, changed: nextId !== this.lastHostRecordId },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion agent log
+
     if (nextId !== this.lastHostRecordId) {
       this.lastHostRecordId = nextId;
       this.hostSearchResult$.next(nextRecord);
@@ -112,7 +169,25 @@ export class ThirdIronButtonsComponent {
   }
 
   private bindHostViewModel() {
+    // Re-bind only when the host swaps the `viewModel$` reference (common in some MF/host patterns).
     const vmRef = this._hostComponent?.viewModel$ ?? null;
+
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/6f464193-ba2e-4950-8450-e8a059b7fbe3', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sessionId: 'debug-session',
+        runId: 'run1',
+        hypothesisId: 'H2',
+        location: 'third-iron-buttons.component.ts:bindHostViewModel',
+        message: 'bindHostViewModel check',
+        data: { hasVmRef: !!vmRef, vmRefChanged: !!vmRef && vmRef !== this.lastHostViewModelRef },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion agent log
+
     if (!vmRef || vmRef === this.lastHostViewModelRef) return;
 
     this.lastHostViewModelRef = vmRef;
@@ -129,6 +204,26 @@ export class ThirdIronButtonsComponent {
           directLink: (vm as any)?.directLink ?? null,
           onlineLinksCount: (vm as any)?.onlineLinks?.length ?? 0,
         });
+
+        // #region agent log
+        fetch('http://127.0.0.1:7243/ingest/6f464193-ba2e-4950-8450-e8a059b7fbe3', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            sessionId: 'debug-session',
+            runId: 'run1',
+            hypothesisId: 'H3',
+            location: 'third-iron-buttons.component.ts:hostViewModelSub:next',
+            message: 'host viewModel$ emitted',
+            data: {
+              directLink: (vm as any)?.directLink ?? null,
+              onlineLinksCount: (vm as any)?.onlineLinks?.length ?? 0,
+              hostRecordId: this._hostComponent?.searchResult?.pnx?.control?.recordid?.[0] ?? null,
+            },
+            timestamp: Date.now(),
+          }),
+        }).catch(() => {});
+        // #endregion agent log
       },
       error: err => {
         this.debugLog.warn('ThirdIronButtons.host.viewModel$.error', {
@@ -184,6 +279,27 @@ export class ThirdIronButtonsComponent {
       this.viewModel$,
     ]).pipe(
       map(([displayInfo, viewModel]) => {
+        // #region agent log
+        fetch('http://127.0.0.1:7243/ingest/6f464193-ba2e-4950-8450-e8a059b7fbe3', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            sessionId: 'debug-session',
+            runId: 'run1',
+            hypothesisId: 'H4',
+            location: 'third-iron-buttons.component.ts:enhance:map',
+            message: 'enhance map combining displayInfo + viewModel',
+            data: {
+              recordId: searchResult?.pnx?.control?.recordid?.[0] ?? null,
+              viewModelDirectLink: (viewModel as any)?.directLink ?? null,
+              viewModelOnlineLinksCount: (viewModel as any)?.onlineLinks?.length ?? 0,
+              mainButtonType: (displayInfo as any)?.mainButtonType ?? null,
+              viewOption: this.viewOption,
+            },
+            timestamp: Date.now(),
+          }),
+        }).catch(() => {});
+        // #endregion agent log
         if (this.viewOption !== ViewOptionType.NoStack) {
           // build custom stack options array for StackPlusBrowzine and SingleStack view options
           this.combinedLinks = this.buttonInfoService.buildCombinedLinks(displayInfo, viewModel);

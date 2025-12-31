@@ -382,6 +382,25 @@ export class ButtonInfoService {
   }
 
   private buildPrimoOnlineLinksBase(viewModel: PrimoViewModel): StackLink[] {
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/6f464193-ba2e-4950-8450-e8a059b7fbe3', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sessionId: 'debug-session',
+        runId: 'run1',
+        hypothesisId: 'H3',
+        location: 'button-info.service.ts:buildPrimoOnlineLinksBase',
+        message: 'buildPrimoOnlineLinksBase called',
+        data: {
+          onlineLinksCount: viewModel?.onlineLinks?.length ?? 0,
+          directLink: (viewModel as any)?.directLink ?? null,
+        },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion agent log
+
     const links: StackLink[] = [];
     if (
       viewModel?.onlineLinks &&
