@@ -1,5 +1,5 @@
 import { Component, ElementRef, Input, ViewEncapsulation, DestroyRef } from '@angular/core';
-import { Observable, ReplaySubject, combineLatest, map } from 'rxjs';
+import { Observable, ReplaySubject, Subscription, combineLatest, map } from 'rxjs';
 import { BrowzineButtonComponent } from '../../components/browzine-button/browzine-button.component';
 import { SearchEntity } from '../../types/searchEntity.types';
 import { DisplayWaterfallResponse } from '../../types/displayWaterfallResponse.types';
@@ -43,6 +43,10 @@ export class ThirdIronButtonsComponent {
   // This matters because the host can change records over time, and we want our addon to react (re-run enhance() with the new record)
   // even if the host doesn’t update the store selection immediately.
   private hostSearchResult$ = new ReplaySubject<SearchEntity | null>(1);
+  private hostViewModel$ = new ReplaySubject<PrimoViewModel>(1);
+  private hostViewModelSub: Subscription | null = null;
+  private lastHostViewModelRef: unknown = null;
+  private lastHostRecordId: string | null = null;
   private _hostComponent!: any;
 
   // Setup setter/getter to keep hostComponent up to date when user navigates records
@@ -50,11 +54,11 @@ export class ThirdIronButtonsComponent {
   set hostComponent(value: any) {
     this._hostComponent = value;
 
-    // Keep viewModel$ up to date for template async pipe.
-    this.viewModel$ = this._hostComponent?.viewModel$ as Observable<PrimoViewModel>;
-
     // Push the latest host searchResult so we can react when host navigates records.
     this.hostSearchResult$.next((this._hostComponent?.searchResult as SearchEntity) ?? null);
+
+    // (Re)bind host viewModel$ to our own ReplaySubject so downstream always sees latest values.
+    this.bindHostViewModel();
   }
   get hostComponent(): any {
     return this._hostComponent;
@@ -69,7 +73,10 @@ export class ThirdIronButtonsComponent {
   ViewOptionType = ViewOptionType;
 
   displayInfo$!: Observable<DisplayWaterfallResponse | null>;
-  viewModel$!: Observable<PrimoViewModel>;
+  // Exposed to template (async pipe) and used for link building.
+  // We proxy hostComponent.viewModel$ into a stable stream so we can re-bind if the host swaps
+  // the observable instance or mutates without re-setting the @Input.
+  viewModel$: Observable<PrimoViewModel> = this.hostViewModel$.asObservable();
 
   constructor(
     private buttonInfoService: ButtonInfoService,
@@ -81,6 +88,54 @@ export class ThirdIronButtonsComponent {
     elementRef: ElementRef
   ) {
     this.elementRef = elementRef;
+  }
+
+  ngDoCheck() {
+    // Some hosts mutate properties on the same hostComponent object rather than replacing it,
+    // which means our @Input setter may not run. Detect those changes and push updates.
+    const host = this._hostComponent;
+    const nextRecord = (host?.searchResult as SearchEntity) ?? null;
+    const nextId = nextRecord?.pnx?.control?.recordid?.[0] ?? null;
+    if (nextId !== this.lastHostRecordId) {
+      this.lastHostRecordId = nextId;
+      this.hostSearchResult$.next(nextRecord);
+      this.debugLog.debug('ThirdIronButtons.host.searchResult.changed', {
+        ...this.debugLog.safeSearchEntityMeta(nextRecord),
+      });
+    }
+
+    this.bindHostViewModel();
+  }
+
+  ngOnDestroy() {
+    this.hostViewModelSub?.unsubscribe();
+  }
+
+  private bindHostViewModel() {
+    const vmRef = this._hostComponent?.viewModel$ ?? null;
+    if (!vmRef || vmRef === this.lastHostViewModelRef) return;
+
+    this.lastHostViewModelRef = vmRef;
+    this.hostViewModelSub?.unsubscribe();
+
+    this.debugLog.debug('ThirdIronButtons.host.viewModel$.bound', {
+      hasViewModel$: true,
+    });
+
+    this.hostViewModelSub = (vmRef as Observable<PrimoViewModel>).subscribe({
+      next: vm => {
+        this.hostViewModel$.next(vm);
+        this.debugLog.debug('ThirdIronButtons.host.viewModel$.next', {
+          directLink: (vm as any)?.directLink ?? null,
+          onlineLinksCount: (vm as any)?.onlineLinks?.length ?? 0,
+        });
+      },
+      error: err => {
+        this.debugLog.warn('ThirdIronButtons.host.viewModel$.error', {
+          err: this.debugLog.safeError(err),
+        });
+      },
+    });
   }
 
   ngOnInit() {
