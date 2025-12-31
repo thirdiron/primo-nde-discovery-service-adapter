@@ -434,7 +434,48 @@ export class ButtonInfoService {
         'Available Online'
       );
 
-      const url = this.normalizePrimoDirectLink(viewModel.directLink);
+      const raw = (viewModel.directLink ?? '').trim();
+
+      // Runtime evidence: on full-display, the host can emit multiple viewModel updates for the same record
+      // and switch `directLink` from a `/fulldisplay?...&docid=...` URL to a link-resolver URL
+      // (`/view/action/uresolver.do?...`). For "Other online options" we want to navigate to fulldisplay
+      // for the currently selected record, so if we detect a resolver-style directLink, fall back to
+      // the current window location (which carries the correct docid).
+      // IMPORTANT: Only apply this fallback when we are rendering "Other online options" (hasOtherLinks).
+      // For the primary "Available Online" button, the resolver URL may be the desired target.
+      const isResolverDirectLink = raw.includes('/view/action/uresolver.do');
+      const isOnFullDisplay = window.location.pathname.includes('/fulldisplay');
+      const shouldUseWindowLocation = hasOtherLinks && isResolverDirectLink && isOnFullDisplay;
+
+      // #region agent log
+      if ((globalThis as any).__TI_NDE_AGENT_LOG_ENABLED__ === true && shouldUseWindowLocation) {
+        fetch('http://127.0.0.1:7243/ingest/6f464193-ba2e-4950-8450-e8a059b7fbe3', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            sessionId: 'debug-session',
+            runId: 'run7',
+            hypothesisId: 'H10',
+            location: 'button-info.service.ts:buildPrimoDirectLinkBase',
+            message: 'directLink is resolver; using window.location for fulldisplay link',
+            data: {
+              hasOtherLinks,
+              isResolverDirectLink,
+              isOnFullDisplay,
+              directLink: this.debugLog.redactUrlTokens(raw),
+              hrefPath: `${window.location.pathname}${window.location.search}${window.location.hash}`,
+            },
+            timestamp: Date.now(),
+          }),
+        }).catch(() => {});
+      }
+      // #endregion agent log
+
+      const url = this.normalizePrimoDirectLink(
+        shouldUseWindowLocation
+          ? `${window.location.pathname}${window.location.search}${window.location.hash}`
+          : raw
+      );
 
       return {
         entityType: 'directLink',

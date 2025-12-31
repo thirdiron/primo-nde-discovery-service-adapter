@@ -84,6 +84,8 @@ export class ThirdIronButtonsComponent {
   private lastHostViewModelRef: unknown = null;
   private lastHostRecordId: string | null = null;
   private lastUrlDocid: string | null = null;
+  private firstDirectLinkSeenForRecordId = new Map<string, string>();
+  private firstDirectLinkLoggedForRecordId = new Set<string>();
 
   private safeDocidFromUrl(rawUrl: unknown): string | null {
     const s = typeof rawUrl === 'string' ? rawUrl.trim() : '';
@@ -260,6 +262,56 @@ export class ThirdIronButtonsComponent {
           typeof rawDirectLink === 'string' && rawDirectLink.includes('/fulldisplay');
         const isLinkResolverLink =
           typeof rawDirectLink === 'string' && rawDirectLink.includes('/view/action/uresolver.do');
+
+        // #region agent log
+        // Probe: is the *first* viewModel.directLink after a record change the "right" one to use as stable link?
+        if (__TI_NDE_AGENT_LOG_ENABLED__() && hostRecordId) {
+          const directLinkStr = typeof rawDirectLink === 'string' ? rawDirectLink : '';
+          const hadFirst = this.firstDirectLinkSeenForRecordId.has(hostRecordId);
+          if (!hadFirst && directLinkStr) {
+            this.firstDirectLinkSeenForRecordId.set(hostRecordId, directLinkStr);
+          }
+
+          const first = this.firstDirectLinkSeenForRecordId.get(hostRecordId) ?? null;
+          if (!this.firstDirectLinkLoggedForRecordId.has(hostRecordId) && first) {
+            this.firstDirectLinkLoggedForRecordId.add(hostRecordId);
+            __tiAgentLog({
+              sessionId: 'debug-session',
+              runId: 'run8',
+              hypothesisId: 'H12',
+              location: 'third-iron-buttons.component.ts:hostViewModelSub:next:firstDirectLink',
+              message: 'first viewModel.directLink observed for record',
+              data: {
+                hostRecordId,
+                urlDocid,
+                firstDirectLinkIsFullDisplay: first.includes('/fulldisplay'),
+                firstDirectLinkIsResolver: first.includes('/view/action/uresolver.do'),
+                firstDirectLinkDocid: this.safeDocidFromUrl(first),
+              },
+              timestamp: Date.now(),
+            });
+          }
+
+          if (first && directLinkStr && first !== directLinkStr) {
+            __tiAgentLog({
+              sessionId: 'debug-session',
+              runId: 'run8',
+              hypothesisId: 'H12',
+              location: 'third-iron-buttons.component.ts:hostViewModelSub:next:directLinkChanged',
+              message: 'viewModel.directLink changed after first emission for record',
+              data: {
+                hostRecordId,
+                urlDocid,
+                firstDirectLinkDocid: this.safeDocidFromUrl(first),
+                currentDirectLinkDocid: directLinkDocid,
+                currentIsFullDisplay: isFullDisplayLink,
+                currentIsResolver: isLinkResolverLink,
+              },
+              timestamp: Date.now(),
+            });
+          }
+        }
+        // #endregion agent log
 
         // #region agent log
         if (__TI_NDE_AGENT_LOG_ENABLED__()) {
