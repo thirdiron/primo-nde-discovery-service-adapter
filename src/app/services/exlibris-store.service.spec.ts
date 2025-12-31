@@ -61,7 +61,8 @@ describe('ExlibrisStoreService', () => {
     });
 
     const result = await firstValueFrom(
-      service.getRecordForEntity$(of(entityWith('fallback-id'))).pipe(take(1))
+      // No host fallback record provided -> selectedRecordId should be used.
+      service.getRecordForEntity$(of(null)).pipe(take(1))
     );
     expect(result).toEqual(entity);
   });
@@ -106,20 +107,22 @@ describe('ExlibrisStoreService', () => {
       ['full-display']: {},
     });
 
-    const first = await firstValueFrom(
-      service.getRecordForEntity$(of(entityWith(initialId))).pipe(take(1))
+    const entity$ = new BehaviorSubject<SearchEntity | null>(entityWith(initialId));
+
+    // Collect first two emissions from a single subscription:
+    // 1) fallback initial entity (list view)
+    // 2) selectedRecordId dynamic entity (full display selection appears)
+    const emissionsPromise = firstValueFrom(
+      service.getRecordForEntity$(entity$).pipe(take(2), toArray())
     );
-    expect(first).toEqual(initialEntity);
 
     // Then: full-display.selectedRecordId is set to dynamic id and should emit dynamic entity.
     setState({
       ['full-display']: { selectedRecordId: dynamicId },
     });
 
-    const second = await firstValueFrom(
-      service.getRecordForEntity$(of(entityWith(initialId))).pipe(take(1))
-    );
-    expect(second).toEqual(dynamicEntity);
+    const emissions = await emissionsPromise;
+    expect(emissions).toEqual([initialEntity, dynamicEntity]);
   });
 
   it('emits updated record when the provided fallback entity changes (reactive input)', async () => {

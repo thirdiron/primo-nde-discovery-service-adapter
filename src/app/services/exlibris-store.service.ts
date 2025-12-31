@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { Store } from '@ngrx/store';
 import { Observable, combineLatest } from 'rxjs';
-import { distinctUntilChanged, map } from 'rxjs/operators';
+import { distinctUntilChanged, map, tap } from 'rxjs/operators';
 import { SearchEntity } from '../types/searchEntity.types';
 import { DebugLogService } from './debug-log.service';
 
@@ -13,6 +13,12 @@ import { DebugLogService } from './debug-log.service';
   providedIn: 'root',
 })
 export class ExlibrisStoreService {
+  // Used to determine which id source (selectedRecordId vs fallbackId) changed most recently.
+  // We intentionally avoid Date.now() so this remains deterministic in unit tests.
+  private seq = 0;
+  private selectedSeq = 0;
+  private fallbackSeq = 0;
+
   constructor(
     private store: Store<any>,
     private debugLog: DebugLogService
@@ -61,16 +67,33 @@ export class ExlibrisStoreService {
     // Each emission  from combineLatest gives the latest [selectedRecordId, entitiesMap, fallbackId],
     // and then the following map(...) picks chosenId = selectedRecordId || fallbackId and returns entitiesMap[chosenId] (or null).
     return combineLatest([
-      this.selectSelectedRecordId$(),
+      this.selectSelectedRecordId$().pipe(
+        tap(() => {
+          this.selectedSeq = ++this.seq;
+        })
+      ),
       this.selectSearchEntities$(),
       entity$.pipe(
         map(entity => entity ?? null),
         map(entity => entity?.pnx?.control?.recordid?.[0] ?? null),
-        distinctUntilChanged()
+        distinctUntilChanged(),
+        tap(() => {
+          this.fallbackSeq = ++this.seq;
+        })
       ),
     ]).pipe(
       map(([selectedRecordId, entities, fallbackId]) => {
-        const id = selectedRecordId || fallbackId;
+        // If both sources exist but disagree, prefer whichever changed most recently.
+        // This addresses cases where full-display.selectedRecordId remains non-null but stale.
+        const id = !selectedRecordId
+          ? fallbackId
+          : !fallbackId
+            ? selectedRecordId
+            : selectedRecordId === fallbackId
+              ? selectedRecordId
+              : this.selectedSeq >= this.fallbackSeq
+                ? selectedRecordId
+                : fallbackId;
         const record = id ? (entities[id] ?? null) : null;
 
         // #region agent log
