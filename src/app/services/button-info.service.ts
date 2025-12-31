@@ -308,12 +308,25 @@ export class ButtonInfoService {
    * Builds the links for stacked view options - either the Third Iron stack option
    * or the Primo stack with quick links and direct link.
    *
-   * @param mode - 'combined' or 'primo', if 'combined' this is the merged array of Third Iron and Primo links
    * @param displayInfo - Third Iron button display object
    * @param viewModel - Primo view model
    * @returns an array of StackLink objects
    */
   buildStackOptions(displayInfo: DisplayWaterfallResponse, viewModel: PrimoViewModel): StackLink[] {
+    this.debugLog.debug('ButtonInfo.buildStackOptions.start', {
+      viewOption: this.configService.getViewOption(),
+      enableLinkOptimizer: this.configService.enableLinkOptimizer(),
+      showLinkResolverLink: this.configService.showLinkResolverLink(),
+      hasThirdIronMainButton:
+        displayInfo.entityType !== EntityType.Unknown &&
+        displayInfo.mainButtonType !== ButtonType.None &&
+        !!displayInfo.mainUrl,
+      hasThirdIronSecondaryButton: !!displayInfo.showSecondaryButton && !!displayInfo.secondaryUrl,
+      hasThirdIronBrowzine: !!displayInfo.showBrowzineButton && !!displayInfo.browzineUrl,
+      primoOnlineLinksCount: viewModel?.onlineLinks?.length ?? 0,
+      hasPrimoDirectLink: !!viewModel?.directLink,
+    });
+
     const links: StackLink[] = [];
 
     // Third Iron display options
