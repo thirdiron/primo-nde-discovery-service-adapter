@@ -323,8 +323,8 @@ export class ButtonInfoService {
         !!displayInfo.mainUrl,
       hasThirdIronSecondaryButton: !!displayInfo.showSecondaryButton && !!displayInfo.secondaryUrl,
       hasThirdIronBrowzine: !!displayInfo.showBrowzineButton && !!displayInfo.browzineUrl,
-      primoOnlineLinksCount: viewModel?.onlineLinks?.length ?? 0,
-      hasPrimoDirectLink: !!viewModel?.directLink,
+      primoOnlineLinks: viewModel?.onlineLinks,
+      primoDirectLink: viewModel?.directLink,
     });
 
     const links: StackLink[] = [];
