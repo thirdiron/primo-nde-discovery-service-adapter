@@ -1,5 +1,13 @@
 import { Component, ElementRef, Input, ViewEncapsulation, DestroyRef } from '@angular/core';
-import { Observable, ReplaySubject, Subscription, combineLatest, map } from 'rxjs';
+import {
+  Observable,
+  ReplaySubject,
+  Subscription,
+  combineLatest,
+  distinctUntilChanged,
+  filter,
+  map,
+} from 'rxjs';
 import { BrowzineButtonComponent } from '../../components/browzine-button/browzine-button.component';
 import { SearchEntity } from '../../types/searchEntity.types';
 import { DisplayWaterfallResponse } from '../../types/displayWaterfallResponse.types';
@@ -234,19 +242,24 @@ export class ThirdIronButtonsComponent {
   }
 
   ngOnInit() {
-    // The raw hostComponent.searchResult is not an observable, so we need to use our hostSearchResult$ Observable
-    // that we created in the setter/getter above to get the up to date record
-    this.exlibrisStoreService
-      .getRecordForEntity$(this.hostSearchResult$)
-      .pipe(takeUntilDestroyed(this.destroyRef))
+    // The raw hostComponent.searchResult is not an observable, so we use hostSearchResult$ which
+    // we update via the @Input setter + ngDoCheck. For the buttons UI, we *must* stay aligned
+    // with the host's viewModel/docid; using store selection can produce a record/viewModel mismatch window.
+    this.hostSearchResult$
+      .pipe(
+        filter((record): record is SearchEntity => !!record),
+        distinctUntilChanged(
+          (a, b) =>
+            (a?.pnx?.control?.recordid?.[0] ?? null) === (b?.pnx?.control?.recordid?.[0] ?? null)
+        ),
+        takeUntilDestroyed(this.destroyRef)
+      )
       .subscribe(record => {
         this.debugLog.debug(
-          'ThirdIronButtons.ngOnInit.record',
+          'ThirdIronButtons.ngOnInit.hostRecord',
           this.debugLog.safeSearchEntityMeta(record)
         );
-        if (record) {
-          this.enhance(record);
-        }
+        this.enhance(record);
       });
   }
 

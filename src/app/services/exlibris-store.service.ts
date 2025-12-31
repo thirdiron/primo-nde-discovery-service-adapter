@@ -145,8 +145,12 @@ export class ExlibrisStoreService {
         const selectedRecordId = ids.selectedRecordId;
         const fallbackId = ids.fallbackId;
 
+        const selectedRecord = selectedRecordId ? (entities[selectedRecordId] ?? null) : null;
+        const fallbackRecord = fallbackId ? (entities[fallbackId] ?? null) : null;
+
         // If both sources exist but disagree, prefer whichever one changed most recently (per subscription).
-        // This addresses cases where full-display.selectedRecordId remains non-null but stale while the host record changes.
+        // (We keep this behavior here for general consumers; the buttons component has additional host-driven
+        // alignment needs and may choose to bypass this selection entirely.)
         const id = !selectedRecordId
           ? fallbackId
           : !fallbackId
@@ -180,6 +184,8 @@ export class ExlibrisStoreService {
                 selectedRecordId,
                 fallbackId,
                 chosenId: id,
+                selectedRecordFound: !!selectedRecord,
+                fallbackRecordFound: !!fallbackRecord,
                 recordFound: !!record,
               },
               timestamp: Date.now(),
