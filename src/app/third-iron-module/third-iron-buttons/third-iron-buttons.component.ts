@@ -178,15 +178,18 @@ export class ThirdIronButtonsComponent {
     const vmRef = this._hostComponent?.viewModel$ ?? null;
 
     // #region agent log
-    __tiAgentLog({
-      sessionId: 'debug-session',
-      runId: 'run1',
-      hypothesisId: 'H2',
-      location: 'third-iron-buttons.component.ts:bindHostViewModel',
-      message: 'bindHostViewModel check',
-      data: { hasVmRef: !!vmRef, vmRefChanged: !!vmRef && vmRef !== this.lastHostViewModelRef },
-      timestamp: Date.now(),
-    });
+    const vmRefChanged = !!vmRef && vmRef !== this.lastHostViewModelRef;
+    if (!vmRef || vmRefChanged) {
+      __tiAgentLog({
+        sessionId: 'debug-session',
+        runId: 'run2',
+        hypothesisId: 'H2',
+        location: 'third-iron-buttons.component.ts:bindHostViewModel',
+        message: 'bindHostViewModel check',
+        data: { hasVmRef: !!vmRef, vmRefChanged },
+        timestamp: Date.now(),
+      });
+    }
     // #endregion agent log
 
     if (!vmRef || vmRef === this.lastHostViewModelRef) return;
