@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
-import { BehaviorSubject, firstValueFrom } from 'rxjs';
-import { map, take } from 'rxjs/operators';
+import { BehaviorSubject, firstValueFrom, of } from 'rxjs';
+import { map, take, toArray } from 'rxjs/operators';
 import { Store } from '@ngrx/store';
 import { ExlibrisStoreService } from './exlibris-store.service';
 import { SearchEntity } from '../types/searchEntity.types';
@@ -61,7 +61,7 @@ describe('ExlibrisStoreService', () => {
     });
 
     const result = await firstValueFrom(
-      service.getRecordForEntity$(entityWith('fallback-id')).pipe(take(1))
+      service.getRecordForEntity$(of(entityWith('fallback-id'))).pipe(take(1))
     );
     expect(result).toEqual(entity);
   });
@@ -75,7 +75,7 @@ describe('ExlibrisStoreService', () => {
     });
 
     const result = await firstValueFrom(
-      service.getRecordForEntity$(entityWith(fallbackId)).pipe(take(1))
+      service.getRecordForEntity$(of(entityWith(fallbackId))).pipe(take(1))
     );
     expect(result).toEqual(entity);
   });
@@ -88,7 +88,7 @@ describe('ExlibrisStoreService', () => {
     });
 
     const result = await firstValueFrom(
-      service.getRecordForEntity$(entityWith('other-id')).pipe(take(1))
+      service.getRecordForEntity$(of(entityWith('other-id'))).pipe(take(1))
     );
     expect(result).toBeNull();
   });
@@ -107,7 +107,7 @@ describe('ExlibrisStoreService', () => {
     });
 
     const first = await firstValueFrom(
-      service.getRecordForEntity$(entityWith(initialId)).pipe(take(1))
+      service.getRecordForEntity$(of(entityWith(initialId))).pipe(take(1))
     );
     expect(first).toEqual(initialEntity);
 
@@ -117,8 +117,34 @@ describe('ExlibrisStoreService', () => {
     });
 
     const second = await firstValueFrom(
-      service.getRecordForEntity$(entityWith(initialId)).pipe(take(1))
+      service.getRecordForEntity$(of(entityWith(initialId))).pipe(take(1))
     );
     expect(second).toEqual(dynamicEntity);
+  });
+
+  it('emits updated record when the provided fallback entity changes (reactive input)', async () => {
+    const id1 = 'cdi_one';
+    const id2 = 'cdi_two';
+    const e1 = makeEntity(id1);
+    const e2 = makeEntity(id2);
+
+    // List view: no selectedRecordId, but entities contain both ids.
+    setState({
+      ['full-display']: {},
+      Search: { entities: { [id1]: e1, [id2]: e2 } },
+    });
+
+    const entity$ = new BehaviorSubject<SearchEntity | null>(e1);
+
+    // Collect first two emissions.
+    const emissionsPromise = firstValueFrom(
+      service.getRecordForEntity$(entity$).pipe(take(2), toArray())
+    );
+
+    // Switch host entity: should emit the new record.
+    entity$.next(e2);
+
+    const emissions = await emissionsPromise;
+    expect(emissions).toEqual([e1, e2]);
   });
 });

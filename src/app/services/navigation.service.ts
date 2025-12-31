@@ -183,7 +183,6 @@ export class NavigationService {
           window.location.hash = '';
         }
         window.location.hash = normalized;
-        this.debugLog.debug('Navigation.reapplyHashForScroll.applied', { hash: normalized });
       } catch (err) {
         this.debugLog.warn('Navigation.reapplyHashForScroll.error', {
           err: this.debugLog.safeError(err),
