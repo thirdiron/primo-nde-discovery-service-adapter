@@ -425,15 +425,11 @@ export class ButtonInfoService {
   private normalizePrimoDirectLink(directLinkRaw: string): string {
     const directLink = (directLinkRaw ?? '').trim();
     if (!directLink) {
-      this.debugLog.debug('ButtonInfo.normalizePrimoDirectLink.skip.empty', { directLinkRaw });
       return directLink;
     }
 
     const isFullDisplay = directLink.includes('/fulldisplay');
     if (!isFullDisplay) {
-      this.debugLog.debug('ButtonInfo.normalizePrimoDirectLink.skip.notFullDisplay', {
-        directLink: this.debugLog.redactUrlTokens(directLink),
-      });
       return directLink;
     }
 
@@ -472,24 +468,12 @@ export class ButtonInfoService {
       if (keep.length !== existingStates.length) {
         parsed.searchParams.delete('state');
         keep.forEach(s => parsed.searchParams.append('state', s));
-        this.debugLog.debug('ButtonInfo.normalizePrimoDirectLink.stateParams.removedGetIt', {
-          before: existingStates,
-          after: keep,
-        });
       }
     }
 
     const beforeHash = parsed.hash;
     if (beforeHash !== desiredHash) {
       parsed.hash = desiredHash;
-      this.debugLog.debug('ButtonInfo.normalizePrimoDirectLink.hash.set', {
-        before: beforeHash,
-        after: parsed.hash,
-      });
-    } else {
-      this.debugLog.debug('ButtonInfo.normalizePrimoDirectLink.hash.keep', {
-        hash: beforeHash,
-      });
     }
 
     const out = isAbsolute ? parsed.toString() : `${parsed.pathname}${parsed.search}${parsed.hash}`;
