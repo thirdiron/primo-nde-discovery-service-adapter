@@ -83,6 +83,18 @@ export class ThirdIronButtonsComponent {
   private hostViewModelSub: Subscription | null = null;
   private lastHostViewModelRef: unknown = null;
   private lastHostRecordId: string | null = null;
+  private lastUrlDocid: string | null = null;
+
+  private safeDocidFromUrl(rawUrl: unknown): string | null {
+    const s = typeof rawUrl === 'string' ? rawUrl.trim() : '';
+    if (!s) return null;
+    try {
+      const u = new URL(s, window.location.href);
+      return u.searchParams.get('docid');
+    } catch {
+      return null;
+    }
+  }
 
   /**
    * Backing field for the `@Input() hostComponent` setter/getter.
@@ -174,6 +186,34 @@ export class ThirdIronButtonsComponent {
       // #endregion agent log
     }
 
+    // #region agent log
+    // Probe: is the URL docid a reliable "source of truth" for the currently selected record?
+    const urlDocid = this.safeDocidFromUrl(window.location.href);
+    if (__TI_NDE_AGENT_LOG_ENABLED__() && urlDocid !== this.lastUrlDocid) {
+      this.lastUrlDocid = urlDocid;
+      __tiAgentLog({
+        sessionId: 'debug-session',
+        runId: 'run6',
+        hypothesisId: 'H9',
+        location: 'third-iron-buttons.component.ts:ngDoCheck:urlDocid',
+        message: 'window.location docid changed',
+        data: {
+          urlDocid,
+          hostRecordId: nextId,
+          hrefPath: (() => {
+            try {
+              const u = new URL(window.location.href);
+              return `${u.pathname}${u.search}${u.hash}`;
+            } catch {
+              return null;
+            }
+          })(),
+        },
+        timestamp: Date.now(),
+      });
+    }
+    // #endregion agent log
+
     this.bindHostViewModel();
   }
 
@@ -211,6 +251,36 @@ export class ThirdIronButtonsComponent {
 
     this.hostViewModelSub = (vmRef as Observable<PrimoViewModel>).subscribe({
       next: vm => {
+        const hostRecordId = this._hostComponent?.searchResult?.pnx?.control?.recordid?.[0] ?? null;
+        const rawDirectLink = (vm as any)?.directLink ?? null;
+        const urlDocid = this.safeDocidFromUrl(window.location.href);
+        const directLinkDocid = this.safeDocidFromUrl(rawDirectLink);
+
+        const isFullDisplayLink =
+          typeof rawDirectLink === 'string' && rawDirectLink.includes('/fulldisplay');
+        const isLinkResolverLink =
+          typeof rawDirectLink === 'string' && rawDirectLink.includes('/view/action/uresolver.do');
+
+        // #region agent log
+        if (__TI_NDE_AGENT_LOG_ENABLED__()) {
+          __tiAgentLog({
+            sessionId: 'debug-session',
+            runId: 'run6',
+            hypothesisId: 'H9',
+            location: 'third-iron-buttons.component.ts:hostViewModelSub:next:docidProbe',
+            message: 'docid probe on host viewModel$ emission',
+            data: {
+              hostRecordId,
+              urlDocid,
+              directLinkDocid,
+              directLinkIsFullDisplay: isFullDisplayLink,
+              directLinkIsResolver: isLinkResolverLink,
+            },
+            timestamp: Date.now(),
+          });
+        }
+        // #endregion agent log
+
         this.hostViewModel$.next(vm);
         this.debugLog.debug('ThirdIronButtons.host.viewModel$.next', {
           directLink: (vm as any)?.directLink ?? null,
@@ -294,6 +364,26 @@ export class ThirdIronButtonsComponent {
             });
             // #endregion agent log
 
+            // #region agent log
+            if (__TI_NDE_AGENT_LOG_ENABLED__()) {
+              __tiAgentLog({
+                sessionId: 'debug-session',
+                runId: 'run6',
+                hypothesisId: 'H9',
+                location: 'third-iron-buttons.component.ts:enhance:map:docidProbe',
+                message: 'docid probe on enhance map',
+                data: {
+                  hostRecordId: record?.pnx?.control?.recordid?.[0] ?? null,
+                  urlDocid: this.safeDocidFromUrl(window.location.href),
+                  viewModelDirectLinkDocid: this.safeDocidFromUrl(
+                    (viewModel as any)?.directLink ?? null
+                  ),
+                },
+                timestamp: Date.now(),
+              });
+            }
+            // #endregion agent log
+
             if (this.viewOption !== ViewOptionType.NoStack) {
               // build custom stack options array for StackPlusBrowzine and SingleStack view options
               this.combinedLinks = this.buttonInfoService.buildCombinedLinks(
@@ -323,6 +413,25 @@ export class ThirdIronButtonsComponent {
                 removedCount,
               });
             }
+
+            // #region agent log
+            __tiAgentLog({
+              sessionId: 'debug-session',
+              runId: 'run4',
+              hypothesisId: 'H7',
+              location: 'third-iron-buttons.component.ts:enhance:map:links',
+              message: 'computed link arrays',
+              data: {
+                recordId: record?.pnx?.control?.recordid?.[0] ?? null,
+                viewOption: this.viewOption,
+                combinedLinksCount: this.combinedLinks?.length ?? 0,
+                primoLinksCount: this.primoLinks?.length ?? 0,
+                firstCombinedUrl: this.combinedLinks?.[0]?.url ?? null,
+                firstPrimoUrl: this.primoLinks?.[0]?.url ?? null,
+              },
+              timestamp: Date.now(),
+            });
+            // #endregion agent log
 
             return displayInfo;
           })
