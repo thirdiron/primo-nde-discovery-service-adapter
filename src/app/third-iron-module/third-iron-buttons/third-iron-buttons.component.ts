@@ -1,5 +1,5 @@
 import { Component, ElementRef, Input, ViewEncapsulation, DestroyRef } from '@angular/core';
-import { Observable, ReplaySubject, combineLatestWith, map } from 'rxjs';
+import { Observable, ReplaySubject, combineLatest, map } from 'rxjs';
 import { BrowzineButtonComponent } from '../../components/browzine-button/browzine-button.component';
 import { SearchEntity } from '../../types/searchEntity.types';
 import { DisplayWaterfallResponse } from '../../types/displayWaterfallResponse.types';
@@ -121,9 +121,13 @@ export class ThirdIronButtonsComponent {
       ...this.debugLog.safeSearchEntityMeta(searchResult),
     });
 
-    // Use combineLatestWith to handle both displayInfo$ and viewModel$ observables together
-    this.displayInfo$ = this.buttonInfoService.getDisplayInfo(searchResult).pipe(
-      combineLatestWith(this.viewModel$),
+    // Combine displayInfo + viewModel so link-building stays reactive to viewModel changes
+    // even if getDisplayInfo() completes after its HTTP request; i.e. combineLatest will guarantee
+    // re-emissions when viewModel$ changes, even if the displayInfo observable completes.
+    this.displayInfo$ = combineLatest([
+      this.buttonInfoService.getDisplayInfo(searchResult),
+      this.viewModel$,
+    ]).pipe(
       map(([displayInfo, viewModel]) => {
         if (this.viewOption !== ViewOptionType.NoStack) {
           // build custom stack options array for StackPlusBrowzine and SingleStack view options
