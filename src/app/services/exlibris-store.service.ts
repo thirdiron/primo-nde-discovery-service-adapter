@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { Store } from '@ngrx/store';
 import { Observable, combineLatest } from 'rxjs';
-import { distinctUntilChanged, map, tap } from 'rxjs/operators';
+import { distinctUntilChanged, map, scan } from 'rxjs/operators';
 import { SearchEntity } from '../types/searchEntity.types';
 import { DebugLogService } from './debug-log.service';
 
@@ -13,12 +13,6 @@ import { DebugLogService } from './debug-log.service';
   providedIn: 'root',
 })
 export class ExlibrisStoreService {
-  // Used to determine which id source (selectedRecordId vs fallbackId) changed most recently.
-  // We intentionally avoid Date.now() so this remains deterministic in unit tests.
-  private seq = 0;
-  private selectedSeq = 0;
-  private fallbackSeq = 0;
-
   constructor(
     private store: Store<any>,
     private debugLog: DebugLogService
@@ -59,41 +53,81 @@ export class ExlibrisStoreService {
   getRecordForEntity$(
     entity$: Observable<SearchEntity | null | undefined>
   ): Observable<SearchEntity | null> {
-    // Create one stream that emits whenever any of these three inputs emits,
-    // after all three have emitted at least once:
-    // -- selectSelectedRecordId$(): current full-display selected record id (or null)
-    // -- selectSearchEntities$(): the current Search.entities map from the host store
-    // -- entity$ (mapped to fallbackId): the record id derived from the current host entity input (or null)
-    // Each emission  from combineLatest gives the latest [selectedRecordId, entitiesMap, fallbackId],
-    // and then the following map(...) picks chosenId = selectedRecordId || fallbackId and returns entitiesMap[chosenId] (or null).
-    return combineLatest([
-      this.selectSelectedRecordId$().pipe(
-        tap(() => {
-          this.selectedSeq = ++this.seq;
-        })
-      ),
-      this.selectSearchEntities$(),
-      entity$.pipe(
-        map(entity => entity ?? null),
-        map(entity => entity?.pnx?.control?.recordid?.[0] ?? null),
-        distinctUntilChanged(),
-        tap(() => {
-          this.fallbackSeq = ++this.seq;
-        })
-      ),
-    ]).pipe(
-      map(([selectedRecordId, entities, fallbackId]) => {
-        // If both sources exist but disagree, prefer whichever changed most recently.
-        // This addresses cases where full-display.selectedRecordId remains non-null but stale.
+    const selectedId$ = this.selectSelectedRecordId$();
+    const fallbackId$ = entity$.pipe(
+      map(entity => entity ?? null),
+      map(entity => entity?.pnx?.control?.recordid?.[0] ?? null),
+      distinctUntilChanged()
+    );
+
+    // IMPORTANT: This method can be subscribed to multiple times concurrently.
+    // Any "most recent wins" logic must be computed per-subscription (inside Rx),
+    // not via mutable service-instance fields which can interleave across subscriptions.
+    //
+    // Also: avoid emitting a "null record" intermediate value before fallbackId is available.
+    // We accomplish that by basing decisions on combineLatest(selectedId$, fallbackId$),
+    // which does not emit until both have produced at least one value.
+
+    type IdDecisionState = {
+      prevSelected: string | null | undefined;
+      prevFallback: string | null | undefined;
+      lastChanged: 'selected' | 'fallback' | 'both' | 'none';
+      selectedRecordId: string | null;
+      fallbackId: string | null;
+    };
+
+    const ids$ = combineLatest([selectedId$, fallbackId$]).pipe(
+      scan(
+        (state: IdDecisionState, [selectedRecordId, fallbackId]): IdDecisionState => {
+          const selectedChanged = selectedRecordId !== state.prevSelected;
+          const fallbackChanged = fallbackId !== state.prevFallback;
+
+          let lastChanged: IdDecisionState['lastChanged'] = state.lastChanged;
+          if (selectedChanged && fallbackChanged) {
+            lastChanged = 'both';
+          } else if (selectedChanged) {
+            lastChanged = 'selected';
+          } else if (fallbackChanged) {
+            lastChanged = 'fallback';
+          } else {
+            lastChanged = 'none';
+          }
+
+          return {
+            prevSelected: selectedRecordId,
+            prevFallback: fallbackId,
+            lastChanged,
+            selectedRecordId,
+            fallbackId,
+          };
+        },
+        {
+          prevSelected: undefined,
+          prevFallback: undefined,
+          lastChanged: 'none',
+          selectedRecordId: null,
+          fallbackId: null,
+        } satisfies IdDecisionState
+      )
+    );
+
+    return combineLatest([this.selectSearchEntities$(), ids$]).pipe(
+      map(([entities, ids]) => {
+        const selectedRecordId = ids.selectedRecordId;
+        const fallbackId = ids.fallbackId;
+
+        // If both sources exist but disagree, prefer whichever one changed most recently (per subscription).
+        // This addresses cases where full-display.selectedRecordId remains non-null but stale while the host record changes.
         const id = !selectedRecordId
           ? fallbackId
           : !fallbackId
             ? selectedRecordId
             : selectedRecordId === fallbackId
               ? selectedRecordId
-              : this.selectedSeq >= this.fallbackSeq
-                ? selectedRecordId
-                : fallbackId;
+              : ids.lastChanged === 'fallback'
+                ? fallbackId
+                : selectedRecordId;
+
         const record = id ? (entities[id] ?? null) : null;
 
         // #region agent log
