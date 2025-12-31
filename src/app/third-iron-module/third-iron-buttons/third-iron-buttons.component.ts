@@ -18,6 +18,19 @@ import { ViewOptionType } from 'src/app/shared/view-option.enum';
 import { StackedDropdownComponent } from 'src/app/components/stacked-dropdown/stacked-dropdown.component';
 import { DebugLogService } from 'src/app/services/debug-log.service';
 
+// #region agent log
+const __TI_NDE_AGENT_LOG_ENABLED__ = () =>
+  (globalThis as any).__TI_NDE_AGENT_LOG_ENABLED__ === true;
+const __tiAgentLog = (payload: any) => {
+  if (!__TI_NDE_AGENT_LOG_ENABLED__()) return;
+  fetch('http://127.0.0.1:7243/ingest/6f464193-ba2e-4950-8450-e8a059b7fbe3', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  }).catch(() => {});
+};
+// #endregion agent log
+
 @Component({
   selector: 'custom-third-iron-buttons',
   standalone: true,
@@ -75,23 +88,19 @@ export class ThirdIronButtonsComponent {
     this._hostComponent = value;
 
     // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/6f464193-ba2e-4950-8450-e8a059b7fbe3', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        sessionId: 'debug-session',
-        runId: 'run1',
-        hypothesisId: 'H1',
-        location: 'third-iron-buttons.component.ts:hostComponent:set',
-        message: 'hostComponent setter called',
-        data: {
-          hasHost: !!value,
-          recordId: value?.searchResult?.pnx?.control?.recordid?.[0] ?? null,
-          hasViewModel$: !!value?.viewModel$,
-        },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
+    __tiAgentLog({
+      sessionId: 'debug-session',
+      runId: 'run1',
+      hypothesisId: 'H1',
+      location: 'third-iron-buttons.component.ts:hostComponent:set',
+      message: 'hostComponent setter called',
+      data: {
+        hasHost: !!value,
+        recordId: value?.searchResult?.pnx?.control?.recordid?.[0] ?? null,
+        hasViewModel$: !!value?.viewModel$,
+      },
+      timestamp: Date.now(),
+    });
     // #endregion agent log
 
     // Push the latest host searchResult so we can react when host navigates records.
@@ -137,28 +146,24 @@ export class ThirdIronButtonsComponent {
     const nextRecord = (host?.searchResult as SearchEntity) ?? null;
     const nextId = nextRecord?.pnx?.control?.recordid?.[0] ?? null;
 
-    // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/6f464193-ba2e-4950-8450-e8a059b7fbe3', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        sessionId: 'debug-session',
-        runId: 'run1',
-        hypothesisId: 'H1',
-        location: 'third-iron-buttons.component.ts:ngDoCheck',
-        message: 'ngDoCheck host record id check',
-        data: { nextId, lastId: this.lastHostRecordId, changed: nextId !== this.lastHostRecordId },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
-    // #endregion agent log
-
     if (nextId !== this.lastHostRecordId) {
       this.lastHostRecordId = nextId;
       this.hostSearchResult$.next(nextRecord);
       this.debugLog.debug('ThirdIronButtons.host.searchResult.changed', {
         ...this.debugLog.safeSearchEntityMeta(nextRecord),
       });
+
+      // #region agent log
+      __tiAgentLog({
+        sessionId: 'debug-session',
+        runId: 'run1',
+        hypothesisId: 'H1',
+        location: 'third-iron-buttons.component.ts:ngDoCheck',
+        message: 'host searchResult recordId changed (ngDoCheck)',
+        data: { nextId },
+        timestamp: Date.now(),
+      });
+      // #endregion agent log
     }
 
     this.bindHostViewModel();
@@ -173,19 +178,15 @@ export class ThirdIronButtonsComponent {
     const vmRef = this._hostComponent?.viewModel$ ?? null;
 
     // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/6f464193-ba2e-4950-8450-e8a059b7fbe3', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        sessionId: 'debug-session',
-        runId: 'run1',
-        hypothesisId: 'H2',
-        location: 'third-iron-buttons.component.ts:bindHostViewModel',
-        message: 'bindHostViewModel check',
-        data: { hasVmRef: !!vmRef, vmRefChanged: !!vmRef && vmRef !== this.lastHostViewModelRef },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
+    __tiAgentLog({
+      sessionId: 'debug-session',
+      runId: 'run1',
+      hypothesisId: 'H2',
+      location: 'third-iron-buttons.component.ts:bindHostViewModel',
+      message: 'bindHostViewModel check',
+      data: { hasVmRef: !!vmRef, vmRefChanged: !!vmRef && vmRef !== this.lastHostViewModelRef },
+      timestamp: Date.now(),
+    });
     // #endregion agent log
 
     if (!vmRef || vmRef === this.lastHostViewModelRef) return;
@@ -206,23 +207,19 @@ export class ThirdIronButtonsComponent {
         });
 
         // #region agent log
-        fetch('http://127.0.0.1:7243/ingest/6f464193-ba2e-4950-8450-e8a059b7fbe3', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            sessionId: 'debug-session',
-            runId: 'run1',
-            hypothesisId: 'H3',
-            location: 'third-iron-buttons.component.ts:hostViewModelSub:next',
-            message: 'host viewModel$ emitted',
-            data: {
-              directLink: (vm as any)?.directLink ?? null,
-              onlineLinksCount: (vm as any)?.onlineLinks?.length ?? 0,
-              hostRecordId: this._hostComponent?.searchResult?.pnx?.control?.recordid?.[0] ?? null,
-            },
-            timestamp: Date.now(),
-          }),
-        }).catch(() => {});
+        __tiAgentLog({
+          sessionId: 'debug-session',
+          runId: 'run1',
+          hypothesisId: 'H3',
+          location: 'third-iron-buttons.component.ts:hostViewModelSub:next',
+          message: 'host viewModel$ emitted',
+          data: {
+            directLink: (vm as any)?.directLink ?? null,
+            onlineLinksCount: (vm as any)?.onlineLinks?.length ?? 0,
+            hostRecordId: this._hostComponent?.searchResult?.pnx?.control?.recordid?.[0] ?? null,
+          },
+          timestamp: Date.now(),
+        });
         // #endregion agent log
       },
       error: err => {
@@ -280,25 +277,21 @@ export class ThirdIronButtonsComponent {
     ]).pipe(
       map(([displayInfo, viewModel]) => {
         // #region agent log
-        fetch('http://127.0.0.1:7243/ingest/6f464193-ba2e-4950-8450-e8a059b7fbe3', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            sessionId: 'debug-session',
-            runId: 'run1',
-            hypothesisId: 'H4',
-            location: 'third-iron-buttons.component.ts:enhance:map',
-            message: 'enhance map combining displayInfo + viewModel',
-            data: {
-              recordId: searchResult?.pnx?.control?.recordid?.[0] ?? null,
-              viewModelDirectLink: (viewModel as any)?.directLink ?? null,
-              viewModelOnlineLinksCount: (viewModel as any)?.onlineLinks?.length ?? 0,
-              mainButtonType: (displayInfo as any)?.mainButtonType ?? null,
-              viewOption: this.viewOption,
-            },
-            timestamp: Date.now(),
-          }),
-        }).catch(() => {});
+        __tiAgentLog({
+          sessionId: 'debug-session',
+          runId: 'run1',
+          hypothesisId: 'H4',
+          location: 'third-iron-buttons.component.ts:enhance:map',
+          message: 'enhance map combining displayInfo + viewModel',
+          data: {
+            recordId: searchResult?.pnx?.control?.recordid?.[0] ?? null,
+            viewModelDirectLink: (viewModel as any)?.directLink ?? null,
+            viewModelOnlineLinksCount: (viewModel as any)?.onlineLinks?.length ?? 0,
+            mainButtonType: (displayInfo as any)?.mainButtonType ?? null,
+            viewOption: this.viewOption,
+          },
+          timestamp: Date.now(),
+        });
         // #endregion agent log
         if (this.viewOption !== ViewOptionType.NoStack) {
           // build custom stack options array for StackPlusBrowzine and SingleStack view options

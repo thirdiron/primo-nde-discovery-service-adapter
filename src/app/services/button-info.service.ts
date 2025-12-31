@@ -383,10 +383,8 @@ export class ButtonInfoService {
 
   private buildPrimoOnlineLinksBase(viewModel: PrimoViewModel): StackLink[] {
     // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/6f464193-ba2e-4950-8450-e8a059b7fbe3', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+    if (__TI_NDE_AGENT_LOG_VERBOSE__()) {
+      __tiAgentLog({
         sessionId: 'debug-session',
         runId: 'run1',
         hypothesisId: 'H3',
@@ -397,8 +395,8 @@ export class ButtonInfoService {
           directLink: (viewModel as any)?.directLink ?? null,
         },
         timestamp: Date.now(),
-      }),
-    }).catch(() => {});
+      });
+    }
     // #endregion agent log
 
     const links: StackLink[] = [];
@@ -689,3 +687,18 @@ export class ButtonInfoService {
     return isAlertType;
   }
 }
+
+// #region agent log
+const __TI_NDE_AGENT_LOG_ENABLED__ = () =>
+  (globalThis as any).__TI_NDE_AGENT_LOG_ENABLED__ === true;
+const __TI_NDE_AGENT_LOG_VERBOSE__ = () =>
+  (globalThis as any).__TI_NDE_AGENT_LOG_VERBOSE__ === true;
+const __tiAgentLog = (payload: any) => {
+  if (!__TI_NDE_AGENT_LOG_ENABLED__()) return;
+  fetch('http://127.0.0.1:7243/ingest/6f464193-ba2e-4950-8450-e8a059b7fbe3', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  }).catch(() => {});
+};
+// #endregion agent log
