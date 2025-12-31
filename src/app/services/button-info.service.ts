@@ -468,6 +468,31 @@ export class ButtonInfoService {
       // - Otherwise, if we're on fulldisplay, use window.location (which is the host's own fulldisplay URL).
       const shouldUseWindowLocation = !isDocidMatch && isOnFullDisplay;
 
+      const windowLocationPathWithQueryAndHash = (() => {
+        // If the host app is deployed with a non-root base href (e.g. "/nde/"),
+        // `window.location.pathname` will include that base. Passing that full path to the Angular router
+        // can produce duplicated segments (e.g. "/nde/nde/fulldisplay").
+        // Strip the host base path so we produce a router-friendly path (e.g. "/fulldisplay?...").
+        const rawPath = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+        let basePath = '/';
+        try {
+          // document.baseURI should reflect the <base href> if present.
+          basePath = new URL(document.baseURI).pathname || '/';
+        } catch {
+          basePath = '/';
+        }
+        // Normalize basePath: remove trailing slash except for root
+        if (basePath.length > 1 && basePath.endsWith('/')) {
+          basePath = basePath.slice(0, -1);
+        }
+        // If basePath is "/nde" and rawPath starts with "/nde/", strip it.
+        const stripped =
+          basePath !== '/' && rawPath.startsWith(`${basePath}/`)
+            ? rawPath.slice(basePath.length)
+            : rawPath;
+        return { rawPath, basePath, strippedPath: stripped };
+      })();
+
       // #region agent log
       if ((globalThis as any).__TI_NDE_AGENT_LOG_ENABLED__ === true && isOnFullDisplay) {
         fetch('http://127.0.0.1:7243/ingest/6f464193-ba2e-4950-8450-e8a059b7fbe3', {
@@ -490,7 +515,9 @@ export class ButtonInfoService {
               directLinkDocid,
               isDocidMatch,
               directLink: this.debugLog.redactUrlTokens(raw),
-              hrefPath: `${window.location.pathname}${window.location.search}${window.location.hash}`,
+              hrefPath: windowLocationPathWithQueryAndHash.rawPath,
+              basePath: windowLocationPathWithQueryAndHash.basePath,
+              hrefPathStripped: windowLocationPathWithQueryAndHash.strippedPath,
             },
             timestamp: Date.now(),
           }),
@@ -499,9 +526,7 @@ export class ButtonInfoService {
       // #endregion agent log
 
       const url = this.normalizePrimoDirectLink(
-        shouldUseWindowLocation
-          ? `${window.location.pathname}${window.location.search}${window.location.hash}`
-          : raw
+        shouldUseWindowLocation ? windowLocationPathWithQueryAndHash.strippedPath : raw
       );
 
       return {
