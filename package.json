@@ -56,7 +56,7 @@
     "ngx-build-plus": "^18.0.0",
     "prettier": "^3.7.4",
     "typescript": "^5.5.4",
-    "webpack": "^5.88.2",
+    "webpack": "^5.104.1",
     "webpack-cli": "^5.1.4",
     "webpack-dev-server": "^5.2.2"
   }
