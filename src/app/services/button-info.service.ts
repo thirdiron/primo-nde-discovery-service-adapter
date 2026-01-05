@@ -403,63 +403,57 @@ export class ButtonInfoService {
     return links;
   }
 
+  // For in-app navigation, we may need to take some extra steps to ensure the direct link is correct.
+  // - If viewModel.directLink has a docid and it matches the current URL docid, trust viewModel.directLink.
+  // - Otherwise, if we're on fulldisplay, use window.location (host fulldisplay URL) since it reflects
+  //   the currently selected record, even if the host later changes viewModel.directLink to a resolver URL.
+  // - We may also need to strip '/nde' from the pathname if the host is deployed with a non-root base href.
   private buildPrimoDirectLinkBase(
     viewModel: PrimoViewModel,
     hasOtherLinks: boolean
   ): StackLink | null {
-    if (viewModel.directLink && this.configService.showLinkResolverLink()) {
-      const otherOptions = this.translationService.getTranslatedText(
-        'nde.delivery.code.otherOnlineOptions',
-        'Other online options'
-      );
-      const availableOnline = this.translationService.getTranslatedText(
-        'delivery.code.fulltext',
-        'Available Online'
-      );
+    if (!viewModel.directLink || !this.configService.showLinkResolverLink()) return null;
 
-      const raw = (viewModel.directLink ?? '').trim();
+    const otherOptions = this.translationService.getTranslatedText(
+      'nde.delivery.code.otherOnlineOptions',
+      'Other online options'
+    );
+    const availableOnline = this.translationService.getTranslatedText(
+      'delivery.code.fulltext',
+      'Available Online'
+    );
 
-      // Runtime evidence: on full-display, the host can emit multiple viewModel updates for the same record
-      // and switch `directLink` from a `/fulldisplay?...&docid=...` URL to a link-resolver URL
-      // (`/view/action/uresolver.do?...`). For "Other online options" we want to navigate to fulldisplay
-      // for the currently selected record, so if we detect a resolver-style directLink, fall back to
-      // the current window location (which carries the correct docid).
-      const isResolverDirectLink = !raw.includes('/fulldisplay');
-      const isOnFullDisplay = window.location.pathname.includes('/fulldisplay');
-      const urlDocid = (() => {
-        try {
-          return new URL(window.location.href).searchParams.get('docid');
-        } catch {
-          return null;
-        }
-      })();
-      const directLinkDocid = (() => {
-        try {
-          // directLink can be absolute or relative
-          return new URL(raw, window.location.href).searchParams.get('docid');
-        } catch {
-          return null;
-        }
-      })();
-      const hasUrlDocid = !!urlDocid;
-      const hasDirectLinkDocid = !!directLinkDocid;
-      const isDocidMatch = hasUrlDocid && hasDirectLinkDocid && urlDocid === directLinkDocid;
-      const isDocidMismatch = hasUrlDocid && hasDirectLinkDocid && urlDocid !== directLinkDocid;
+    const rawDirectLink = (viewModel.directLink ?? '').trim();
+    if (!rawDirectLink) return null;
 
-      // Policy (applies for BOTH labels):
-      // - If directLink has a docid and it matches the current URL docid, trust directLink.
-      // - Otherwise, if we're on fulldisplay, use window.location (which is the host's own fulldisplay URL).
-      const shouldUseWindowLocation = !isDocidMatch && isOnFullDisplay;
+    let effectiveDirectLink = rawDirectLink;
 
-      const windowLocationPathWithQueryAndHash = (() => {
+    const isOnFullDisplay = window.location.pathname.includes('/fulldisplay');
+    if (isOnFullDisplay) {
+      let urlDocid: string | null = null;
+      try {
+        urlDocid = new URL(window.location.href).searchParams.get('docid');
+      } catch {
+        urlDocid = null;
+      }
+
+      let directLinkDocid: string | null = null;
+      try {
+        // viewModel.directLink can be absolute or relative
+        directLinkDocid = new URL(rawDirectLink, window.location.href).searchParams.get('docid');
+      } catch {
+        directLinkDocid = null;
+      }
+
+      const isDocidMatch = !!urlDocid && !!directLinkDocid && urlDocid === directLinkDocid;
+      if (!isDocidMatch) {
         // If the host app is deployed with a non-root base href (e.g. "/nde/"),
-        // `window.location.pathname` will include that base. Passing that full path to the Angular router
+        // window.location.pathname will include that base. Passing that full path to the Angular router
         // can produce duplicated segments (e.g. "/nde/nde/fulldisplay").
         // Strip the host base path so we produce a router-friendly path (e.g. "/fulldisplay?...").
         const rawPath = `${window.location.pathname}${window.location.search}${window.location.hash}`;
         let basePath = '/';
         try {
-          // document.baseURI should reflect the <base href> if present.
           basePath = new URL(document.baseURI).pathname || '/';
         } catch {
           basePath = '/';
@@ -469,26 +463,20 @@ export class ButtonInfoService {
           basePath = basePath.slice(0, -1);
         }
         // If basePath is "/nde" and rawPath starts with "/nde/", strip it.
-        const stripped =
+        effectiveDirectLink =
           basePath !== '/' && rawPath.startsWith(`${basePath}/`)
             ? rawPath.slice(basePath.length)
             : rawPath;
-        return { rawPath, basePath, strippedPath: stripped };
-      })();
-
-      const url = this.normalizePrimoDirectLink(
-        shouldUseWindowLocation ? windowLocationPathWithQueryAndHash.strippedPath : raw
-      );
-
-      return {
-        entityType: 'directLink',
-        url,
-        ariaLabel: viewModel.ariaLabel || '',
-        source: 'directLink',
-        label: hasOtherLinks ? otherOptions : availableOnline,
-      };
+      }
     }
-    return null;
+
+    return {
+      entityType: 'directLink',
+      url: this.normalizePrimoDirectLink(effectiveDirectLink),
+      ariaLabel: viewModel.ariaLabel || '',
+      source: 'directLink',
+      label: hasOtherLinks ? otherOptions : availableOnline,
+    };
   }
 
   /**
@@ -550,12 +538,14 @@ export class ButtonInfoService {
       parsed.hash = desiredHash;
     }
 
-    const out = isAbsolute ? parsed.toString() : `${parsed.pathname}${parsed.search}${parsed.hash}`;
+    const returnedLink = isAbsolute
+      ? parsed.toString()
+      : `${parsed.pathname}${parsed.search}${parsed.hash}`;
     this.debugLog.debug('ButtonInfo.normalizePrimoDirectLink.result', {
-      url: this.debugLog.redactUrlTokens(out),
+      url: this.debugLog.redactUrlTokens(returnedLink),
       isAbsoluteOutput: isAbsolute,
     });
-    return out;
+    return returnedLink;
   }
 
   private getBrowZineWebLink(data: ArticleData | JournalData): string {
