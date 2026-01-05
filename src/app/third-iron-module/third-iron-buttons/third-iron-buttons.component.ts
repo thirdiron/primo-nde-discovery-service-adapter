@@ -27,19 +27,6 @@ import { ViewOptionType } from 'src/app/shared/view-option.enum';
 import { StackedDropdownComponent } from 'src/app/components/stacked-dropdown/stacked-dropdown.component';
 import { DebugLogService } from 'src/app/services/debug-log.service';
 
-// #region agent log
-const __TI_NDE_AGENT_LOG_ENABLED__ = () =>
-  (globalThis as any).__TI_NDE_AGENT_LOG_ENABLED__ === true;
-const __tiAgentLog = (payload: any) => {
-  if (!__TI_NDE_AGENT_LOG_ENABLED__()) return;
-  fetch('http://127.0.0.1:7243/ingest/6f464193-ba2e-4950-8450-e8a059b7fbe3', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  }).catch(() => {});
-};
-// #endregion agent log
-
 @Component({
   selector: 'custom-third-iron-buttons',
   standalone: true,
@@ -83,20 +70,6 @@ export class ThirdIronButtonsComponent {
   private hostViewModelSub: Subscription | null = null;
   private lastHostViewModelRef: unknown = null;
   private lastHostRecordId: string | null = null;
-  private lastUrlDocid: string | null = null;
-  private firstDirectLinkSeenForRecordId = new Map<string, string>();
-  private firstDirectLinkLoggedForRecordId = new Set<string>();
-
-  private safeDocidFromUrl(rawUrl: unknown): string | null {
-    const s = typeof rawUrl === 'string' ? rawUrl.trim() : '';
-    if (!s) return null;
-    try {
-      const u = new URL(s, window.location.href);
-      return u.searchParams.get('docid');
-    } catch {
-      return null;
-    }
-  }
 
   /**
    * Backing field for the `@Input() hostComponent` setter/getter.
@@ -109,22 +82,6 @@ export class ThirdIronButtonsComponent {
   @Input()
   set hostComponent(value: any) {
     this._hostComponent = value;
-
-    // #region agent log
-    __tiAgentLog({
-      sessionId: 'debug-session',
-      runId: 'run1',
-      hypothesisId: 'H1',
-      location: 'third-iron-buttons.component.ts:hostComponent:set',
-      message: 'hostComponent setter called',
-      data: {
-        hasHost: !!value,
-        recordId: value?.searchResult?.pnx?.control?.recordid?.[0] ?? null,
-        hasViewModel$: !!value?.viewModel$,
-      },
-      timestamp: Date.now(),
-    });
-    // #endregion agent log
 
     // Push the latest host searchResult so we can react when host navigates records.
     this.hostSearchResult$.next((this._hostComponent?.searchResult as SearchEntity) ?? null);
@@ -174,47 +131,7 @@ export class ThirdIronButtonsComponent {
       this.debugLog.debug('ThirdIronButtons.host.searchResult.changed', {
         ...this.debugLog.safeSearchEntityMeta(nextRecord),
       });
-
-      // #region agent log
-      __tiAgentLog({
-        sessionId: 'debug-session',
-        runId: 'run1',
-        hypothesisId: 'H1',
-        location: 'third-iron-buttons.component.ts:ngDoCheck',
-        message: 'host searchResult recordId changed (ngDoCheck)',
-        data: { nextId },
-        timestamp: Date.now(),
-      });
-      // #endregion agent log
     }
-
-    // #region agent log
-    // Probe: is the URL docid a reliable "source of truth" for the currently selected record?
-    const urlDocid = this.safeDocidFromUrl(window.location.href);
-    if (__TI_NDE_AGENT_LOG_ENABLED__() && urlDocid !== this.lastUrlDocid) {
-      this.lastUrlDocid = urlDocid;
-      __tiAgentLog({
-        sessionId: 'debug-session',
-        runId: 'run6',
-        hypothesisId: 'H9',
-        location: 'third-iron-buttons.component.ts:ngDoCheck:urlDocid',
-        message: 'window.location docid changed',
-        data: {
-          urlDocid,
-          hostRecordId: nextId,
-          hrefPath: (() => {
-            try {
-              const u = new URL(window.location.href);
-              return `${u.pathname}${u.search}${u.hash}`;
-            } catch {
-              return null;
-            }
-          })(),
-        },
-        timestamp: Date.now(),
-      });
-    }
-    // #endregion agent log
 
     this.bindHostViewModel();
   }
@@ -227,21 +144,6 @@ export class ThirdIronButtonsComponent {
     // Re-bind only when the host swaps the `viewModel$` reference (common in some MF/host patterns).
     const vmRef = this._hostComponent?.viewModel$ ?? null;
 
-    // #region agent log
-    const vmRefChanged = !!vmRef && vmRef !== this.lastHostViewModelRef;
-    if (!vmRef || vmRefChanged) {
-      __tiAgentLog({
-        sessionId: 'debug-session',
-        runId: 'run2',
-        hypothesisId: 'H2',
-        location: 'third-iron-buttons.component.ts:bindHostViewModel',
-        message: 'bindHostViewModel check',
-        data: { hasVmRef: !!vmRef, vmRefChanged },
-        timestamp: Date.now(),
-      });
-    }
-    // #endregion agent log
-
     if (!vmRef || vmRef === this.lastHostViewModelRef) return;
 
     this.lastHostViewModelRef = vmRef;
@@ -253,107 +155,11 @@ export class ThirdIronButtonsComponent {
 
     this.hostViewModelSub = (vmRef as Observable<PrimoViewModel>).subscribe({
       next: vm => {
-        const hostRecordId = this._hostComponent?.searchResult?.pnx?.control?.recordid?.[0] ?? null;
-        const rawDirectLink = (vm as any)?.directLink ?? null;
-        const urlDocid = this.safeDocidFromUrl(window.location.href);
-        const directLinkDocid = this.safeDocidFromUrl(rawDirectLink);
-
-        const isFullDisplayLink =
-          typeof rawDirectLink === 'string' && rawDirectLink.includes('/fulldisplay');
-        const isLinkResolverLink =
-          typeof rawDirectLink === 'string' && rawDirectLink.includes('/view/action/uresolver.do');
-
-        // #region agent log
-        // Probe: is the *first* viewModel.directLink after a record change the "right" one to use as stable link?
-        if (__TI_NDE_AGENT_LOG_ENABLED__() && hostRecordId) {
-          const directLinkStr = typeof rawDirectLink === 'string' ? rawDirectLink : '';
-          const hadFirst = this.firstDirectLinkSeenForRecordId.has(hostRecordId);
-          if (!hadFirst && directLinkStr) {
-            this.firstDirectLinkSeenForRecordId.set(hostRecordId, directLinkStr);
-          }
-
-          const first = this.firstDirectLinkSeenForRecordId.get(hostRecordId) ?? null;
-          if (!this.firstDirectLinkLoggedForRecordId.has(hostRecordId) && first) {
-            this.firstDirectLinkLoggedForRecordId.add(hostRecordId);
-            __tiAgentLog({
-              sessionId: 'debug-session',
-              runId: 'run8',
-              hypothesisId: 'H12',
-              location: 'third-iron-buttons.component.ts:hostViewModelSub:next:firstDirectLink',
-              message: 'first viewModel.directLink observed for record',
-              data: {
-                hostRecordId,
-                urlDocid,
-                firstDirectLinkIsFullDisplay: first.includes('/fulldisplay'),
-                firstDirectLinkIsResolver: first.includes('/view/action/uresolver.do'),
-                firstDirectLinkDocid: this.safeDocidFromUrl(first),
-              },
-              timestamp: Date.now(),
-            });
-          }
-
-          if (first && directLinkStr && first !== directLinkStr) {
-            __tiAgentLog({
-              sessionId: 'debug-session',
-              runId: 'run8',
-              hypothesisId: 'H12',
-              location: 'third-iron-buttons.component.ts:hostViewModelSub:next:directLinkChanged',
-              message: 'viewModel.directLink changed after first emission for record',
-              data: {
-                hostRecordId,
-                urlDocid,
-                firstDirectLinkDocid: this.safeDocidFromUrl(first),
-                currentDirectLinkDocid: directLinkDocid,
-                currentIsFullDisplay: isFullDisplayLink,
-                currentIsResolver: isLinkResolverLink,
-              },
-              timestamp: Date.now(),
-            });
-          }
-        }
-        // #endregion agent log
-
-        // #region agent log
-        if (__TI_NDE_AGENT_LOG_ENABLED__()) {
-          __tiAgentLog({
-            sessionId: 'debug-session',
-            runId: 'run6',
-            hypothesisId: 'H9',
-            location: 'third-iron-buttons.component.ts:hostViewModelSub:next:docidProbe',
-            message: 'docid probe on host viewModel$ emission',
-            data: {
-              hostRecordId,
-              urlDocid,
-              directLinkDocid,
-              directLinkIsFullDisplay: isFullDisplayLink,
-              directLinkIsResolver: isLinkResolverLink,
-            },
-            timestamp: Date.now(),
-          });
-        }
-        // #endregion agent log
-
         this.hostViewModel$.next(vm);
         this.debugLog.debug('ThirdIronButtons.host.viewModel$.next', {
           directLink: (vm as any)?.directLink ?? null,
           onlineLinksCount: (vm as any)?.onlineLinks?.length ?? 0,
         });
-
-        // #region agent log
-        __tiAgentLog({
-          sessionId: 'debug-session',
-          runId: 'run1',
-          hypothesisId: 'H3',
-          location: 'third-iron-buttons.component.ts:hostViewModelSub:next',
-          message: 'host viewModel$ emitted',
-          data: {
-            directLink: (vm as any)?.directLink ?? null,
-            onlineLinksCount: (vm as any)?.onlineLinks?.length ?? 0,
-            hostRecordId: this._hostComponent?.searchResult?.pnx?.control?.recordid?.[0] ?? null,
-          },
-          timestamp: Date.now(),
-        });
-        // #endregion agent log
       },
       error: err => {
         this.debugLog.warn('ThirdIronButtons.host.viewModel$.error', {
@@ -398,44 +204,6 @@ export class ThirdIronButtonsComponent {
 
         return combineLatest([this.buttonInfoService.getDisplayInfo(record), this.viewModel$]).pipe(
           map(([displayInfo, viewModel]) => {
-            // #region agent log
-            __tiAgentLog({
-              sessionId: 'debug-session',
-              runId: 'run1',
-              hypothesisId: 'H4',
-              location: 'third-iron-buttons.component.ts:enhance:map',
-              message: 'enhance map combining displayInfo + viewModel',
-              data: {
-                recordId: record?.pnx?.control?.recordid?.[0] ?? null,
-                viewModelDirectLink: (viewModel as any)?.directLink ?? null,
-                viewModelOnlineLinksCount: (viewModel as any)?.onlineLinks?.length ?? 0,
-                mainButtonType: (displayInfo as any)?.mainButtonType ?? null,
-                viewOption: this.viewOption,
-              },
-              timestamp: Date.now(),
-            });
-            // #endregion agent log
-
-            // #region agent log
-            if (__TI_NDE_AGENT_LOG_ENABLED__()) {
-              __tiAgentLog({
-                sessionId: 'debug-session',
-                runId: 'run6',
-                hypothesisId: 'H9',
-                location: 'third-iron-buttons.component.ts:enhance:map:docidProbe',
-                message: 'docid probe on enhance map',
-                data: {
-                  hostRecordId: record?.pnx?.control?.recordid?.[0] ?? null,
-                  urlDocid: this.safeDocidFromUrl(window.location.href),
-                  viewModelDirectLinkDocid: this.safeDocidFromUrl(
-                    (viewModel as any)?.directLink ?? null
-                  ),
-                },
-                timestamp: Date.now(),
-              });
-            }
-            // #endregion agent log
-
             if (this.viewOption !== ViewOptionType.NoStack) {
               // build custom stack options array for StackPlusBrowzine and SingleStack view options
               this.combinedLinks = this.buttonInfoService.buildCombinedLinks(
@@ -465,25 +233,6 @@ export class ThirdIronButtonsComponent {
                 removedCount,
               });
             }
-
-            // #region agent log
-            __tiAgentLog({
-              sessionId: 'debug-session',
-              runId: 'run4',
-              hypothesisId: 'H7',
-              location: 'third-iron-buttons.component.ts:enhance:map:links',
-              message: 'computed link arrays',
-              data: {
-                recordId: record?.pnx?.control?.recordid?.[0] ?? null,
-                viewOption: this.viewOption,
-                combinedLinksCount: this.combinedLinks?.length ?? 0,
-                primoLinksCount: this.primoLinks?.length ?? 0,
-                firstCombinedUrl: this.combinedLinks?.[0]?.url ?? null,
-                firstPrimoUrl: this.primoLinks?.[0]?.url ?? null,
-              },
-              timestamp: Date.now(),
-            });
-            // #endregion agent log
 
             return displayInfo;
           })

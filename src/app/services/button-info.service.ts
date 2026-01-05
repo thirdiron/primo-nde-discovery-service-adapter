@@ -382,23 +382,6 @@ export class ButtonInfoService {
   }
 
   private buildPrimoOnlineLinksBase(viewModel: PrimoViewModel): StackLink[] {
-    // #region agent log
-    if (__TI_NDE_AGENT_LOG_VERBOSE__()) {
-      __tiAgentLog({
-        sessionId: 'debug-session',
-        runId: 'run1',
-        hypothesisId: 'H3',
-        location: 'button-info.service.ts:buildPrimoOnlineLinksBase',
-        message: 'buildPrimoOnlineLinksBase called',
-        data: {
-          onlineLinksCount: viewModel?.onlineLinks?.length ?? 0,
-          directLink: (viewModel as any)?.directLink ?? null,
-        },
-        timestamp: Date.now(),
-      });
-    }
-    // #endregion agent log
-
     const links: StackLink[] = [];
     if (
       viewModel?.onlineLinks &&
@@ -492,38 +475,6 @@ export class ButtonInfoService {
             : rawPath;
         return { rawPath, basePath, strippedPath: stripped };
       })();
-
-      // #region agent log
-      if ((globalThis as any).__TI_NDE_AGENT_LOG_ENABLED__ === true && isOnFullDisplay) {
-        fetch('http://127.0.0.1:7243/ingest/6f464193-ba2e-4950-8450-e8a059b7fbe3', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            sessionId: 'debug-session',
-            runId: 'run7',
-            hypothesisId: 'H10',
-            location: 'button-info.service.ts:buildPrimoDirectLinkBase',
-            message: shouldUseWindowLocation
-              ? 'using window.location for fulldisplay link (docid mismatch or missing)'
-              : 'using viewModel.directLink (docid match)',
-            data: {
-              hasOtherLinks,
-              isResolverDirectLink,
-              isOnFullDisplay,
-              isDocidMismatch,
-              urlDocid,
-              directLinkDocid,
-              isDocidMatch,
-              directLink: this.debugLog.redactUrlTokens(raw),
-              hrefPath: windowLocationPathWithQueryAndHash.rawPath,
-              basePath: windowLocationPathWithQueryAndHash.basePath,
-              hrefPathStripped: windowLocationPathWithQueryAndHash.strippedPath,
-            },
-            timestamp: Date.now(),
-          }),
-        }).catch(() => {});
-      }
-      // #endregion agent log
 
       const url = this.normalizePrimoDirectLink(
         shouldUseWindowLocation ? windowLocationPathWithQueryAndHash.strippedPath : raw
@@ -780,18 +731,3 @@ export class ButtonInfoService {
     return isAlertType;
   }
 }
-
-// #region agent log
-const __TI_NDE_AGENT_LOG_ENABLED__ = () =>
-  (globalThis as any).__TI_NDE_AGENT_LOG_ENABLED__ === true;
-const __TI_NDE_AGENT_LOG_VERBOSE__ = () =>
-  (globalThis as any).__TI_NDE_AGENT_LOG_VERBOSE__ === true;
-const __tiAgentLog = (payload: any) => {
-  if (!__TI_NDE_AGENT_LOG_ENABLED__()) return;
-  fetch('http://127.0.0.1:7243/ingest/6f464193-ba2e-4950-8450-e8a059b7fbe3', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  }).catch(() => {});
-};
-// #endregion agent log

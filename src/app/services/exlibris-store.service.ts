@@ -93,35 +93,6 @@ export class ExlibrisStoreService {
             lastChanged = 'none';
           }
 
-          // #region agent log
-          if (
-            (globalThis as any).__TI_NDE_AGENT_LOG_ENABLED__ === true &&
-            selectedRecordId &&
-            fallbackId &&
-            selectedRecordId !== fallbackId
-          ) {
-            fetch('http://127.0.0.1:7243/ingest/6f464193-ba2e-4950-8450-e8a059b7fbe3', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                sessionId: 'debug-session',
-                runId: 'run3',
-                hypothesisId: 'H6',
-                location: 'exlibris-store.service.ts:getRecordForEntity$:ids$:scan',
-                message: 'ids emission on mismatch',
-                data: {
-                  selectedRecordId,
-                  fallbackId,
-                  selectedChanged,
-                  fallbackChanged,
-                  lastChanged,
-                },
-                timestamp: Date.now(),
-              }),
-            }).catch(() => {});
-          }
-          // #endregion agent log
-
           return {
             prevSelected: selectedRecordId,
             prevFallback: fallbackId,
@@ -162,37 +133,6 @@ export class ExlibrisStoreService {
                 : selectedRecordId;
 
         const record = id ? (entities[id] ?? null) : null;
-
-        // #region agent log
-        if (
-          (globalThis as any).__TI_NDE_AGENT_LOG_ENABLED__ === true &&
-          selectedRecordId &&
-          fallbackId &&
-          selectedRecordId !== fallbackId
-        ) {
-          fetch('http://127.0.0.1:7243/ingest/6f464193-ba2e-4950-8450-e8a059b7fbe3', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              sessionId: 'debug-session',
-              runId: 'run2',
-              hypothesisId: 'H5',
-              location: 'exlibris-store.service.ts:getRecordForEntity$:map',
-              message:
-                'selectedRecordId differs from fallbackId (possible stale selection override)',
-              data: {
-                selectedRecordId,
-                fallbackId,
-                chosenId: id,
-                selectedRecordFound: !!selectedRecord,
-                fallbackRecordFound: !!fallbackRecord,
-                recordFound: !!record,
-              },
-              timestamp: Date.now(),
-            }),
-          }).catch(() => {});
-        }
-        // #endregion agent log
 
         this.debugLog.debug('ExlibrisStore.getRecordForEntity$', {
           selectedRecordId: selectedRecordId ?? null,
