@@ -524,16 +524,16 @@ export class ButtonInfoService {
     // If the incoming link already has a `state` query param that encodes this anchor,
     // remove it so the router URL doesn't end up as `...&state=%23nui.getit.service_viewit`
     // (we want a real fragment for scrolling).
-    // const existingStates = parsed.searchParams.getAll('state');
-    // if (existingStates.length) {
-    //   const statesToKeep = existingStates.filter(
-    //     s => !String(s).includes('nui.getit.service_viewit')
-    //   );
-    //   if (statesToKeep.length !== existingStates.length) {
-    //     parsed.searchParams.delete('state');
-    //     statesToKeep.forEach(s => parsed.searchParams.append('state', s));
-    //   }
-    // }
+    const existingStates = parsed.searchParams.getAll('state');
+    if (existingStates.length) {
+      const statesToKeep = existingStates.filter(
+        s => !String(s).includes('nui.getit.service_viewit')
+      );
+      if (statesToKeep.length !== existingStates.length) {
+        parsed.searchParams.delete('state');
+        statesToKeep.forEach(s => parsed.searchParams.append('state', s));
+      }
+    }
 
     const beforeHash = parsed.hash;
     if (beforeHash !== desiredHash) {
