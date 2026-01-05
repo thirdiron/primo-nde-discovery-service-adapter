@@ -1,15 +1,5 @@
 import { Component, ElementRef, Input, ViewEncapsulation, DestroyRef } from '@angular/core';
-import {
-  Observable,
-  ReplaySubject,
-  Subscription,
-  combineLatest,
-  distinctUntilChanged,
-  filter,
-  map,
-  of,
-  switchMap,
-} from 'rxjs';
+import { Observable, combineLatest, distinctUntilChanged, filter, map, of, switchMap } from 'rxjs';
 import { BrowzineButtonComponent } from '../../components/browzine-button/browzine-button.component';
 import { SearchEntity } from '../../types/searchEntity.types';
 import { DisplayWaterfallResponse } from '../../types/displayWaterfallResponse.types';
@@ -26,6 +16,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { ViewOptionType } from 'src/app/shared/view-option.enum';
 import { StackedDropdownComponent } from 'src/app/components/stacked-dropdown/stacked-dropdown.component';
 import { DebugLogService } from 'src/app/services/debug-log.service';
+import { HostComponentProxy } from 'src/app/shared/host-component-proxy';
 
 @Component({
   selector: 'custom-third-iron-buttons',
@@ -48,28 +39,11 @@ import { DebugLogService } from 'src/app/services/debug-log.service';
   encapsulation: ViewEncapsulation.None,
 })
 export class ThirdIronButtonsComponent {
-  /**
-   * **Host record proxy stream**.
-   * We push whatever the host considers the "current record" (`hostComponent.searchResult`) into this
-   * ReplaySubject so:
-   * - new subscribers immediately receive the latest record (ReplaySubject(1))
-   * - we can react when the host navigates records even if ExLibris store selection is stale/unset
-   */
-  private hostSearchResult$ = new ReplaySubject<SearchEntity | null>(1);
-
-  /**
-   * **Host view model proxy stream**.
-   * The host provides `hostComponent.viewModel$`, but in practice the host may:
-   * - swap the observable instance over time, or
-   * - mutate hostComponent without re-triggering Angular @Input setters here.
-   *
-   * We subscribe to the current host `viewModel$` and proxy emissions into this stable ReplaySubject
-   * so our link-building always uses the latest PrimoViewModel.
-   */
-  private hostViewModel$ = new ReplaySubject<PrimoViewModel>(1);
-  private hostViewModelSub: Subscription | null = null;
-  private lastHostViewModelRef: unknown = null;
-  private lastHostRecordId: string | null = null;
+  private readonly hostProxy = new HostComponentProxy<SearchEntity, PrimoViewModel>({
+    getRecord: host => (host?.searchResult as SearchEntity) ?? null,
+    getRecordId: record => record?.pnx?.control?.recordid?.[0] ?? null,
+    getViewModel$: host => (host?.viewModel$ as Observable<PrimoViewModel>) ?? null,
+  });
 
   /**
    * Backing field for the `@Input() hostComponent` setter/getter.
@@ -82,12 +56,7 @@ export class ThirdIronButtonsComponent {
   @Input()
   set hostComponent(value: any) {
     this._hostComponent = value;
-
-    // Push the latest host searchResult so we can react when host navigates records.
-    this.hostSearchResult$.next((this._hostComponent?.searchResult as SearchEntity) ?? null);
-
-    // (Re)bind host viewModel$ to our own ReplaySubject so downstream always sees latest values.
-    this.bindHostViewModel();
+    this.hostProxy.setHostComponent(value);
   }
   get hostComponent(): any {
     return this._hostComponent;
@@ -102,10 +71,11 @@ export class ThirdIronButtonsComponent {
   ViewOptionType = ViewOptionType;
 
   displayInfo$!: Observable<DisplayWaterfallResponse | null>;
+
   // Exposed to template (async pipe) and used for link building.
   // We proxy hostComponent.viewModel$ into a stable stream so we can re-bind if the host swaps
   // the observable instance or mutates without re-setting the @Input.
-  viewModel$: Observable<PrimoViewModel> = this.hostViewModel$.asObservable();
+  viewModel$: Observable<PrimoViewModel> = this.hostProxy.viewModel$;
 
   constructor(
     private buttonInfoService: ButtonInfoService,
@@ -119,58 +89,17 @@ export class ThirdIronButtonsComponent {
   }
 
   ngDoCheck() {
-    // Some hosts mutate properties on the same hostComponent object rather than replacing it,
-    // which means our @Input setter may not run. Detect those changes and push updates.
-    const host = this._hostComponent;
-    const nextRecord = (host?.searchResult as SearchEntity) ?? null;
-    const nextId = nextRecord?.pnx?.control?.recordid?.[0] ?? null;
-
-    if (nextId !== this.lastHostRecordId) {
-      this.lastHostRecordId = nextId;
-      this.hostSearchResult$.next(nextRecord);
-      this.debugLog.debug('ThirdIronButtons.host.searchResult.changed', {
-        ...this.debugLog.safeSearchEntityMeta(nextRecord),
-      });
-    }
-
-    this.bindHostViewModel();
+    // Some hosts mutate properties in-place rather than replacing the hostComponent object.
+    // doCheck() detects those changes and keeps our proxy streams up to date.
+    this.hostProxy.doCheck();
   }
 
   ngOnDestroy() {
-    this.hostViewModelSub?.unsubscribe();
-  }
-
-  private bindHostViewModel() {
-    // Re-bind only when the host swaps the `viewModel$` reference (common in some MF/host patterns).
-    const vmRef = this._hostComponent?.viewModel$ ?? null;
-
-    if (!vmRef || vmRef === this.lastHostViewModelRef) return;
-
-    this.lastHostViewModelRef = vmRef;
-    this.hostViewModelSub?.unsubscribe();
-
-    this.debugLog.debug('ThirdIronButtons.host.viewModel$.bound', {
-      hasViewModel$: true,
-    });
-
-    this.hostViewModelSub = (vmRef as Observable<PrimoViewModel>).subscribe({
-      next: vm => {
-        this.hostViewModel$.next(vm);
-        this.debugLog.debug('ThirdIronButtons.host.viewModel$.next', {
-          directLink: (vm as any)?.directLink ?? null,
-          onlineLinksCount: (vm as any)?.onlineLinks?.length ?? 0,
-        });
-      },
-      error: err => {
-        this.debugLog.warn('ThirdIronButtons.host.viewModel$.error', {
-          err: this.debugLog.safeError(err),
-        });
-      },
-    });
+    this.hostProxy.destroy();
   }
 
   ngOnInit() {
-    const hostRecord$ = this.hostSearchResult$.pipe(
+    const hostRecord$ = this.hostProxy.record$.pipe(
       filter((record): record is SearchEntity => !!record),
       distinctUntilChanged(
         (a, b) =>
