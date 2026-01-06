@@ -1302,7 +1302,7 @@ describe('ButtonInfoService', () => {
 
       const viewModel: any = {
         onlineLinks: [],
-        directLink: 'https://example.com/fulldisplay/some/direct/link',
+        directLink: 'https://example.com/nde/fulldisplay/some/direct/link',
         ariaLabel: 'Direct link aria label',
       };
 
@@ -1312,7 +1312,7 @@ describe('ButtonInfoService', () => {
       expect(result[1]).toEqual({
         source: 'directLink',
         entityType: 'directLink',
-        url: 'https://example.com/fulldisplay/some/direct/link#nui.getit.service_viewit',
+        url: 'https://example.com/nde/fulldisplay/some/direct/link#nui.getit.service_viewit',
         ariaLabel: 'Direct link aria label',
         label: 'Other online options', // From mock translation service, option when more than one item in the stack
       });
@@ -1337,7 +1337,7 @@ describe('ButtonInfoService', () => {
 
       const viewModel: any = {
         onlineLinks: [],
-        directLink: 'https://example.com/fulldisplay/some/direct/link',
+        directLink: 'https://example.com/nde/fulldisplay/some/direct/link',
         ariaLabel: 'Direct link aria label',
       };
 
@@ -1347,7 +1347,7 @@ describe('ButtonInfoService', () => {
       expect(result[0]).toEqual({
         source: 'directLink',
         entityType: 'directLink',
-        url: 'https://example.com/fulldisplay/some/direct/link#nui.getit.service_viewit',
+        url: 'https://example.com/nde/fulldisplay/some/direct/link#nui.getit.service_viewit',
         ariaLabel: 'Direct link aria label',
         label: 'Available Online', // From mock translation service when only one option
       });
@@ -1372,13 +1372,13 @@ describe('ButtonInfoService', () => {
 
       const viewModel: any = {
         onlineLinks: [],
-        directLink: 'https://example.com/nde/some/direct/link',
+        directLink: 'https://example.com/some/direct/link',
         ariaLabel: 'Direct link aria label',
       };
 
       const result = testService.buildCombinedLinks(displayInfo, viewModel);
 
-      expect(result[1].url).toBe('https://example.com/nde/some/direct/link');
+      expect(result[1].url).toBe('https://example.com/some/direct/link');
     });
 
     it('should build direct link with anchor when directLink includes /fulldisplay', async () => {
@@ -1538,6 +1538,216 @@ describe('ButtonInfoService', () => {
       expect(result[3].source).toBe('directLink');
     });
 
-    // TODO: add tests for browzine button once we add logic for this
+    it('should add BrowZine button for SingleStack when enabled and browzineUrl is provided', async () => {
+      const mockConfig = { ...MOCK_MODULE_PARAMETERS };
+      mockConfig.viewOption = 'single-stack';
+      mockConfig.showLinkResolverLink = false;
+
+      const testBed = await createTestModule(mockConfig);
+      const testService = testBed.inject(ButtonInfoService);
+
+      const displayInfo: DisplayWaterfallResponse = {
+        entityType: EntityType.Journal,
+        mainButtonType: ButtonType.DirectToPDF, // main button type doesn't matter for adding the BrowZine stack item
+        mainUrl: 'https://example.com/main',
+        secondaryUrl: '',
+        showSecondaryButton: false,
+        showBrowzineButton: true,
+        browzineUrl: 'https://example.com/browzine',
+      };
+
+      const viewModel: any = { onlineLinks: [], directLink: '' };
+
+      const result = testService.buildStackOptions(displayInfo, viewModel);
+
+      expect(result).toHaveSize(2);
+      expect(result[0]).toEqual({
+        source: 'thirdIron',
+        entityType: EntityType.Journal,
+        mainButtonType: ButtonType.DirectToPDF,
+        url: 'https://example.com/main',
+        ariaLabel: '',
+        label: '',
+      });
+      expect(result[1]).toEqual({
+        source: 'thirdIron',
+        entityType: EntityType.Journal,
+        mainButtonType: ButtonType.Browzine,
+        url: 'https://example.com/browzine',
+      });
+    });
+
+    it('should not add BrowZine button when viewOption is not SingleStack', async () => {
+      const mockConfig = { ...MOCK_MODULE_PARAMETERS };
+      mockConfig.viewOption = 'no-stack';
+      mockConfig.showLinkResolverLink = false;
+
+      const testBed = await createTestModule(mockConfig);
+      const testService = testBed.inject(ButtonInfoService);
+
+      const displayInfo: DisplayWaterfallResponse = {
+        entityType: EntityType.Journal,
+        mainButtonType: ButtonType.DirectToPDF,
+        mainUrl: 'https://example.com/main',
+        secondaryUrl: '',
+        showSecondaryButton: false,
+        showBrowzineButton: true,
+        browzineUrl: 'https://example.com/browzine',
+      };
+
+      const viewModel: any = { onlineLinks: [], directLink: '' };
+      const result = testService.buildStackOptions(displayInfo, viewModel);
+
+      expect(result).toHaveSize(1);
+      expect(result[0].url).toBe('https://example.com/main');
+    });
+
+    it('should not add BrowZine button when browzineUrl is missing (even in SingleStack)', async () => {
+      const mockConfig = { ...MOCK_MODULE_PARAMETERS };
+      mockConfig.viewOption = 'single-stack';
+      mockConfig.showLinkResolverLink = false;
+
+      const testBed = await createTestModule(mockConfig);
+      const testService = testBed.inject(ButtonInfoService);
+
+      const displayInfo: DisplayWaterfallResponse = {
+        entityType: EntityType.Journal,
+        mainButtonType: ButtonType.DirectToPDF,
+        mainUrl: 'https://example.com/main',
+        secondaryUrl: '',
+        showSecondaryButton: false,
+        showBrowzineButton: true,
+        browzineUrl: '',
+      };
+
+      const viewModel: any = { onlineLinks: [], directLink: '' };
+      const result = testService.buildStackOptions(displayInfo, viewModel);
+
+      expect(result).toHaveSize(1);
+      expect(result[0].url).toBe('https://example.com/main');
+    });
+  });
+
+  describe('#buildPrimoDirectLinkBase', () => {
+    const desiredHash = '#nui.getit.service_viewit';
+
+    const setPath = (pathWithQueryAndHash: string) => {
+      // Update window.location without triggering a navigation/reload.
+      history.pushState({}, '', pathWithQueryAndHash);
+    };
+
+    let baseEl: HTMLBaseElement | null = null;
+    let createdBaseEl = false;
+    let originalBaseHref: string | null = null;
+
+    const setBaseHref = (href: string | null) => {
+      baseEl = document.querySelector('base');
+      if (!baseEl) {
+        if (href == null) return;
+        baseEl = document.createElement('base');
+        baseEl.setAttribute('data-test', 'button-info');
+        document.head.prepend(baseEl);
+        createdBaseEl = true;
+        originalBaseHref = null;
+      } else {
+        createdBaseEl = false;
+        originalBaseHref = baseEl.getAttribute('href');
+      }
+
+      if (href == null) return;
+      baseEl.setAttribute('href', href);
+    };
+
+    afterEach(() => {
+      // Restore base href
+      if (baseEl) {
+        if (createdBaseEl) {
+          baseEl.remove();
+        } else if (originalBaseHref == null) {
+          baseEl.removeAttribute('href');
+        } else {
+          baseEl.setAttribute('href', originalBaseHref);
+        }
+      }
+      baseEl = null;
+      createdBaseEl = false;
+      originalBaseHref = null;
+
+      // Restore URL path
+      setPath('/');
+    });
+
+    const callBuildPrimoDirectLinkBase = async (
+      directLink: string,
+      pathWithQueryAndHash: string,
+      baseHref: string | null
+    ) => {
+      const mockConfig = { ...MOCK_MODULE_PARAMETERS, showLinkResolverLink: true };
+      const testBed = await createTestModule(mockConfig);
+      const service = testBed.inject(ButtonInfoService) as any;
+
+      setPath(pathWithQueryAndHash);
+      setBaseHref(baseHref);
+
+      const viewModel: any = {
+        onlineLinks: [],
+        directLink,
+        ariaLabel: 'aria',
+      };
+
+      // Test the private method directly.
+      return service.buildPrimoDirectLinkBase(viewModel, true) as any;
+    };
+
+    it('does not strip /nde from a trusted absolute directLink when NOT currently on /fulldisplay', async () => {
+      const link = await callBuildPrimoDirectLinkBase(
+        'https://example.com/nde/fulldisplay?docid=AAA', // direct link
+        '/search?docid=AAA', // window.location
+        '/nde/' // base href
+      );
+
+      expect(link.url).toBe(`https://example.com/nde/fulldisplay?docid=AAA${desiredHash}`);
+    });
+
+    it('does not strip /nde from a trusted absolute directLink when on /fulldisplay and docid matches', async () => {
+      const link = await callBuildPrimoDirectLinkBase(
+        'https://example.com/nde/fulldisplay?docid=AAA',
+        '/nde/fulldisplay?docid=AAA',
+        '/nde/'
+      );
+
+      expect(link.url).toBe(`https://example.com/nde/fulldisplay?docid=AAA${desiredHash}`);
+    });
+
+    it('strips /nde from window.location fallback when on /nde/fulldisplay and docid mismatches', async () => {
+      const link = await callBuildPrimoDirectLinkBase(
+        'https://example.com/view/action/uresolver.do?docid=BBB',
+        '/nde/fulldisplay?docid=AAA',
+        '/nde/'
+      );
+
+      // Fallback uses current window.location, but stripped of base href "/nde"
+      expect(link.url).toBe(`/fulldisplay?docid=AAA${desiredHash}`);
+    });
+
+    it('does not strip anything when base href is root (fallback still uses window.location)', async () => {
+      const link = await callBuildPrimoDirectLinkBase(
+        'https://example.com/view/action/uresolver.do?docid=BBB',
+        '/fulldisplay?docid=AAA',
+        '/'
+      );
+
+      expect(link.url).toBe(`/fulldisplay?docid=AAA${desiredHash}`);
+    });
+
+    it('does not strip when window.location pathname does not start with basePath (even in fallback)', async () => {
+      const link = await callBuildPrimoDirectLinkBase(
+        'https://example.com/view/action/uresolver.do?docid=BBB',
+        '/somethingelse/fulldisplay?docid=AAA',
+        '/nde/'
+      );
+
+      expect(link.url).toBe(`/somethingelse/fulldisplay?docid=AAA${desiredHash}`);
+    });
   });
 });
