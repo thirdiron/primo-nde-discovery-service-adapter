@@ -1,9 +1,9 @@
 import { Component, ElementRef, Input } from '@angular/core';
 import { SearchEntity } from '../../types/searchEntity.types';
-import { Observable, ReplaySubject, filter, switchMap, tap, shareReplay } from 'rxjs';
+import { Observable, filter, switchMap, tap, shareReplay } from 'rxjs';
 import { AsyncPipe } from '@angular/common';
 import { JournalCoverService } from '../../services/journal-cover.service';
-import { ExlibrisStoreService } from '../../services/exlibris-store.service';
+import { HostComponentProxy } from 'src/app/shared/host-component-proxy';
 
 @Component({
   selector: 'custom-third-iron-journal-cover',
@@ -14,17 +14,29 @@ import { ExlibrisStoreService } from '../../services/exlibris-store.service';
   providers: [JournalCoverService],
 })
 export class ThirdIronJournalCoverComponent {
-  // This holds the latest hostComponent.item record and replays it to new subscribers.
-  // This matters because the host can change records over time, and we want our addon to react (re-evaluate the journal cover URL with the new record)
-  // even if the host doesn’t update the store selection immediately.
-  private hostItem$ = new ReplaySubject<SearchEntity | null>(1);
+  // **Host record proxy**:
+  // The host can mutate `hostComponent.item` in-place as the user navigates records.
+  // HostComponentProxy turns that mutable input into a stable `record$` stream (ReplaySubject(1)),
+  // so new subscribers get the latest record and we can react on record-id changes.
+  private readonly hostProxy = new HostComponentProxy<SearchEntity, never>({
+    getRecord: host => (host?.item as SearchEntity) ?? null,
+    getRecordId: record => record?.pnx?.control?.recordid?.[0] ?? null,
+    // Journal cover doesn't need a view model stream; we only proxy the current record.
+    getViewModel$: () => null,
+  });
+
+  /**
+   * Backing field for the `@Input() hostComponent` setter/getter.
+   * We use a setter so we can run side-effects (push latest record into `record$`) whenever the host
+   * updates the input.
+   */
   private _hostComponent!: any;
 
   // Setup setter/getter to keep hostComponent up to date when user navigates records
   @Input()
   set hostComponent(value: any) {
     this._hostComponent = value;
-    this.hostItem$.next((this._hostComponent?.item as SearchEntity) ?? null);
+    this.hostProxy.setHostComponent(value);
   }
   get hostComponent(): any {
     return this._hostComponent;
@@ -35,18 +47,25 @@ export class ThirdIronJournalCoverComponent {
 
   constructor(
     private journalCoverService: JournalCoverService,
-    private exlibrisStoreService: ExlibrisStoreService,
     elementRef: ElementRef
   ) {
     this.elementRef = elementRef;
   }
 
+  ngDoCheck() {
+    // Some hosts mutate properties in-place rather than replacing the hostComponent object.
+    // Keep our proxied record stream up to date even if the @Input setter doesn't re-run.
+    this.hostProxy.doCheck();
+  }
+
+  ngOnDestroy() {
+    this.hostProxy.destroy();
+  }
+
   ngOnInit() {
-    // The raw hostComponent.searchResult is not an observable,
-    // so we need to use the ExLibris store to get the up to date record.
-    // Compose a single stream that maps the record to a cover URL and
+    // Compose a single stream that maps the current host record to a cover URL and
     // performs side-effects (hide default images) without extra subscriptions.
-    this.journalCoverUrl$ = this.exlibrisStoreService.getRecordForEntity$(this.hostItem$).pipe(
+    this.journalCoverUrl$ = this.hostProxy.record$.pipe(
       filter((record): record is SearchEntity => !!record),
       switchMap(record => this.journalCoverService.getJournalCoverUrl(record)),
       tap(journalCoverUrl => {
