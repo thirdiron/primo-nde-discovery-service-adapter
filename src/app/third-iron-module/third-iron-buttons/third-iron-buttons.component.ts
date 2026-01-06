@@ -39,6 +39,11 @@ import { HostComponentProxy } from 'src/app/shared/host-component-proxy';
   encapsulation: ViewEncapsulation.None,
 })
 export class ThirdIronButtonsComponent {
+  // **Host record + viewModel proxy**:
+  // The host can mutate `hostComponent` in-place and may also swap the `viewModel$` observable over time.
+  // HostComponentProxy turns that mutable input into stable streams:
+  // - record$: emits when record-id changes
+  // - viewModel$: emits latest PrimoViewModel; auto-rebinds if the host swaps the observable reference
   private readonly hostProxy = new HostComponentProxy<SearchEntity, PrimoViewModel>({
     getRecord: host => (host?.searchResult as SearchEntity) ?? null,
     getRecordId: record => record?.pnx?.control?.recordid?.[0] ?? null,
@@ -47,12 +52,12 @@ export class ThirdIronButtonsComponent {
 
   /**
    * Backing field for the `@Input() hostComponent` setter/getter.
-   * We use a setter so we can run side-effects (push latest record + bind viewModel$) whenever the
+   * We use a setter so we can run side-effects (push latest record + (re)bind viewModel$) whenever the
    * host updates the input.
    */
   private _hostComponent!: any;
 
-  // Setup setter/getter to keep hostComponent up to date when user navigates records
+  // Setup setter/getter so we can react when the host updates the input.
   @Input()
   set hostComponent(value: any) {
     this._hostComponent = value;
@@ -73,8 +78,8 @@ export class ThirdIronButtonsComponent {
   displayInfo$!: Observable<DisplayWaterfallResponse | null>;
 
   // Exposed to template (async pipe) and used for link building.
-  // We proxy hostComponent.viewModel$ into a stable stream so we can re-bind if the host swaps
-  // the observable instance or mutates without re-setting the @Input.
+  // This comes from HostComponentProxy so downstream always sees the latest PrimoViewModel, even if
+  // the host swaps the observable instance or mutates without re-setting the @Input.
   viewModel$: Observable<PrimoViewModel> = this.hostProxy.viewModel$;
 
   constructor(

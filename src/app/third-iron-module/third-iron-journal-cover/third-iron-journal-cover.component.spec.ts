@@ -7,7 +7,6 @@ import { Store } from '@ngrx/store';
 
 import { ThirdIronJournalCoverComponent } from './third-iron-journal-cover.component';
 import { JournalCoverService } from '../../services/journal-cover.service';
-import { ExlibrisStoreService } from '../../services/exlibris-store.service';
 import { MOCK_MODULE_PARAMETERS } from '../../services/config.service.spec';
 
 describe('ThirdIronJournalCoverComponent', () => {
@@ -26,7 +25,6 @@ describe('ThirdIronJournalCoverComponent', () => {
       imports: [ThirdIronJournalCoverComponent],
       providers: [
         JournalCoverService,
-        ExlibrisStoreService,
         provideHttpClient(),
         provideHttpClientTesting(),
         {
