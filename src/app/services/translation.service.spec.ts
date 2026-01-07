@@ -51,7 +51,6 @@ describe('TranslationService', () => {
     // Language change is logged
     expect((debugLogMock as any).debug).toHaveBeenCalledWith('Translation.langChange', {
       lang: 'en',
-      previousLang: 'fr',
     });
 
     sub.unsubscribe();

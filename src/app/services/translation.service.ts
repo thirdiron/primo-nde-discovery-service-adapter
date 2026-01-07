@@ -17,7 +17,6 @@ export class TranslationService {
       onLangChange$.subscribe((evt: any) => {
         this.debugLog.debug('Translation.langChange', {
           lang: evt?.lang ?? null,
-          previousLang: evt?.previousLang ?? null,
         });
       });
     }
