@@ -1,12 +1,27 @@
 import { Injectable } from '@angular/core';
 import { TranslateService } from '@ngx-translate/core';
 import { Observable, map } from 'rxjs';
+import { DebugLogService } from './debug-log.service';
 
 @Injectable({
   providedIn: 'root',
 })
 export class TranslationService {
-  constructor(private translate: TranslateService) {}
+  constructor(
+    private translate: TranslateService,
+    private debugLog: DebugLogService
+  ) {
+    // Log language changes once at the translation boundary so downstream callers don't need to.
+    const onLangChange$ = (this.translate as any)?.onLangChange;
+    if (onLangChange$ && typeof onLangChange$.subscribe === 'function') {
+      onLangChange$.subscribe((evt: any) => {
+        this.debugLog.debug('Translation.langChange', {
+          lang: evt?.lang ?? null,
+          previousLang: evt?.previousLang ?? null,
+        });
+      });
+    }
+  }
 
   /**
    * Gets translated text with fallback support
