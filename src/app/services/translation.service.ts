@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core';
 import { TranslateService } from '@ngx-translate/core';
+import { Observable, map } from 'rxjs';
 
 @Injectable({
   providedIn: 'root',
@@ -11,13 +12,16 @@ export class TranslationService {
    * Gets translated text with fallback support
    * @param translationKey - The translation key to look up
    * @param fallbackText - Fallback text if translation is not found or equals the key
-   * @returns The translated text or fallback text
+   * @returns Observable that emits the translated text (and updates on language changes) or fallback text
    */
-  getTranslatedText(translationKey: string, fallbackText: string): string {
-    const translatedText = this.translate.instant(translationKey);
-    return translatedText && translatedText !== translationKey
-      ? translatedText
-      : fallbackText;
+  getTranslatedText$(translationKey: string, fallbackText: string): Observable<string> {
+    return this.translate
+      .stream(translationKey)
+      .pipe(
+        map(translatedText =>
+          translatedText && translatedText !== translationKey ? translatedText : fallbackText
+        )
+      );
   }
 
   // POSSIBLE FUTURE ADDITIONS //
