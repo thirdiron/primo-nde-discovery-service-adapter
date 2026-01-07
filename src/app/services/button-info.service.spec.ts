@@ -4,7 +4,6 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 
 import { ButtonInfoService } from './button-info.service';
 import { HttpService } from './http.service';
-import { TranslationService } from './translation.service';
 import { EntityType } from '../shared/entity-type.enum';
 import { ApiResult, ArticleData, JournalData } from '../types/tiData.types';
 import { DisplayWaterfallResponse } from '../types/displayWaterfallResponse.types';
@@ -12,18 +11,6 @@ import { SearchEntity } from '../types/searchEntity.types';
 import { firstValueFrom } from 'rxjs';
 import { ButtonType } from '../shared/button-type.enum';
 import { MOCK_MODULE_PARAMETERS } from './config.service.spec';
-
-// Mock for TranslationService
-const mockTranslationService = {
-  getTranslatedText: (key: string, fallback: string) => {
-    const translations: { [key: string]: string } = {
-      'fulldisplay.HTML': 'Read Online',
-      'fulldisplay.PDF': 'Get PDF',
-      'nde.delivery.code.otherOnlineOptions': 'Other online options',
-    };
-    return translations[key] || fallback;
-  },
-};
 
 const authToken = 'a9c7fb8f-9758-4ff9-9dc9-fcb4cbf32724';
 const baseUrl = 'https://public-api.thirdiron.com/public/v1/libraries/222';
@@ -134,10 +121,6 @@ const createTestModule = async (config: any) => {
         provide: 'MODULE_PARAMETERS',
         useValue: config,
       },
-      {
-        provide: TranslationService,
-        useValue: mockTranslationService,
-      },
     ],
   });
   await TestBed.compileComponents();
@@ -159,10 +142,6 @@ describe('ButtonInfoService', () => {
         {
           provide: 'MODULE_PARAMETERS',
           useValue: MOCK_MODULE_PARAMETERS,
-        },
-        {
-          provide: TranslationService,
-          useValue: mockTranslationService,
         },
       ],
     });
