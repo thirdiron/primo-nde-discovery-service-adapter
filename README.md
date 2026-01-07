@@ -168,6 +168,8 @@ Button label text can be customized and translated by setting up label codes in 
 
 This add-on supports a **runtime-toggleable debug mode**. When enabled, the add-on will emit structured log messages to the browser console at key points in the app flow (API calls, decision points, DOM removal, etc.).
 
+To add new log messages follow the convention of `Component.FunctionName.descriptionRelevantToLoggedData`
+
 **Console API**
 
 - Enable: `window.__TI_NDE__.debug.enable()`
@@ -183,6 +185,10 @@ Debug mode persists across reloads via `localStorage` key `__TI_NDE_DEBUG__`:
 - Force ON: `localStorage.setItem('__TI_NDE_DEBUG__', '1')`
 - Force OFF: `localStorage.setItem('__TI_NDE_DEBUG__', '0')`
 - Clear: `localStorage.removeItem('__TI_NDE_DEBUG__')`
+
+Generally you can just use the functions described above in the Console API, but if you wanted to set the localStorage value directly you can in this way.
+
+Once the localStorage value is set to true, either directly or via the exposed functions, log statements will be emitted to the browser console on the next action that would trigger a log message.
 
 **Redaction policy**
 
