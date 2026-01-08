@@ -97,7 +97,7 @@ export class HttpService {
     this.debugLog.warn('HttpService.handleError', {
       status: error?.status,
       statusText: error?.statusText,
-      url: !!error?.url,
+      url: error?.url,
       errorMessageRedacted,
     });
 

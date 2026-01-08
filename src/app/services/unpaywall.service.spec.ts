@@ -101,6 +101,42 @@ describe('UnpaywallService', () => {
     });
   });
 
+  describe('makeUnpaywallCall (preserves existing display info)', () => {
+    it('should preserve Browzine button fields when Unpaywall returns a main URL', async () => {
+      const doi = '10.1038%2Fs41467-021-26227-6';
+
+      const getUnpaywallUrls = jasmine.createSpy('getUnpaywallUrls').and.returnValue(
+        Promise.resolve({
+          linkHostType: 'repository',
+          articleLinkUrl: 'https://example.com/unpaywall-article',
+        } as UnpaywallUrls)
+      );
+
+      // Ensure initUnpaywallClient() short-circuits and uses our spy client.
+      (service as any).unpaywallClient = { getUnpaywallUrls };
+
+      const displayInfoWithBrowzine = {
+        ...DEFAULT_DISPLAY_WATERFALL_RESPONSE,
+        entityType: EntityType.Article,
+        browzineUrl: 'https://browzine.com/libraries/XXX/journals/123',
+        showBrowzineButton: true,
+      };
+
+      const result = await firstValueFrom(
+        service.makeUnpaywallCall(
+          { status: 404, body: { data: {} } } as any,
+          displayInfoWithBrowzine,
+          doi
+        )
+      );
+
+      expect(result.mainButtonType).toBe(ButtonType.UnpaywallArticleLink);
+      expect(result.mainUrl).toBe('https://example.com/unpaywall-article');
+      expect(result.browzineUrl).toBe(displayInfoWithBrowzine.browzineUrl);
+      expect(result.showBrowzineButton).toBeTrue();
+    });
+  });
+
   describe('unpaywallUrlsToDisplayInfo (mapping)', () => {
     it('should return default response when avoiding publisher links and linkHostType is publisher', () => {
       const unpaywallUrls: UnpaywallUrls = {
