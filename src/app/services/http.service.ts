@@ -93,14 +93,11 @@ export class HttpService {
 
   private handleError(error: HttpErrorResponse) {
     const errorMessageRedacted =
-      typeof error?.message === 'string'
-        ? this.debugLog.redactUrlTokens(error.message)
-        : undefined;
+      typeof error?.message === 'string' ? this.debugLog.redactUrlTokens(error.message) : undefined;
     this.debugLog.warn('HttpService.handleError', {
       status: error?.status,
       statusText: error?.statusText,
-      // Do NOT log error.url because it can contain access tokens.
-      hasUrl: !!error?.url,
+      url: !!error?.url,
       errorMessageRedacted,
     });
 

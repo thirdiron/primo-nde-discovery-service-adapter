@@ -24,6 +24,8 @@ function safeGetLocalStorage(): Storage | null {
   }
 }
 
+// If localStorage is not available, we 'fail closed' and return false.
+// This makes it so the default value for debugging is false.
 function readPersistedEnabled(): boolean {
   const ls = safeGetLocalStorage();
   if (!ls) return false;
@@ -31,6 +33,10 @@ function readPersistedEnabled(): boolean {
   return raw === '1' || raw === 'true';
 }
 
+// Variant of `readPersistedEnabled()` used during install-time reconciliation:
+// - Returns `undefined` when `localStorage` is unavailable/blocked, instead of defaulting to `false`.
+// - This prevents us from clobbering a runtime-enabled debug flag living on `window.__TI_NDE__.debugEnabled`
+//   (e.g., in Module Federation / multi-bundle scenarios) just because persistence is inaccessible.
 function readPersistedEnabledIfAvailable(): boolean | undefined {
   const ls = safeGetLocalStorage();
   if (!ls) return undefined;
