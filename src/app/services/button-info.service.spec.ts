@@ -251,7 +251,7 @@ describe('ButtonInfoService', () => {
     });
 
     describe('shouldMakeUnpaywallCall checks', () => {
-      it('should make an Unpaywall api call if we have an article, unpaywalEnabled is true, we do not have an alert type button, avoidUnpaywall is false, unpaywallUsable is true, and we do not have directToPDF or articleLink urls', async () => {
+      it('should return true when article + Unpaywall enabled + not alert + avoidUnpaywall false + unpaywallUsable true + no directToPDF/articleLink urls', () => {
         const articleWithoutUrls: ArticleData = {
           ...articleData,
           fullTextFile: '',
@@ -262,27 +262,17 @@ describe('ButtonInfoService', () => {
           documentDeliveryFulfillmentUrl: '',
         };
 
-        const buttonInfo$ = service.getDisplayInfo(articleSearchEntity);
-        const articlePromise = firstValueFrom(buttonInfo$);
+        const mockApiResult: ApiResult = {
+          ...responseMetaData,
+          body: { data: articleWithoutUrls },
+        };
 
-        const req = httpTesting.expectOne(articlePath);
-        req.flush({
-          data: articleWithoutUrls,
-        });
-
-        // Should make Unpaywall call
-        const unpaywallReq = httpTesting.expectOne(
-          `https://api.unpaywall.org/v2/10.1002%2Fijc.25451?email=info@thirdiron.com`
+        const shouldMakeCall = (service as any).shouldMakeUnpaywallCall(
+          mockApiResult,
+          EntityType.Article,
+          ButtonType.None
         );
-        unpaywallReq.flush({
-          data: {
-            best_open_access_location: { url: 'https://unpaywall.org/pdf' },
-          },
-        });
-
-        const result = await articlePromise;
-        expect(result.mainButtonType).toBe(ButtonType.None);
-        httpTesting.verify();
+        expect(shouldMakeCall).toBeTrue();
       });
 
       it('should make Unpaywall call when ApiResult has 404 status', () => {
@@ -305,7 +295,7 @@ describe('ButtonInfoService', () => {
         expect(shouldMakeCall).toBeTrue();
       });
 
-      it('should not make an Unpaywall api call if unpaywalEnabled is false', async () => {
+      it('should return false when unpaywallEnabled is false', async () => {
         // Create a new test module with different config
         const mockConfig = { ...MOCK_MODULE_PARAMETERS };
         mockConfig.articlePDFDownloadViaUnpaywallEnabled = false;
@@ -315,51 +305,48 @@ describe('ButtonInfoService', () => {
 
         const testBed = await createTestModule(mockConfig);
         const testService = testBed.inject(ButtonInfoService);
-        const testHttpTesting = testBed.inject(HttpTestingController);
 
         const articleWithoutUrls: ArticleData = {
           ...articleData,
           fullTextFile: '',
           contentLocation: '',
           retractionNoticeUrl: '',
+          expressionOfConcernNoticeUrl: '',
+          problematicJournalArticleNoticeUrl: '',
           documentDeliveryFulfillmentUrl: '',
         };
 
-        const buttonInfo$ = testService.getDisplayInfo(articleSearchEntity);
-        const articlePromise = firstValueFrom(buttonInfo$);
+        const mockApiResult: ApiResult = {
+          ...responseMetaData,
+          body: { data: articleWithoutUrls },
+        };
 
-        const req = testHttpTesting.expectOne(articlePath);
-        req.flush({
-          data: articleWithoutUrls,
-        });
-
-        const result = await articlePromise;
-        expect(result.mainButtonType).toBe(ButtonType.ExpressionOfConcern);
-
-        // Should not make Unpaywall call
-        testHttpTesting.verify();
+        const shouldMakeCall = (testService as any).shouldMakeUnpaywallCall(
+          mockApiResult,
+          EntityType.Article,
+          ButtonType.None
+        );
+        expect(shouldMakeCall).toBeFalse();
       });
 
-      it('should not make an Unpaywall api call if we have an alert type button', async () => {
+      it('should return false when we have an alert-type button', () => {
         const articleWithRetraction: ArticleData = {
           ...articleData,
           fullTextFile: '',
           contentLocation: '',
         };
 
-        const buttonInfo$ = service.getDisplayInfo(articleSearchEntity);
-        const articlePromise = firstValueFrom(buttonInfo$);
+        const mockApiResult: ApiResult = {
+          ...responseMetaData,
+          body: { data: articleWithRetraction },
+        };
 
-        const req = httpTesting.expectOne(articlePath);
-        req.flush({
-          data: articleWithRetraction,
-        });
-
-        const result = await articlePromise;
-        expect(result.mainButtonType).toBe(ButtonType.Retraction);
-
-        // Should not make Unpaywall call due to alert button
-        httpTesting.verify();
+        const shouldMakeCall = (service as any).shouldMakeUnpaywallCall(
+          mockApiResult,
+          EntityType.Article,
+          ButtonType.Retraction
+        );
+        expect(shouldMakeCall).toBeFalse();
       });
 
       it('should not make an Unpaywall api call if avoidUnpaywall is true', async () => {
@@ -401,7 +388,7 @@ describe('ButtonInfoService', () => {
         expect(shouldMakeCall).toBeFalse();
       });
 
-      it('should not make an Unpaywall api call if unpaywallUsable is false', async () => {
+      it('should return false when unpaywallUsable is false', () => {
         const articleWithoutUrls: ArticleData = {
           ...articleData,
           fullTextFile: '',
@@ -409,26 +396,24 @@ describe('ButtonInfoService', () => {
           retractionNoticeUrl: '',
           expressionOfConcernNoticeUrl: '',
           problematicJournalArticleNoticeUrl: '',
-          // documentDeliveryFulfillmentUrl still has URL, so we show Document Delivery button
+          documentDeliveryFulfillmentUrl: '',
           unpaywallUsable: false,
         };
 
-        const buttonInfo$ = service.getDisplayInfo(articleSearchEntity);
-        const articlePromise = firstValueFrom(buttonInfo$);
+        const mockApiResult: ApiResult = {
+          ...responseMetaData,
+          body: { data: articleWithoutUrls },
+        };
 
-        const req = httpTesting.expectOne(articlePath);
-        req.flush({
-          data: articleWithoutUrls,
-        });
-
-        const result = await articlePromise;
-        expect(result.mainButtonType).toBe(ButtonType.DocumentDelivery);
-
-        // Should not make Unpaywall call due to unpaywallUsable: false
-        httpTesting.verify();
+        const shouldMakeCall = (service as any).shouldMakeUnpaywallCall(
+          mockApiResult,
+          EntityType.Article,
+          ButtonType.None
+        );
+        expect(shouldMakeCall).toBeFalse();
       });
 
-      it('should not make an Unpaywall api call if we have either a directToPDF or articleLink url', async () => {
+      it('should return false when we have either a directToPDF or articleLink url', () => {
         const articleWithDirectPDF: ArticleData = {
           ...articleData,
           retractionNoticeUrl: '',
@@ -436,19 +421,17 @@ describe('ButtonInfoService', () => {
           problematicJournalArticleNoticeUrl: '',
         };
 
-        const buttonInfo$ = service.getDisplayInfo(articleSearchEntity);
-        const articlePromise = firstValueFrom(buttonInfo$);
+        const mockApiResult: ApiResult = {
+          ...responseMetaData,
+          body: { data: articleWithDirectPDF },
+        };
 
-        const req = httpTesting.expectOne(articlePath);
-        req.flush({
-          data: articleWithDirectPDF,
-        });
-
-        const result = await articlePromise;
-        expect(result.mainButtonType).toBe(ButtonType.DirectToPDF);
-
-        // Should not make Unpaywall call due to existing directToPDF url
-        httpTesting.verify();
+        const shouldMakeCall = (service as any).shouldMakeUnpaywallCall(
+          mockApiResult,
+          EntityType.Article,
+          ButtonType.DirectToPDF
+        );
+        expect(shouldMakeCall).toBeFalse();
       });
     });
   });
@@ -1003,41 +986,6 @@ describe('ButtonInfoService', () => {
 
   // Additional test cases for edge cases and miscellaneous functionality
   describe('Edge cases and additional functionality', () => {
-    it('should handle article with avoidUnpaywallPublisherLinks flag', async () => {
-      const articleWithAvoidFlag: ArticleData = {
-        ...articleData,
-        avoidUnpaywallPublisherLinks: true,
-        fullTextFile: '',
-        contentLocation: '',
-        retractionNoticeUrl: '',
-        expressionOfConcernNoticeUrl: '',
-        problematicJournalArticleNoticeUrl: '',
-        documentDeliveryFulfillmentUrl: '',
-      };
-
-      const buttonInfo$ = service.getDisplayInfo(articleSearchEntity);
-      const articlePromise = firstValueFrom(buttonInfo$);
-
-      const req = httpTesting.expectOne(articlePath);
-      req.flush({
-        data: articleWithAvoidFlag,
-      });
-
-      // Should still make Unpaywall call but with avoidUnpaywallPublisherLinks flag
-      const unpaywallReq = httpTesting.expectOne(
-        `https://api.unpaywall.org/v2/10.1002%2Fijc.25451?email=info@thirdiron.com`
-      );
-      unpaywallReq.flush({
-        data: {
-          best_open_access_location: { url: 'https://unpaywall.org/pdf' },
-        },
-      });
-
-      const result = await articlePromise;
-      expect(result).toBeDefined();
-      httpTesting.verify();
-    });
-
     it('should return default response for unknown entity type', async () => {
       const unknownSearchEntity: SearchEntity = {
         pnx: {

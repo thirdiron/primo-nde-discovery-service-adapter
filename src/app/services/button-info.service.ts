@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { map, mergeMap, Observable, of } from 'rxjs';
+import { catchError, map, mergeMap, Observable, of, throwError } from 'rxjs';
 import { HttpService } from './http.service';
 import { SearchEntityService } from './search-entity.service';
 import { UnpaywallService } from './unpaywall.service';
@@ -13,15 +13,7 @@ import { StackLink, OnlineLink } from '../types/primoViewModel.types';
 import { PrimoViewModel } from '../types/primoViewModel.types';
 import { TranslationService } from './translation.service';
 import { ViewOptionType } from '../shared/view-option.enum';
-
-export const DEFAULT_DISPLAY_WATERFALL_RESPONSE = {
-  entityType: EntityType.Unknown,
-  mainButtonType: ButtonType.None,
-  mainUrl: '',
-  secondaryUrl: '',
-  showSecondaryButton: false,
-  showBrowzineButton: false,
-};
+import { DEFAULT_DISPLAY_WATERFALL_RESPONSE } from '../shared/displayWaterfall.constants';
 
 /**
  * This Service is responsible for initiating the call to Third Iron article/journal endpoints
@@ -48,6 +40,22 @@ export class ButtonInfoService {
       if (entityType === EntityType.Article) {
         const doi = this.searchEntityService.getDoi(entity);
         return this.httpService.getArticle(doi).pipe(
+          catchError(err => {
+            // If the TI API 404s, our HttpService turns that into an error stream before we can
+            // reach the normal `response.status === 404` fallback logic. In that specific case,
+            // route directly into the Unpaywall fallback instead of failing the entire pipeline.
+            if (err?.status === 404 && doi) {
+              const displayInfo404: DisplayWaterfallResponse = {
+                ...DEFAULT_DISPLAY_WATERFALL_RESPONSE,
+                entityType: EntityType.Article,
+              };
+              const fake404Response: ApiResult = { status: 404, body: { data: {} } } as any;
+
+              return this.unpaywallService.makeUnpaywallCall(fake404Response, displayInfo404, doi);
+            }
+
+            return throwError(() => err);
+          }),
           // first, pass article response into display waterfall to get display object
           map((articleResponse): { response: ApiResult; displayInfo: DisplayWaterfallResponse } =>
             this.displayWaterfall(articleResponse, entityType)
@@ -55,12 +63,20 @@ export class ButtonInfoService {
           // second, the result of map above is passed into mergeMap, and based on displayInfo object, determine if we need to fallback to Unpaywall
           mergeMap(
             ({ response: articleRes, displayInfo }): Observable<DisplayWaterfallResponse> =>
-              this.shouldMakeUnpaywallCall(articleRes, entityType, displayInfo.mainButtonType) &&
-              doi
-                ? // fallback to Unpaywall
-                  this.makeUnpaywallCall(articleRes, displayInfo, doi)
-                : // no fallback, just return displayInfo from display waterfall
-                  of(displayInfo)
+              (() => {
+                const shouldFallback =
+                  this.shouldMakeUnpaywallCall(
+                    articleRes,
+                    entityType,
+                    displayInfo.mainButtonType
+                  ) && !!doi;
+
+                return shouldFallback
+                  ? // fallback to Unpaywall
+                    this.unpaywallService.makeUnpaywallCall(articleRes, displayInfo, doi as string)
+                  : // no fallback, just return displayInfo from display waterfall
+                    of(displayInfo);
+              })()
           )
         );
       }
@@ -163,7 +179,7 @@ export class ButtonInfoService {
     else if (
       articleLinkUrl &&
       type === EntityType.Article &&
-      // this.configService.showDirectToPDFLink() && // can this be removed? Think it might be a bug
+      // TODO this.configService.showDirectToPDFLink() && // can this be removed? Think it might be a bug
       this.configService.showArticleLink()
     ) {
       buttonType = ButtonType.ArticleLink;
@@ -183,6 +199,11 @@ export class ButtonInfoService {
     // Secondary button
     if (
       !this.isAlertButton(buttonType) &&
+      // Only add a secondary button when we have a real primary Third Iron main button.
+      // We don't want to display a "secondary-only" entry if we don't have a primary button first
+      buttonType !== ButtonType.None &&
+      linkUrl &&
+      linkUrl !== '' &&
       buttonType !== ButtonType.ArticleLink &&
       this.configService.showFormatChoice() &&
       articleLinkUrl &&
@@ -484,7 +505,8 @@ export class ButtonInfoService {
     }
 
     // If unpaywall config is not enabled, don't continue with Unpaywall call
-    if (!this.isUnpaywallEnabled()) {
+    const unpaywallEnabled = this.isUnpaywallEnabled();
+    if (!unpaywallEnabled) {
       return false;
     }
 
@@ -499,13 +521,11 @@ export class ButtonInfoService {
     const directToPDFUrl = this.getDirectToPDFUrl(entityType, data);
     const articleLinkUrl = this.getArticleLinkUrl(entityType, data);
 
-    if (
+    const shouldFallback =
       response.status === 404 ||
-      (!directToPDFUrl && !articleLinkUrl && !shouldAvoidUnpaywall && isUnpaywallUsable)
-    ) {
-      return true;
-    }
-    return false;
+      (!directToPDFUrl && !articleLinkUrl && !shouldAvoidUnpaywall && isUnpaywallUsable);
+
+    return shouldFallback;
   }
 
   private shouldAvoidUnpaywall(response: ApiResult) {
@@ -528,33 +548,6 @@ export class ButtonInfoService {
 
   private isUnpaywallEnabled() {
     return this.configService.getIsUnpaywallEnabled();
-  }
-
-  private makeUnpaywallCall(
-    articleResponse: ApiResult,
-    displayInfo: DisplayWaterfallResponse,
-    doi: string
-  ): Observable<DisplayWaterfallResponse> {
-    return this.httpService.getUnpaywall(doi).pipe(
-      map(unpaywallRes => {
-        const data = this.httpService.getData(articleResponse);
-        const avoidUnpaywallPublisherLinks = !!(
-          this.httpService.isArticle(data) && data?.avoidUnpaywallPublisherLinks
-        );
-
-        const unpaywallButtonInfo = this.unpaywallService.unpaywallWaterfall(
-          unpaywallRes,
-          avoidUnpaywallPublisherLinks
-        );
-
-        if (unpaywallButtonInfo.mainUrl && unpaywallButtonInfo.mainUrl !== '') {
-          return unpaywallButtonInfo;
-        } else {
-          // original display info from Article Response
-          return displayInfo;
-        }
-      })
-    );
   }
 
   private isAlertButton(buttonType: ButtonType): boolean {

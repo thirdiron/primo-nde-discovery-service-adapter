@@ -87,11 +87,12 @@ export class HttpService {
     // Return an observable with a user-facing error message.
     console.error(`Backend returned code ${error.status}, body was: `, error.error);
 
-    return throwError(
-      () =>
-        new Error(
-          'Something bad in fetching data from the TI API happened; please try again later.'
-        )
+    // Preserve the HTTP status code for downstream error handlers (e.g., Unpaywall fallback on 404).
+    const e: any = new Error(
+      'Something bad in fetching data from the TI API happened; please try again later.'
     );
+    e.status = error?.status;
+    e.name = error?.name || e.name;
+    return throwError(() => e);
   }
 }
