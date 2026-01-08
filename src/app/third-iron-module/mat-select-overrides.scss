@@ -2,21 +2,22 @@
 .dropdown-group {
   display: inline-flex;
   position: relative;
-  margin-top: 0.25rem;
 
   .mat-mdc-unelevated-button:not(:disabled) {
     background-color: #fff;
     color: var(--sys-primary);
   }
 
+  /* instead of using left/right oriented attributes, we use inline-start/inline-end
+  so this works in both Left-to-Right and Right-to-Left languages */
   .ti-dropdown-button {
     white-space: nowrap;
     border-radius: 0.3125rem;
     background-color: #fff;
     border: 1px solid var(--sys-primary);
     color: var(--sys-primary);
-    padding-left: 1rem;
-    padding-right: 1rem;
+    padding-inline-start: 1rem;
+    padding-inline-end: 1rem;
     height: 32px;
     line-height: 32px;
     cursor: pointer;
@@ -27,8 +28,8 @@
     .primo-html-icon {
       height: 20px;
       width: 20px;
-      margin-right: var(--mat-text-button-icon-offset, -4px);
-      margin-left: var(--mat-text-button-icon-spacing, 8px);
+      margin-inline-end: var(--mat-text-button-icon-offset, -4px);
+      margin-inline-start: var(--mat-text-button-icon-spacing, 8px);
       display: flex !important;
       font-size: 1.125rem;
     }
@@ -37,6 +38,7 @@
       display: flex;
       align-items: center;
       justify-content: center;
+      gap: 8px;
       .quicklink-button-text {
         font-size: 14px;
       }
@@ -47,17 +49,21 @@
   stacked-button.with-dropdown .ti-dropdown-button,
   main-button.with-dropdown .ti-dropdown-button,
   custom-browzine-button.with-dropdown .ti-dropdown-button {
-    border-right: none;
-    border-radius: 0.3125rem 0 0 0.3125rem;
+    /* Use logical properties so this works in both Left-to-Right and Right-to-Left languages */
+    border-inline-end: none;
+    border-start-start-radius: 0.3125rem;
+    border-end-start-radius: 0.3125rem;
+    border-start-end-radius: 0;
+    border-end-end-radius: 0;
 
     &:focus-visible {
-      border-right: 2px solid black;
+      border-inline-end: 2px solid black;
     }
   }
 
   .ti-dropdown-button:focus-visible {
     outline: 2px solid black;
-    border-right: 2px solid black;
+    border-inline-end: 2px solid black;
     background-color: var(--mat-standard-button-toggle-selected-state-background-color);
   }
 
@@ -73,7 +79,11 @@
       background: #fff;
       color: var(--sys-primary);
       padding: 0 13em;
-      border-radius: 0 6px 6px 0;
+      /* Use logical properties so this works in both LTR and RTL */
+      border-start-start-radius: 0;
+      border-end-start-radius: 0;
+      border-start-end-radius: 6px;
+      border-end-end-radius: 6px;
       cursor: pointer;
       font-size: 1px;
       height: 32px;
@@ -128,10 +138,10 @@
       min-height: 48px;
       margin: 0;
       padding: 0;
-      padding-left: var(--mat-menu-item-leading-spacing, 12px);
-      padding-right: var(--mat-menu-item-trailing-spacing, 12px);
+      padding-inline-start: var(--mat-menu-item-leading-spacing, 12px);
+      padding-inline-end: var(--mat-menu-item-trailing-spacing, 12px);
       cursor: pointer;
-      text-align: left;
+      text-align: start;
       box-sizing: border-box;
       color: var(--sys-primary);
       font-size: 14px;
