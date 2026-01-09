@@ -1438,38 +1438,6 @@ describe('ButtonInfoService', () => {
       expect(result[1].url).toBe('/nde/fulldisplay/some/direct/link#nui.getit.service_viewit');
     });
 
-    xit('should move #nui.getit.service_viewit state param into anchor for fulldisplay links', async () => {
-      const mockConfig = { ...MOCK_MODULE_PARAMETERS };
-      mockConfig.showLinkResolverLink = true;
-
-      const testBed = await createTestModule(mockConfig);
-      const testService = testBed.inject(ButtonInfoService);
-
-      const displayInfo: DisplayWaterfallResponse = {
-        entityType: EntityType.Article,
-        mainButtonType: ButtonType.DirectToPDF,
-        mainUrl: 'https://example.com/pdf',
-        secondaryUrl: '',
-        showSecondaryButton: false,
-        showBrowzineButton: false,
-        browzineUrl: '',
-      };
-
-      // We've seen urls like this with state=%23nui.getit.service_viewit,
-      // but we actually want this to be #nui.getit.service_viewit as an anchor for scrolling.
-      const viewModel: any = {
-        onlineLinks: [],
-        directLink:
-          'https://example.com/fulldisplay?query=retracted&state=%23nui.getit.service_viewit',
-        ariaLabel: 'Direct link aria label',
-      };
-
-      const result = testService.buildCombinedLinks(displayInfo, viewModel);
-      expect(result[1].url).toBe(
-        'https://example.com/fulldisplay?query=retracted#nui.getit.service_viewit'
-      );
-    });
-
     it('should not build direct link when showLinkResolverLink is false', async () => {
       const mockConfig = { ...MOCK_MODULE_PARAMETERS };
       mockConfig.showLinkResolverLink = false;
