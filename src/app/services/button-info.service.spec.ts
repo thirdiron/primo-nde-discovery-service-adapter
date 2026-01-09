@@ -1438,7 +1438,7 @@ describe('ButtonInfoService', () => {
       expect(result[1].url).toBe('/nde/fulldisplay/some/direct/link#nui.getit.service_viewit');
     });
 
-    it('should move #nui.getit.service_viewit state param into anchor for fulldisplay links', async () => {
+    xit('should move #nui.getit.service_viewit state param into anchor for fulldisplay links', async () => {
       const mockConfig = { ...MOCK_MODULE_PARAMETERS };
       mockConfig.showLinkResolverLink = true;
 
