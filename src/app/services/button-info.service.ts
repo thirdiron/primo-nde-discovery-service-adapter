@@ -14,6 +14,7 @@ import { PrimoViewModel } from '../types/primoViewModel.types';
 import { TranslationService } from './translation.service';
 import { ViewOptionType } from '../shared/view-option.enum';
 import { DEFAULT_DISPLAY_WATERFALL_RESPONSE } from '../shared/displayWaterfall.constants';
+import { DebugLogService } from './debug-log.service';
 
 /**
  * This Service is responsible for initiating the call to Third Iron article/journal endpoints
@@ -29,18 +30,36 @@ export class ButtonInfoService {
     private searchEntityService: SearchEntityService,
     private unpaywallService: UnpaywallService,
     private configService: ConfigService,
-    private translationService: TranslationService
+    private translationService: TranslationService,
+    private debugLog: DebugLogService
   ) {}
 
   getDisplayInfo(entity: SearchEntity): Observable<DisplayWaterfallResponse> {
     const entityType = this.searchEntityService.getEntityType(entity);
+    this.debugLog.debug('ButtonInfo.getDisplayInfo.start', {
+      entityType: entityType ?? null,
+      entity: this.debugLog.safeSearchEntityMeta(entity),
+    });
 
     // make API call for article or journal
     if (entityType) {
       if (entityType === EntityType.Article) {
+        const rawDoi = entity?.pnx?.addata?.doi?.[0]?.trim?.() ?? '';
         const doi = this.searchEntityService.getDoi(entity);
+
+        this.debugLog.debug('ButtonInfo.getDisplayInfo.article.doi', {
+          rawDoi: rawDoi || null,
+          encodedDoi: doi || null,
+          changed: !!rawDoi && doi !== rawDoi,
+        });
+
         return this.httpService.getArticle(doi).pipe(
           catchError(err => {
+            this.debugLog.warn('ButtonInfo.getDisplayInfo.article.error', {
+              doi,
+              err: this.debugLog.safeError(err),
+            });
+
             // If the TI API 404s, our HttpService turns that into an error stream before we can
             // reach the normal `response.status === 404` fallback logic. In that specific case,
             // route directly into the Unpaywall fallback instead of failing the entire pipeline.
@@ -50,6 +69,10 @@ export class ButtonInfoService {
                 entityType: EntityType.Article,
               };
               const fake404Response: ApiResult = { status: 404, body: { data: {} } } as any;
+
+              this.debugLog.info('ButtonInfo.getDisplayInfo.article.404_force_unpaywall', {
+                doi,
+              });
 
               return this.unpaywallService.makeUnpaywallCall(fake404Response, displayInfo404, doi);
             }
@@ -71,6 +94,14 @@ export class ButtonInfoService {
                     displayInfo.mainButtonType
                   ) && !!doi;
 
+                this.debugLog.debug('ButtonInfo.getDisplayInfo.unpaywallDecision', {
+                  entityType,
+                  doi,
+                  tiStatus: (articleRes as any)?.status,
+                  mainButtonType: displayInfo?.mainButtonType,
+                  shouldFallback,
+                });
+
                 return shouldFallback
                   ? // fallback to Unpaywall
                     this.unpaywallService.makeUnpaywallCall(articleRes, displayInfo, doi as string)
@@ -82,6 +113,7 @@ export class ButtonInfoService {
       }
       if (entityType === EntityType.Journal) {
         const issn = this.searchEntityService.getIssn(entity);
+        this.debugLog.debug('ButtonInfo.getDisplayInfo.journal', { issn });
         return this.httpService.getJournal(issn).pipe(
           map(journalResponse => {
             const waterfallResponse = this.displayWaterfall(journalResponse, entityType);
@@ -93,6 +125,10 @@ export class ButtonInfoService {
       // 'of' creates an Observable from the given value
       return of(DEFAULT_DISPLAY_WATERFALL_RESPONSE);
     } else {
+      this.debugLog.debug(
+        'ButtonInfo.getDisplayInfo.noEntityType',
+        this.debugLog.safeSearchEntityMeta(entity)
+      );
       return of(DEFAULT_DISPLAY_WATERFALL_RESPONSE);
     }
   }
