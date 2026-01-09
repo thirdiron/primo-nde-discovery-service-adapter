@@ -404,6 +404,8 @@ export class ButtonInfoService {
   }
 
   // For in-app navigation, we may need to take some extra steps to ensure the direct link is correct.
+  // Docid mismatches can happen because the host SPA can update the viewModel asynchronously
+  // (or rewrite the directLink to a resolver URL) while the browser is already on a specific /fulldisplay record.
   // - If viewModel.directLink has a docid and it matches the current URL docid, trust viewModel.directLink.
   // - Otherwise, if we're on fulldisplay, use window.location (host fulldisplay URL) since it reflects
   //   the currently selected record, even if the host later changes viewModel.directLink to a resolver URL.
@@ -481,7 +483,7 @@ export class ButtonInfoService {
 
   /**
    * Primo directLink handling:
-   * - For fulldisplay links, ensure the fragment `#nui.getit.service_viewit` so the host page
+   * - For fulldisplay links, ensure the fragment `#nui.getit.service_viewit` is set so the host page
    *   can jump/scroll to the "Get It" section.
    */
   private normalizePrimoDirectLink(directLinkRaw: string): string {
@@ -520,7 +522,7 @@ export class ButtonInfoService {
     });
 
     // Fulldisplay links: ensure the fragment is set for anchor scrolling.
-    const desiredHash = '#nui.getit.service_viewit';
+    const fullDisplayHash = '#nui.getit.service_viewit';
     // If the incoming link already has a `state` query param that encodes this anchor,
     // remove it so the router URL doesn't end up as `...&state=%23nui.getit.service_viewit`
     // (we want a real fragment for scrolling).
@@ -536,8 +538,8 @@ export class ButtonInfoService {
     }
 
     const beforeHash = parsed.hash;
-    if (beforeHash !== desiredHash) {
-      parsed.hash = desiredHash;
+    if (beforeHash !== fullDisplayHash) {
+      parsed.hash = fullDisplayHash;
     }
 
     const returnedLink = isAbsolute
