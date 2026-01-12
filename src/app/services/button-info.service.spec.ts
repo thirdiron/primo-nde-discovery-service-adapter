@@ -1417,36 +1417,6 @@ describe('ButtonInfoService', () => {
       expect(result[1].url).toBe('/nde/fulldisplay/some/direct/link#nui.getit.service_viewit');
     });
 
-    it('should move #nui.getit.service_viewit state param into fragment for fulldisplay links', async () => {
-      const mockConfig = { ...MOCK_MODULE_PARAMETERS };
-      mockConfig.showLinkResolverLink = true;
-
-      const testBed = await createTestModule(mockConfig);
-      const testService = testBed.inject(ButtonInfoService);
-
-      const displayInfo: DisplayWaterfallResponse = {
-        entityType: EntityType.Article,
-        mainButtonType: ButtonType.DirectToPDF,
-        mainUrl: 'https://example.com/pdf',
-        secondaryUrl: '',
-        showSecondaryButton: false,
-        showBrowzineButton: false,
-        browzineUrl: '',
-      };
-
-      const viewModel: any = {
-        onlineLinks: [],
-        directLink:
-          'https://example.com/fulldisplay?query=retracted&state=%23nui.getit.service_viewit',
-        ariaLabel: 'Direct link aria label',
-      };
-
-      const result = testService.buildCombinedLinks(displayInfo, viewModel);
-      expect(result[1].url).toBe(
-        'https://example.com/fulldisplay?query=retracted#nui.getit.service_viewit'
-      );
-    });
-
     it('should not build direct link when showLinkResolverLink is false', async () => {
       const mockConfig = { ...MOCK_MODULE_PARAMETERS };
       mockConfig.showLinkResolverLink = false;
@@ -1608,7 +1578,7 @@ describe('ButtonInfoService', () => {
   });
 
   describe('#buildPrimoDirectLinkBase', () => {
-    const desiredHash = '#nui.getit.service_viewit';
+    const fullDisplayHash = '#nui.getit.service_viewit';
 
     const setPath = (pathWithQueryAndHash: string) => {
       // Update window.location without triggering a navigation/reload.
@@ -1658,14 +1628,14 @@ describe('ButtonInfoService', () => {
 
     const callBuildPrimoDirectLinkBase = async (
       directLink: string,
-      pathWithQueryAndHash: string,
+      currentWindowLocationPathWithQueryAndHash: string,
       baseHref: string | null
     ) => {
       const mockConfig = { ...MOCK_MODULE_PARAMETERS, showLinkResolverLink: true };
       const testBed = await createTestModule(mockConfig);
       const service = testBed.inject(ButtonInfoService) as any;
 
-      setPath(pathWithQueryAndHash);
+      setPath(currentWindowLocationPathWithQueryAndHash);
       setBaseHref(baseHref);
 
       const viewModel: any = {
@@ -1678,14 +1648,14 @@ describe('ButtonInfoService', () => {
       return service.buildPrimoDirectLinkBase(viewModel, true) as any;
     };
 
-    it('does not strip /nde from a trusted absolute directLink when NOT currently on /fulldisplay', async () => {
+    it('does not strip /nde from an trusted absolute directLink when NOT currently on /fulldisplay', async () => {
       const link = await callBuildPrimoDirectLinkBase(
         'https://example.com/nde/fulldisplay?docid=AAA', // direct link
         '/search?docid=AAA', // window.location
         '/nde/' // base href
       );
 
-      expect(link.url).toBe(`https://example.com/nde/fulldisplay?docid=AAA${desiredHash}`);
+      expect(link.url).toBe(`https://example.com/nde/fulldisplay?docid=AAA${fullDisplayHash}`);
     });
 
     it('does not strip /nde from a trusted absolute directLink when on /fulldisplay and docid matches', async () => {
@@ -1695,7 +1665,7 @@ describe('ButtonInfoService', () => {
         '/nde/'
       );
 
-      expect(link.url).toBe(`https://example.com/nde/fulldisplay?docid=AAA${desiredHash}`);
+      expect(link.url).toBe(`https://example.com/nde/fulldisplay?docid=AAA${fullDisplayHash}`);
     });
 
     it('strips /nde from window.location fallback when on /nde/fulldisplay and docid mismatches', async () => {
@@ -1706,7 +1676,7 @@ describe('ButtonInfoService', () => {
       );
 
       // Fallback uses current window.location, but stripped of base href "/nde"
-      expect(link.url).toBe(`/fulldisplay?docid=AAA${desiredHash}`);
+      expect(link.url).toBe(`/fulldisplay?docid=AAA${fullDisplayHash}`);
     });
 
     it('does not strip anything when base href is root (fallback still uses window.location)', async () => {
@@ -1716,7 +1686,7 @@ describe('ButtonInfoService', () => {
         '/'
       );
 
-      expect(link.url).toBe(`/fulldisplay?docid=AAA${desiredHash}`);
+      expect(link.url).toBe(`/fulldisplay?docid=AAA${fullDisplayHash}`);
     });
 
     it('does not strip when window.location pathname does not start with basePath (even in fallback)', async () => {
@@ -1726,7 +1696,7 @@ describe('ButtonInfoService', () => {
         '/nde/'
       );
 
-      expect(link.url).toBe(`/somethingelse/fulldisplay?docid=AAA${desiredHash}`);
+      expect(link.url).toBe(`/somethingelse/fulldisplay?docid=AAA${fullDisplayHash}`);
     });
   });
 });

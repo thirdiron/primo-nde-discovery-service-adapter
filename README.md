@@ -168,7 +168,21 @@ Button label text can be customized and translated by setting up label codes in 
 
 This add-on supports a **runtime-toggleable debug mode**. When enabled, the add-on will emit structured log messages to the browser console at key points in the app flow (API calls, decision points, DOM removal, etc.).
 
-To add new log messages follow the convention of `Component.FunctionName.descriptionRelevantToLoggedData`
+To add a debug message, make sure to inject the debugLog service, then construct your log message as follows, keeping the convention of
+`Component.FunctionName.descriptionRelevantToLoggedData`:
+
+```
+import { DebugLogService } from './debug-log.service';
+...
+constructor(
+    private debugLog: DebugLogService
+  ) {}
+...
+this.debugLog.debug('Navigation.openUrl.resolvedTarget', {
+      url: this.debugLog.redactUrlTokens(url),
+      resolvedTarget,
+});
+```
 
 **Console API**
 
