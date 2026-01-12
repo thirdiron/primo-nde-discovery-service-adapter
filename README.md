@@ -1,5 +1,3 @@
-// temp change for CI job to deploy
-
 # Third Iron Primo NDE Add-On
 
 - [Using the Add-On](#using-the-third-iron-primo-nde-add-on)
