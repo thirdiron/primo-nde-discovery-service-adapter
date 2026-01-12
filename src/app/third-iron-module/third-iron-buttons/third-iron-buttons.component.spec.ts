@@ -4,7 +4,6 @@ import { map } from 'rxjs/operators';
 import { Store } from '@ngrx/store';
 
 import { ThirdIronButtonsComponent } from './third-iron-buttons.component';
-import { ExlibrisStoreService } from '../../services/exlibris-store.service';
 import { SearchEntityService } from '../../services/search-entity.service';
 import { ConfigService } from '../../services/config.service';
 import { MOCK_MODULE_PARAMETERS } from '../../services/config.service.spec';
@@ -23,7 +22,6 @@ describe('ThirdIronButtonsComponent', () => {
     await TestBed.configureTestingModule({
       imports: [ThirdIronButtonsComponent],
       providers: [
-        ExlibrisStoreService,
         ConfigService,
         { provide: Store, useValue: mockStore },
         { provide: 'MODULE_PARAMETERS', useValue: MOCK_MODULE_PARAMETERS },

@@ -5,6 +5,7 @@ import { StackLink } from 'src/app/types/primoViewModel.types';
 import { PrimoPdfIconComponent } from '../../icons/primo-pdf-icon.component';
 import { PrimoHtmlIconComponent } from '../../icons/primo-html-icon.component';
 import { SvgIconComponent } from '../../svg-icon/svg-icon.component';
+import { NavigationService } from '../../../services/navigation.service';
 
 @Component({
   selector: 'stacked-button',
@@ -24,10 +25,11 @@ export class StackedButtonComponent {
   link = input.required<StackLink>();
   stackType = input.required<'dropdown' | 'main'>();
 
+  constructor(private navigationService: NavigationService) {}
+
   openLink() {
     if (this.link() && this.link().url) {
-      const target = this.link().source === 'directLink' ? '_self' : '_blank';
-      window.open(this.link().url, target);
+      this.navigationService.openUrl(this.link().url);
     }
   }
 }
