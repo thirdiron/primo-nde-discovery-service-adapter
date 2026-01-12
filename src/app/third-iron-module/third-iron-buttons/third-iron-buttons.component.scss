@@ -6,21 +6,22 @@
   display: flex;
   flex-direction: row;
   align-items: center;
-
-  .ti-browzine-button-with-stack {
-    margin-left: 10px;
-  }
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 5px;
 }
 
 .ti-no-stack-container {
   display: flex;
   flex-direction: row;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 5px;
 }
 
 .ti-consolidated-coverage {
   font-size: 0.875rem;
   color: var(--sys-primary);
   font-weight: 400;
-  margin-left: 0.5rem;
 }
