@@ -14,6 +14,7 @@ import { PrimoViewModel } from '../types/primoViewModel.types';
 import { TranslationService } from './translation.service';
 import { ViewOptionType } from '../shared/view-option.enum';
 import { DEFAULT_DISPLAY_WATERFALL_RESPONSE } from '../shared/displayWaterfall.constants';
+import { DebugLogService } from './debug-log.service';
 
 /**
  * This Service is responsible for initiating the call to Third Iron article/journal endpoints
@@ -29,18 +30,36 @@ export class ButtonInfoService {
     private searchEntityService: SearchEntityService,
     private unpaywallService: UnpaywallService,
     private configService: ConfigService,
-    private translationService: TranslationService
+    private translationService: TranslationService,
+    private debugLog: DebugLogService
   ) {}
 
   getDisplayInfo(entity: SearchEntity): Observable<DisplayWaterfallResponse> {
     const entityType = this.searchEntityService.getEntityType(entity);
+    this.debugLog.debug('ButtonInfo.getDisplayInfo.start', {
+      entityType: entityType ?? null,
+      entity: this.debugLog.safeSearchEntityMeta(entity),
+    });
 
     // make API call for article or journal
     if (entityType) {
       if (entityType === EntityType.Article) {
+        const rawDoi = entity?.pnx?.addata?.doi?.[0]?.trim?.() ?? '';
         const doi = this.searchEntityService.getDoi(entity);
+
+        this.debugLog.debug('ButtonInfo.getDisplayInfo.article.doi', {
+          rawDoi: rawDoi || null,
+          encodedDoi: doi || null,
+          changed: !!rawDoi && doi !== rawDoi,
+        });
+
         return this.httpService.getArticle(doi).pipe(
           catchError(err => {
+            this.debugLog.warn('ButtonInfo.getDisplayInfo.article.error', {
+              doi,
+              err: this.debugLog.safeError(err),
+            });
+
             // If the TI API 404s, our HttpService turns that into an error stream before we can
             // reach the normal `response.status === 404` fallback logic. In that specific case,
             // route directly into the Unpaywall fallback instead of failing the entire pipeline.
@@ -50,6 +69,10 @@ export class ButtonInfoService {
                 entityType: EntityType.Article,
               };
               const fake404Response: ApiResult = { status: 404, body: { data: {} } } as any;
+
+              this.debugLog.info('ButtonInfo.getDisplayInfo.article.404_force_unpaywall', {
+                doi,
+              });
 
               return this.unpaywallService.makeUnpaywallCall(fake404Response, displayInfo404, doi);
             }
@@ -71,6 +94,14 @@ export class ButtonInfoService {
                     displayInfo.mainButtonType
                   ) && !!doi;
 
+                this.debugLog.debug('ButtonInfo.getDisplayInfo.unpaywallDecision', {
+                  entityType,
+                  doi,
+                  tiStatus: (articleRes as any)?.status,
+                  mainButtonType: displayInfo?.mainButtonType,
+                  shouldFallback,
+                });
+
                 return shouldFallback
                   ? // fallback to Unpaywall
                     this.unpaywallService.makeUnpaywallCall(articleRes, displayInfo, doi as string)
@@ -82,6 +113,7 @@ export class ButtonInfoService {
       }
       if (entityType === EntityType.Journal) {
         const issn = this.searchEntityService.getIssn(entity);
+        this.debugLog.debug('ButtonInfo.getDisplayInfo.journal', { issn });
         return this.httpService.getJournal(issn).pipe(
           map(journalResponse => {
             const waterfallResponse = this.displayWaterfall(journalResponse, entityType);
@@ -93,6 +125,10 @@ export class ButtonInfoService {
       // 'of' creates an Observable from the given value
       return of(DEFAULT_DISPLAY_WATERFALL_RESPONSE);
     } else {
+      this.debugLog.debug(
+        'ButtonInfo.getDisplayInfo.noEntityType',
+        this.debugLog.safeSearchEntityMeta(entity)
+      );
       return of(DEFAULT_DISPLAY_WATERFALL_RESPONSE);
     }
   }
@@ -272,12 +308,25 @@ export class ButtonInfoService {
    * Builds the links for stacked view options - either the Third Iron stack option
    * or the Primo stack with quick links and direct link.
    *
-   * @param mode - 'combined' or 'primo', if 'combined' this is the merged array of Third Iron and Primo links
    * @param displayInfo - Third Iron button display object
    * @param viewModel - Primo view model
    * @returns an array of StackLink objects
    */
   buildStackOptions(displayInfo: DisplayWaterfallResponse, viewModel: PrimoViewModel): StackLink[] {
+    this.debugLog.debug('ButtonInfo.buildStackOptions.start', {
+      viewOption: this.configService.getViewOption(),
+      enableLinkOptimizer: this.configService.enableLinkOptimizer(),
+      showLinkResolverLink: this.configService.showLinkResolverLink(),
+      hasThirdIronMainButton:
+        displayInfo.entityType !== EntityType.Unknown &&
+        displayInfo.mainButtonType !== ButtonType.None &&
+        !!displayInfo.mainUrl,
+      hasThirdIronSecondaryButton: !!displayInfo.showSecondaryButton && !!displayInfo.secondaryUrl,
+      hasThirdIronBrowzine: !!displayInfo.showBrowzineButton && !!displayInfo.browzineUrl,
+      primoOnlineLinks: viewModel?.onlineLinks,
+      primoDirectLink: viewModel?.directLink,
+    });
+
     const links: StackLink[] = [];
 
     // Third Iron display options
@@ -354,41 +403,140 @@ export class ButtonInfoService {
     return links;
   }
 
+  // For in-app navigation, we may need to take some extra steps to ensure the direct link is correct.
+  // Docid mismatches can happen because the host SPA can update the viewModel asynchronously
+  // (or rewrite the directLink to a resolver URL) while the browser is already on a specific /fulldisplay record.
+  // - If viewModel.directLink has a docid and it matches the current URL docid, trust viewModel.directLink.
+  // - Otherwise, if we're on fulldisplay, use window.location (host fulldisplay URL) since it reflects
+  //   the currently selected record, even if the host later changes viewModel.directLink to a resolver URL.
+  // - We may also need to strip '/nde' from the pathname if the host is deployed with a non-root base href.
   private buildPrimoDirectLinkBase(
     viewModel: PrimoViewModel,
     hasOtherLinks: boolean
   ): StackLink | null {
-    if (viewModel.directLink && this.configService.showLinkResolverLink()) {
-      const otherOptions = this.translationService.getTranslatedText(
-        'nde.delivery.code.otherOnlineOptions',
-        'Other online options'
-      );
-      const availableOnline = this.translationService.getTranslatedText(
-        'delivery.code.fulltext',
-        'Available Online'
-      );
+    if (!viewModel.directLink || !this.configService.showLinkResolverLink()) return null;
 
-      // If the link we pull from the viewModel doesn't already have /nde in the URL and we know we
-      // are navigating to the full display page within the NDE site, then we need to add /nde to the URL.
-      // Otherwise we may be linking off the NDE site and should not add /nde to the URL.
-      // Also, we only want to append the getit anchor to fulldisplay links.
-      const isFullDisplay = viewModel.directLink.includes('/fulldisplay');
-      const hasNde = viewModel.directLink.includes('/nde');
-      const anchor = '&state=#nui.getit.service_viewit';
+    const otherOptions = this.translationService.getTranslatedText(
+      'nde.delivery.code.otherOnlineOptions',
+      'Other online options'
+    );
+    const availableOnline = this.translationService.getTranslatedText(
+      'delivery.code.fulltext',
+      'Available Online'
+    );
 
-      const urlBase =
-        isFullDisplay && !hasNde ? `/nde${viewModel.directLink}` : viewModel.directLink;
-      const url = isFullDisplay ? `${urlBase}${anchor}` : urlBase;
+    const rawDirectLink = (viewModel.directLink ?? '').trim();
+    if (!rawDirectLink) return null;
 
-      return {
-        entityType: 'directLink',
-        url,
-        ariaLabel: viewModel.ariaLabel || '',
-        source: 'directLink',
-        label: hasOtherLinks ? otherOptions : availableOnline,
-      };
+    let effectiveDirectLink = rawDirectLink;
+
+    const isOnFullDisplay = window.location.pathname.includes('/fulldisplay');
+    if (isOnFullDisplay) {
+      let urlDocid: string | null = null;
+      try {
+        urlDocid = new URL(window.location.href).searchParams.get('docid');
+      } catch {
+        urlDocid = null;
+      }
+
+      let directLinkDocid: string | null = null;
+      try {
+        // viewModel.directLink can be absolute or relative
+        directLinkDocid = new URL(rawDirectLink, window.location.href).searchParams.get('docid');
+      } catch {
+        directLinkDocid = null;
+      }
+
+      const isDocidMatch = !!urlDocid && !!directLinkDocid && urlDocid === directLinkDocid;
+      if (!isDocidMatch) {
+        // If the host app is deployed with a non-root base href (e.g. "/nde/"),
+        // window.location.pathname will include that base. Passing that full path to the Angular router
+        // can produce duplicated segments (e.g. "/nde/nde/fulldisplay").
+        // Strip the host base path so we produce a router-friendly path (e.g. "/fulldisplay?...").
+        const rawPath = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+        let basePath = '/';
+        try {
+          basePath = new URL(document.baseURI).pathname || '/';
+        } catch {
+          basePath = '/';
+        }
+        // Normalize basePath: remove trailing slash except for root
+        if (basePath.length > 1 && basePath.endsWith('/')) {
+          basePath = basePath.slice(0, -1);
+        }
+        // If basePath is "/nde" and rawPath starts with "/nde/", strip it.
+        effectiveDirectLink =
+          basePath !== '/' && rawPath.startsWith(`${basePath}/`)
+            ? rawPath.slice(basePath.length)
+            : rawPath;
+      }
     }
-    return null;
+
+    return {
+      entityType: 'directLink',
+      url: this.normalizePrimoDirectLink(effectiveDirectLink),
+      ariaLabel: viewModel.ariaLabel || '',
+      source: 'directLink',
+      label: hasOtherLinks ? otherOptions : availableOnline,
+    };
+  }
+
+  /**
+   * Primo directLink handling:
+   * - For fulldisplay links, ensure the fragment `#nui.getit.service_viewit` is set so the host page
+   *   can jump/scroll to the "Get It" section.
+   */
+  private normalizePrimoDirectLink(directLinkRaw: string): string {
+    const directLink = (directLinkRaw ?? '').trim();
+    if (!directLink) {
+      return directLink;
+    }
+
+    const isFullDisplay = directLink.includes('/fulldisplay');
+    if (!isFullDisplay) {
+      return directLink;
+    }
+
+    // Primo sometimes gives absolute URLs and sometimes root-relative URLs.
+    // Preserve the "shape" of the input when returning the normalized link.
+    const isAbsolute = /^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(directLink) || directLink.startsWith('//');
+
+    let parsed: URL;
+    try {
+      parsed = new URL(directLink, window.location.href);
+    } catch {
+      // If parsing fails, fall back to the previous behavior without adding more complexity.
+      this.debugLog.warn('ButtonInfo.normalizePrimoDirectLink.parseError', {
+        directLink: this.debugLog.redactUrlTokens(directLink),
+      });
+      return directLink;
+    }
+
+    this.debugLog.debug('ButtonInfo.normalizePrimoDirectLink.parsed', {
+      href: this.debugLog.redactUrlTokens(parsed.href),
+      isAbsoluteInput: isAbsolute,
+      origin: parsed.origin,
+      pathname: parsed.pathname,
+      search: parsed.search,
+      hash: parsed.hash,
+    });
+
+    // Fulldisplay links: ensure the fragment is set for anchor scrolling.
+    const fullDisplayHash = '#nui.getit.service_viewit';
+
+    const beforeHash = parsed.hash;
+    if (beforeHash !== fullDisplayHash) {
+      parsed.hash = fullDisplayHash;
+    }
+
+    const returnedLink = isAbsolute
+      ? parsed.toString()
+      : `${parsed.pathname}${parsed.search}${parsed.hash}`;
+    this.debugLog.debug('ButtonInfo.normalizePrimoDirectLink.result', {
+      url: this.debugLog.redactUrlTokens(returnedLink),
+      isAbsoluteOutput: isAbsolute,
+    });
+    return returnedLink;
   }
 
   private getBrowZineWebLink(data: ArticleData | JournalData): string {

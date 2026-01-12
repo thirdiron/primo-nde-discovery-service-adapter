@@ -3,6 +3,7 @@ import { HttpClient, HttpErrorResponse, HttpResponse } from '@angular/common/htt
 import { catchError, Observable, throwError } from 'rxjs';
 import { ApiResult, ArticleData, JournalData } from '../types/tiData.types';
 import { ConfigService } from './config.service';
+import { DebugLogService } from './debug-log.service';
 
 /**
  * This Service is responsible for all HTTP requests and includes some
@@ -18,7 +19,8 @@ export class HttpService {
 
   constructor(
     private http: HttpClient,
-    private configService: ConfigService
+    private configService: ConfigService,
+    private debugLog: DebugLogService
   ) {}
 
   getArticle(doi: string): Observable<any> {
@@ -26,19 +28,25 @@ export class HttpService {
       this.apiUrl
     }/articles/doi/${doi}?include=journal,library${this.appendAccessToken()}`;
 
-    return this.http.get(endpoint, { observe: 'response' }).pipe(catchError(this.handleError));
+    return this.http
+      .get(endpoint, { observe: 'response' })
+      .pipe(catchError(err => this.handleError(err)));
   }
 
   getJournal(issn: string): Observable<any> {
     const endpoint = `${this.apiUrl}/search?issns=${issn}${this.appendAccessToken()}`;
-    return this.http.get(endpoint, { observe: 'response' }).pipe(catchError(this.handleError));
+    return this.http
+      .get(endpoint, { observe: 'response' })
+      .pipe(catchError(err => this.handleError(err)));
   }
 
   getUnpaywall(doi: string): Observable<HttpResponse<Object>> {
     const email = this.configService.getEmailAddressKey();
 
     const endpoint = `https://api.unpaywall.org/v2/${doi}?email=${email}`;
-    return this.http.get(endpoint, { observe: 'response' }).pipe(catchError(this.handleError));
+    return this.http
+      .get(endpoint, { observe: 'response' })
+      .pipe(catchError(err => this.handleError(err)));
   }
 
   getData(response: ApiResult): ArticleData | JournalData | {} {
@@ -84,6 +92,15 @@ export class HttpService {
   }
 
   private handleError(error: HttpErrorResponse) {
+    const errorMessageRedacted =
+      typeof error?.message === 'string' ? this.debugLog.redactUrlTokens(error.message) : undefined;
+    this.debugLog.warn('HttpService.handleError', {
+      status: error?.status,
+      statusText: error?.statusText,
+      url: error?.url,
+      errorMessageRedacted,
+    });
+
     // Return an observable with a user-facing error message.
     console.error(`Backend returned code ${error.status}, body was: `, error.error);
 

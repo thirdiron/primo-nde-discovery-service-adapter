@@ -6,6 +6,7 @@ import { EntityType } from 'src/app/shared/entity-type.enum';
 import { TranslationService } from '../../services/translation.service';
 import { StackLink } from 'src/app/types/primoViewModel.types';
 import { StackedButtonComponent } from '../stacked-dropdown/components/stacked-button.component';
+import { NavigationService } from '../../services/navigation.service';
 
 @Component({
   selector: 'main-button',
@@ -44,7 +45,10 @@ export class MainButtonComponent {
     };
   });
 
-  constructor(private translationService: TranslationService) {}
+  constructor(
+    private translationService: TranslationService,
+    private navigationService: NavigationService
+  ) {}
 
   onClick(event: MouseEvent) {
     // We’ve seen some discovery services intercept basic a href links, and have
@@ -54,7 +58,7 @@ export class MainButtonComponent {
     event.preventDefault();
     event.stopPropagation();
 
-    window.open(this.url(), '_blank');
+    this.navigationService.openUrl(this.url());
 
     return false;
   }
