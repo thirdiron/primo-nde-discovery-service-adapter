@@ -11,10 +11,23 @@ import { EntityType } from '../shared/entity-type.enum';
 import { ButtonType } from '../shared/button-type.enum';
 import { StackLink, OnlineLink } from '../types/primoViewModel.types';
 import { PrimoViewModel } from '../types/primoViewModel.types';
-import { TranslationService } from './translation.service';
 import { ViewOptionType } from '../shared/view-option.enum';
 import { DEFAULT_DISPLAY_WATERFALL_RESPONSE } from '../shared/displayWaterfall.constants';
 import { DebugLogService } from './debug-log.service';
+
+export type PrimoLinkTextBundle = {
+  htmlText: string;
+  pdfText: string;
+  otherOptions: string;
+  availableOnline: string;
+};
+
+export const DEFAULT_PRIMO_LINK_LABELS: PrimoLinkTextBundle = {
+  htmlText: 'Read Online',
+  pdfText: 'Get PDF',
+  otherOptions: 'Other online options',
+  availableOnline: 'Available Online',
+};
 
 /**
  * This Service is responsible for initiating the call to Third Iron article/journal endpoints
@@ -30,7 +43,6 @@ export class ButtonInfoService {
     private searchEntityService: SearchEntityService,
     private unpaywallService: UnpaywallService,
     private configService: ConfigService,
-    private translationService: TranslationService,
     private debugLog: DebugLogService
   ) {}
 
@@ -292,16 +304,20 @@ export class ButtonInfoService {
   }
 
   // Wrapper for buildStackOptions to build Primo links
-  buildPrimoLinks = (viewModel: PrimoViewModel): StackLink[] => {
-    return this.buildStackOptions(DEFAULT_DISPLAY_WATERFALL_RESPONSE, viewModel);
+  buildPrimoLinks = (
+    viewModel: PrimoViewModel,
+    labels: PrimoLinkTextBundle = DEFAULT_PRIMO_LINK_LABELS
+  ): StackLink[] => {
+    return this.buildStackOptions(DEFAULT_DISPLAY_WATERFALL_RESPONSE, viewModel, labels);
   };
 
   // Wrapper for buildStackOptions to build combined Third Iron and Primo links
   buildCombinedLinks = (
     displayInfo: DisplayWaterfallResponse,
-    viewModel: PrimoViewModel
+    viewModel: PrimoViewModel,
+    labels: PrimoLinkTextBundle = DEFAULT_PRIMO_LINK_LABELS
   ): StackLink[] => {
-    return this.buildStackOptions(displayInfo, viewModel);
+    return this.buildStackOptions(displayInfo, viewModel, labels);
   };
 
   /*
@@ -310,9 +326,14 @@ export class ButtonInfoService {
    *
    * @param displayInfo - Third Iron button display object
    * @param viewModel - Primo view model
+   * @param labels - Translated text bundle for Primo labels
    * @returns an array of StackLink objects
    */
-  buildStackOptions(displayInfo: DisplayWaterfallResponse, viewModel: PrimoViewModel): StackLink[] {
+  buildStackOptions(
+    displayInfo: DisplayWaterfallResponse,
+    viewModel: PrimoViewModel,
+    labels: PrimoLinkTextBundle = DEFAULT_PRIMO_LINK_LABELS
+  ): StackLink[] {
     this.debugLog.debug('ButtonInfo.buildStackOptions.start', {
       viewOption: this.configService.getViewOption(),
       enableLinkOptimizer: this.configService.enableLinkOptimizer(),
@@ -369,11 +390,11 @@ export class ButtonInfoService {
     }
 
     // Primo onlineLinks
-    const primoOnlineLinks = this.buildPrimoOnlineLinksBase(viewModel);
+    const primoOnlineLinks = this.buildPrimoOnlineLinksBase(viewModel, labels);
     primoOnlineLinks.forEach(link => links.push(link));
 
     // Primo directLink
-    const directLink = this.buildPrimoDirectLinkBase(viewModel, links.length > 0);
+    const directLink = this.buildPrimoDirectLinkBase(viewModel, links.length > 0, labels);
     if (directLink) {
       links.push(directLink);
     }
@@ -381,22 +402,23 @@ export class ButtonInfoService {
     return links;
   }
 
-  private buildPrimoOnlineLinksBase(viewModel: PrimoViewModel): StackLink[] {
+  private buildPrimoOnlineLinksBase(
+    viewModel: PrimoViewModel,
+    labels: PrimoLinkTextBundle = DEFAULT_PRIMO_LINK_LABELS
+  ): StackLink[] {
     const links: StackLink[] = [];
     if (
       viewModel?.onlineLinks &&
       viewModel.onlineLinks.length > 0 &&
       !this.configService.enableLinkOptimizer()
     ) {
-      const htmlText = this.translationService.getTranslatedText('fulldisplay.HTML', 'Read Online');
-      const pdfText = this.translationService.getTranslatedText('fulldisplay.PDF', 'Get PDF');
       viewModel.onlineLinks.forEach((link: OnlineLink) => {
         links.push({
           entityType: link.type,
           url: link.url,
           ariaLabel: link.ariaLabel || '',
           source: link.source,
-          label: link.type === 'PDF' ? pdfText : htmlText,
+          label: link.type === 'PDF' ? labels.pdfText : labels.htmlText,
         });
       });
     }
@@ -412,18 +434,10 @@ export class ButtonInfoService {
   // - We may also need to strip '/nde' from the pathname if the host is deployed with a non-root base href.
   private buildPrimoDirectLinkBase(
     viewModel: PrimoViewModel,
-    hasOtherLinks: boolean
+    hasOtherLinks: boolean,
+    labels: PrimoLinkTextBundle = DEFAULT_PRIMO_LINK_LABELS
   ): StackLink | null {
     if (!viewModel.directLink || !this.configService.showLinkResolverLink()) return null;
-
-    const otherOptions = this.translationService.getTranslatedText(
-      'nde.delivery.code.otherOnlineOptions',
-      'Other online options'
-    );
-    const availableOnline = this.translationService.getTranslatedText(
-      'delivery.code.fulltext',
-      'Available Online'
-    );
 
     const rawDirectLink = (viewModel.directLink ?? '').trim();
     if (!rawDirectLink) return null;
@@ -477,7 +491,7 @@ export class ButtonInfoService {
       url: this.normalizePrimoDirectLink(effectiveDirectLink),
       ariaLabel: viewModel.ariaLabel || '',
       source: 'directLink',
-      label: hasOtherLinks ? otherOptions : availableOnline,
+      label: hasOtherLinks ? labels.otherOptions : labels.availableOnline,
     };
   }
 
