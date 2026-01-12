@@ -1,5 +1,14 @@
 import { Component, ElementRef, Input, ViewEncapsulation, DestroyRef } from '@angular/core';
-import { Observable, combineLatest, distinctUntilChanged, filter, map, of, switchMap } from 'rxjs';
+import {
+  Observable,
+  combineLatest,
+  distinctUntilChanged,
+  filter,
+  map,
+  of,
+  shareReplay,
+  switchMap,
+} from 'rxjs';
 import { BrowzineButtonComponent } from '../../components/browzine-button/browzine-button.component';
 import { SearchEntity } from '../../types/searchEntity.types';
 import { DisplayWaterfallResponse } from '../../types/displayWaterfallResponse.types';
@@ -17,6 +26,7 @@ import { ViewOptionType } from 'src/app/shared/view-option.enum';
 import { StackedDropdownComponent } from 'src/app/components/stacked-dropdown/stacked-dropdown.component';
 import { DebugLogService } from 'src/app/services/debug-log.service';
 import { HostComponentProxy } from 'src/app/shared/host-component-proxy';
+import { TranslationService } from 'src/app/services/translation.service';
 
 @Component({
   selector: 'custom-third-iron-buttons',
@@ -82,11 +92,33 @@ export class ThirdIronButtonsComponent {
   // the host swaps the observable instance or mutates without re-setting the @Input.
   viewModel$: Observable<PrimoViewModel> = this.hostProxy.viewModel$;
 
+  // Emits the translated Primo label strings used when building Primo links (HTML/PDF + direct-link labels).
+  // Because it uses `translate.stream(...)` under the hood, it re-emits on language changes; `shareReplay(1)`
+  // ensures the latest values are reused across subscribers without redoing the translation work.
+  private readonly primoLinkLabels$ = combineLatest([
+    this.translationService.getTranslatedText$('fulldisplay.HTML', 'Read Online'),
+    this.translationService.getTranslatedText$('fulldisplay.PDF', 'Get PDF'),
+    this.translationService.getTranslatedText$(
+      'nde.delivery.code.otherOnlineOptions',
+      'Other online options'
+    ),
+    this.translationService.getTranslatedText$('delivery.code.fulltext', 'Available Online'),
+  ]).pipe(
+    map(([htmlText, pdfText, otherOptions, availableOnline]) => ({
+      htmlText,
+      pdfText,
+      otherOptions,
+      availableOnline,
+    })),
+    shareReplay({ bufferSize: 1, refCount: true })
+  );
+
   constructor(
     private buttonInfoService: ButtonInfoService,
     private searchEntityService: SearchEntityService,
     private configService: ConfigService,
     private debugLog: DebugLogService,
+    private translationService: TranslationService,
     private destroyRef: DestroyRef,
     elementRef: ElementRef
   ) {
@@ -136,13 +168,18 @@ export class ThirdIronButtonsComponent {
           ...this.debugLog.safeSearchEntityMeta(record),
         });
 
-        return combineLatest([this.buttonInfoService.getDisplayInfo(record), this.viewModel$]).pipe(
-          map(([displayInfo, viewModel]) => {
+        return combineLatest([
+          this.buttonInfoService.getDisplayInfo(record),
+          this.viewModel$,
+          this.primoLinkLabels$,
+        ]).pipe(
+          map(([displayInfo, viewModel, primoLinkLabels]) => {
             if (this.viewOption !== ViewOptionType.NoStack) {
               // build custom stack options array for StackPlusBrowzine and SingleStack view options
               this.combinedLinks = this.buttonInfoService.buildCombinedLinks(
                 displayInfo,
-                viewModel
+                viewModel,
+                primoLinkLabels
               );
 
               // remove Primo generated buttons/stack if we have a custom stack
@@ -156,7 +193,7 @@ export class ThirdIronButtonsComponent {
               }
             } else if (this.viewOption === ViewOptionType.NoStack) {
               // Build array of Primo only links, filter based on TI config settings
-              this.primoLinks = this.buttonInfoService.buildPrimoLinks(viewModel);
+              this.primoLinks = this.buttonInfoService.buildPrimoLinks(viewModel, primoLinkLabels);
 
               // remove Primo "Online Options" button or Primo's stack (quick links and direct link)
               // Will be replaced with our own primoLinks options

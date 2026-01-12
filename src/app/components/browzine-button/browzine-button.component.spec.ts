@@ -4,15 +4,16 @@ import { ComponentRef } from '@angular/core';
 import { EntityType } from 'src/app/shared/entity-type.enum';
 import { BaseButtonComponent } from '../base-button/base-button.component';
 import { TranslationService } from '../../services/translation.service';
+import { of } from 'rxjs';
 
 // Mock for TranslationService
 const mockTranslationService = {
-  getTranslatedText: (key: string, fallback: string) => {
+  getTranslatedText$: (key: string, fallback: string) => {
     const translations: { [key: string]: string } = {
       'LibKey.journalBrowZineWebLinkText': 'View Journal Contents',
       'LibKey.articleBrowZineWebLinkText': 'View Issue Contents',
     };
-    return translations[key] || fallback;
+    return of(translations[key] || fallback);
   },
 };
 
@@ -96,12 +97,12 @@ describe('BrowzineButtonComponent', () => {
   describe('Custom text behavior', () => {
     it('should display custom text value when provided', async () => {
       const customMockTranslateService = {
-        getTranslatedText: (key: string, fallback: string) => {
+        getTranslatedText$: (key: string, fallback: string) => {
           const customTranslations: { [key: string]: string } = {
             'LibKey.articleBrowZineWebLinkText': 'Custom Article Text',
             'LibKey.journalBrowZineWebLinkText': 'Custom Journal Text',
           };
-          return customTranslations[key] || fallback;
+          return of(customTranslations[key] || fallback);
         },
       };
 
@@ -122,12 +123,12 @@ describe('BrowzineButtonComponent', () => {
 
     it('should display fallback text when custom text key is missing for Article', async () => {
       const fallbackMockTranslateService = {
-        getTranslatedText: (key: string, fallback: string) => {
+        getTranslatedText$: (key: string, fallback: string) => {
           // Only provide translation for journal, not for article
           const translations: { [key: string]: string } = {
             'LibKey.journalBrowZineWebLinkText': 'View Journal Contents',
           };
-          return translations[key] || fallback;
+          return of(translations[key] || fallback);
         },
       };
 
@@ -148,12 +149,12 @@ describe('BrowzineButtonComponent', () => {
 
     it('should display fallback text when translation key is missing for Journal', async () => {
       const fallbackMockTranslateService = {
-        getTranslatedText: (key: string, fallback: string) => {
+        getTranslatedText$: (key: string, fallback: string) => {
           // Only provide translation for article, not for journal
           const translations: { [key: string]: string } = {
             'LibKey.articleBrowZineWebLinkText': 'View Issue Contents',
           };
-          return translations[key] || fallback;
+          return of(translations[key] || fallback);
         },
       };
 

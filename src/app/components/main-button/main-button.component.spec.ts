@@ -5,10 +5,11 @@ import { ButtonType } from 'src/app/shared/button-type.enum';
 import { BaseButtonComponent } from '../base-button/base-button.component';
 import { IconType } from 'src/app/shared/icon-type.enum';
 import { TranslationService } from '../../services/translation.service';
+import { of } from 'rxjs';
 
 // Minimal mock for TranslationService
 const minimalMockTranslationService = {
-  getTranslatedText: (key: string, fallback: string) => {
+  getTranslatedText$: (key: string, fallback: string) => {
     const translations: { [key: string]: string } = {
       'LibKey.articleRetractionWatchText': 'Retracted Article',
       'LibKey.articleExpressionOfConcernText': 'Expression of Concern',
@@ -23,7 +24,7 @@ const minimalMockTranslationService = {
       'LibKey.articleAcceptedManuscriptArticleLinkViaUnpaywallText':
         'Read Article (Accepted Manuscript via Unpaywall)',
     };
-    return translations[key] || fallback; // Return translation if exists, otherwise return fallback
+    return of(translations[key] || fallback); // Return translation if exists, otherwise return fallback
   },
 };
 
@@ -282,11 +283,11 @@ describe('MainButtonComponent', () => {
     it('should display custom text value when provided', async () => {
       // Create a mock with custom translation values
       const customMockTranslationService = {
-        getTranslatedText: (key: string, fallback: string) => {
+        getTranslatedText$: (key: string, fallback: string) => {
           const customTranslations: { [key: string]: string } = {
             'LibKey.articlePDFDownloadLinkText': 'Custom Download Text', // just testing one key for PDF download here
           };
-          return customTranslations[key] || fallback;
+          return of(customTranslations[key] || fallback);
         },
       };
 
@@ -309,12 +310,12 @@ describe('MainButtonComponent', () => {
     it('should display fallback text when custom text key is missing', async () => {
       // Create a mock that returns the key for missing translations
       const fallbackMockTranslationService = {
-        getTranslatedText: (key: string, fallback: string) => {
+        getTranslatedText$: (key: string, fallback: string) => {
           // Only provide translation for one key, others will use the provided fallback
           const translations: { [key: string]: string } = {
             'LibKey.articlePDFDownloadLinkText': 'Download PDF',
           };
-          return translations[key] || fallback;
+          return of(translations[key] || fallback);
         },
       };
 
@@ -336,11 +337,11 @@ describe('MainButtonComponent', () => {
 
     it('should display custom text for Retraction button', async () => {
       const customMockTranslationService = {
-        getTranslatedText: (key: string, fallback: string) => {
+        getTranslatedText$: (key: string, fallback: string) => {
           const customTranslations: { [key: string]: string } = {
             'LibKey.articleRetractionWatchText': 'Custom Retraction Alert',
           };
-          return customTranslations[key] || fallback;
+          return of(customTranslations[key] || fallback);
         },
       };
 
@@ -361,12 +362,12 @@ describe('MainButtonComponent', () => {
 
     it('should display fallback for Expression of Concern when custom text missing', async () => {
       const fallbackMockTranslationService = {
-        getTranslatedText: (key: string, fallback: string) => {
+        getTranslatedText$: (key: string, fallback: string) => {
           // Don't provide translation for Expression of Concern
           const translations: { [key: string]: string } = {
             'LibKey.articlePDFDownloadLinkText': 'Download PDF', // Only this one has translation
           };
-          return translations[key] || fallback; // Return fallback for missing translations
+          return of(translations[key] || fallback); // Return fallback for missing translations
         },
       };
 
@@ -387,11 +388,11 @@ describe('MainButtonComponent', () => {
 
     it('should display custom text for Document Delivery button', async () => {
       const customMockTranslationService = {
-        getTranslatedText: (key: string, fallback: string) => {
+        getTranslatedText$: (key: string, fallback: string) => {
           const customTranslations: { [key: string]: string } = {
             'LibKey.documentDeliveryFulfillmentText': 'Custom Document Request',
           };
-          return customTranslations[key] || fallback;
+          return of(customTranslations[key] || fallback);
         },
       };
 

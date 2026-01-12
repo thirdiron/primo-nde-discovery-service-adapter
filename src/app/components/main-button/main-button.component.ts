@@ -28,7 +28,7 @@ export class MainButtonComponent {
   });
 
   // Derived values from inputs
-  buttonText = computed<string>(() => this.getButtonText(this.buttonType()));
+  buttonText = signal<string>('');
   buttonIcon = computed<IconType>(() => this.getButtonIcon(this.buttonType()));
 
   updatedLink = computed(() => {
@@ -48,7 +48,24 @@ export class MainButtonComponent {
   constructor(
     private translationService: TranslationService,
     private navigationService: NavigationService
-  ) {}
+  ) {
+    effect(
+      onCleanup => {
+        const translation = this.getButtonTextTranslation(this.buttonType());
+        if (!translation) {
+          this.buttonText.set('');
+          return;
+        }
+
+        const sub = this.translationService
+          .getTranslatedText$(translation.translationKey, translation.fallbackText)
+          .subscribe(text => this.buttonText.set(text));
+
+        onCleanup(() => sub.unsubscribe());
+      },
+      { allowSignalWrites: true }
+    );
+  }
 
   onClick(event: MouseEvent) {
     // We’ve seen some discovery services intercept basic a href links, and have
@@ -63,69 +80,62 @@ export class MainButtonComponent {
     return false;
   }
 
-  getButtonText(buttonType: ButtonType): string {
-    let text = '';
+  private getButtonTextTranslation(
+    buttonType: ButtonType
+  ): { translationKey: string; fallbackText: string } | null {
     switch (buttonType) {
       case ButtonType.Retraction:
-        text = this.translationService.getTranslatedText(
-          'LibKey.articleRetractionWatchText',
-          'Retracted Article'
-        );
-        break;
+        return {
+          translationKey: 'LibKey.articleRetractionWatchText',
+          fallbackText: 'Retracted Article',
+        };
       case ButtonType.ExpressionOfConcern:
-        text = this.translationService.getTranslatedText(
-          'LibKey.articleExpressionOfConcernText',
-          'Expression of Concern'
-        );
-        break;
+        return {
+          translationKey: 'LibKey.articleExpressionOfConcernText',
+          fallbackText: 'Expression of Concern',
+        };
       case ButtonType.ProblematicJournalArticle:
-        text = this.translationService.getTranslatedText(
-          'LibKey.problematicJournalText',
-          'Problematic Journal'
-        );
-        break;
+        return {
+          translationKey: 'LibKey.problematicJournalText',
+          fallbackText: 'Problematic Journal',
+        };
       case ButtonType.DirectToPDF:
-        text = this.translationService.getTranslatedText(
-          'LibKey.articlePDFDownloadLinkText',
-          'Download PDF'
-        );
-        break;
+        return {
+          translationKey: 'LibKey.articlePDFDownloadLinkText',
+          fallbackText: 'Download PDF',
+        };
       case ButtonType.ArticleLink:
-        text = this.translationService.getTranslatedText('LibKey.articleLinkText', 'Read Article');
-        break;
+        return {
+          translationKey: 'LibKey.articleLinkText',
+          fallbackText: 'Read Article',
+        };
       case ButtonType.DocumentDelivery:
-        text = this.translationService.getTranslatedText(
-          'LibKey.documentDeliveryFulfillmentText',
-          'Request PDF'
-        );
-        break;
+        return {
+          translationKey: 'LibKey.documentDeliveryFulfillmentText',
+          fallbackText: 'Request PDF',
+        };
       case ButtonType.UnpaywallDirectToPDF:
-        text = this.translationService.getTranslatedText(
-          'LibKey.articlePDFDownloadViaUnpaywallText',
-          'Download PDF (via Unpaywall)'
-        );
-        break;
+        return {
+          translationKey: 'LibKey.articlePDFDownloadViaUnpaywallText',
+          fallbackText: 'Download PDF (via Unpaywall)',
+        };
       case ButtonType.UnpaywallArticleLink:
-        text = this.translationService.getTranslatedText(
-          'LibKey.articleLinkViaUnpaywallText',
-          'Read Article (via Unpaywall)'
-        );
-        break;
+        return {
+          translationKey: 'LibKey.articleLinkViaUnpaywallText',
+          fallbackText: 'Read Article (via Unpaywall)',
+        };
       case ButtonType.UnpaywallManuscriptPDF:
-        text = this.translationService.getTranslatedText(
-          'LibKey.articleAcceptedManuscriptPDFViaUnpaywallText',
-          'Download PDF (Accepted Manuscript via Unpaywall)'
-        );
-        break;
+        return {
+          translationKey: 'LibKey.articleAcceptedManuscriptPDFViaUnpaywallText',
+          fallbackText: 'Download PDF (Accepted Manuscript via Unpaywall)',
+        };
       case ButtonType.UnpaywallManuscriptLink:
-        text = this.translationService.getTranslatedText(
-          'LibKey.articleAcceptedManuscriptArticleLinkViaUnpaywallText',
-          'Read Article (Accepted Manuscript via Unpaywall)'
-        );
-        break;
+        return {
+          translationKey: 'LibKey.articleAcceptedManuscriptArticleLinkViaUnpaywallText',
+          fallbackText: 'Read Article (Accepted Manuscript via Unpaywall)',
+        };
     }
-
-    return text;
+    return null;
   }
 
   getButtonIcon(buttonType: ButtonType): IconType {
