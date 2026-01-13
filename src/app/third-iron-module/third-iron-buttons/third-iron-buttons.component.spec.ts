@@ -10,6 +10,8 @@ import { MOCK_MODULE_PARAMETERS } from '../../services/config.service.spec';
 import { ButtonInfoService } from '../../services/button-info.service';
 import { ViewOptionType } from 'src/app/shared/view-option.enum';
 import { TranslateService } from '@ngx-translate/core';
+import { EntityType } from 'src/app/shared/entity-type.enum';
+import { ButtonType } from 'src/app/shared/button-type.enum';
 
 describe('ThirdIronButtonsComponent', () => {
   // Minimal mock Store supporting select(projectionFn)
@@ -53,6 +55,102 @@ describe('ThirdIronButtonsComponent', () => {
     expect(component).toBeTruthy();
   });
 
+  describe('hasThirdIronAdditions', () => {
+    it('returns false for null displayInfo', () => {
+      const fixture = TestBed.createComponent(ThirdIronButtonsComponent);
+      const component = fixture.componentInstance;
+
+      const hasThirdIronAdd = (component as any).hasThirdIronAdditions.bind(component) as (
+        displayInfo: any
+      ) => boolean;
+      expect(hasThirdIronAdd(null)).toBe(false);
+    });
+
+    it('returns false when there are no TI additions (ButtonType.None / empty urls)', () => {
+      const fixture = TestBed.createComponent(ThirdIronButtonsComponent);
+      const component = fixture.componentInstance;
+
+      const hasThirdIronAdd = (component as any).hasThirdIronAdditions.bind(component) as (
+        displayInfo: any
+      ) => boolean;
+
+      expect(
+        hasThirdIronAdd({
+          entityType: EntityType.Unknown,
+          mainButtonType: ButtonType.None,
+          mainUrl: '',
+          showSecondaryButton: false,
+          secondaryUrl: '',
+          showBrowzineButton: false,
+          browzineUrl: '',
+        })
+      ).toBe(false);
+    });
+
+    it('returns true when a TI main button is present', () => {
+      const fixture = TestBed.createComponent(ThirdIronButtonsComponent);
+      const component = fixture.componentInstance;
+
+      const hasThirdIronAdd = (component as any).hasThirdIronAdditions.bind(component) as (
+        displayInfo: any
+      ) => boolean;
+
+      expect(
+        hasThirdIronAdd({
+          entityType: EntityType.Article,
+          mainButtonType: ButtonType.ArticleLink,
+          mainUrl: 'https://example.com/article',
+          showSecondaryButton: false,
+          secondaryUrl: '',
+          showBrowzineButton: false,
+          browzineUrl: '',
+        })
+      ).toBe(true);
+    });
+
+    it('returns true when a TI secondary button is present', () => {
+      const fixture = TestBed.createComponent(ThirdIronButtonsComponent);
+      const component = fixture.componentInstance;
+
+      const hasThirdIronAdd = (component as any).hasThirdIronAdditions.bind(component) as (
+        displayInfo: any
+      ) => boolean;
+
+      expect(
+        hasThirdIronAdd({
+          entityType: EntityType.Article,
+          mainButtonType: ButtonType.DirectToPDF,
+          mainUrl: 'https://example.com/pdf',
+          showSecondaryButton: true,
+          secondaryUrl: 'https://example.com/article',
+          showBrowzineButton: false,
+          browzineUrl: '',
+        })
+      ).toBe(true);
+    });
+
+    it('returns true when Browzine is present (even if no main button)', () => {
+      const fixture = TestBed.createComponent(ThirdIronButtonsComponent);
+      const component = fixture.componentInstance;
+
+      const hasThirdIronAdd = (component as any).hasThirdIronAdditions.bind(component) as (
+        displayInfo: any
+      ) => boolean;
+
+      expect(
+        hasThirdIronAdd({
+          entityType: EntityType.Journal,
+          mainButtonType: ButtonType.None,
+          mainUrl: '',
+          showSecondaryButton: false,
+          secondaryUrl: '',
+          showBrowzineButton: true,
+          browzineUrl: 'https://example.com/browzine',
+        })
+      ).toBe(true);
+    });
+  });
+
   it('passes translated Primo labels into buildPrimoLinks and updates when translation streams emit', async () => {
     const html$ = new BehaviorSubject('Read Online');
     const pdf$ = new BehaviorSubject('Get PDF');
@@ -84,7 +182,18 @@ describe('ThirdIronButtonsComponent', () => {
 
     const buildPrimoLinksSpy = jasmine.createSpy('buildPrimoLinks').and.returnValue([]);
     const buttonInfoMock = {
-      getDisplayInfo: () => of(null),
+      // Ensure TI is considered "present" so the component builds Primo links (for the NoStack replacement UI)
+      // and we can validate the translation stream behavior.
+      getDisplayInfo: () =>
+        of({
+          entityType: EntityType.Article,
+          mainButtonType: ButtonType.ArticleLink,
+          mainUrl: 'https://example.com/article',
+          showSecondaryButton: false,
+          secondaryUrl: '',
+          showBrowzineButton: false,
+          browzineUrl: '',
+        }),
       buildCombinedLinks: () => [],
       buildPrimoLinks: buildPrimoLinksSpy,
     };
