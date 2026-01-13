@@ -3,7 +3,9 @@ import {
   Observable,
   combineLatest,
   distinctUntilChanged,
+  defer,
   filter,
+  finalize,
   map,
   of,
   shareReplay,
@@ -84,6 +86,7 @@ export class ThirdIronButtonsComponent {
   showDropdown = false;
   viewOption = this.configService.getViewOption();
   hasThirdIronSourceItems = false;
+  private readonly instanceId = Math.random().toString(36).slice(2, 8);
 
   // Expose enum to template
   ViewOptionType = ViewOptionType;
@@ -139,6 +142,10 @@ export class ThirdIronButtonsComponent {
   }
 
   ngOnInit() {
+    this.debugLog.debug('ThirdIronButtons.instance.init', {
+      instanceId: this.instanceId,
+    });
+
     const hostRecord$ = this.hostProxy.record$.pipe(
       filter((record): record is SearchEntity => !!record),
       distinctUntilChanged(
@@ -150,78 +157,95 @@ export class ThirdIronButtonsComponent {
     // Drive displayInfo$ from a single pipeline keyed on the current host record.
     // Using switchMap cancels the previous record's inner stream immediately on record changes,
     // preventing "stale record + new viewModel" emissions that can overwrite our link state.
-    this.displayInfo$ = hostRecord$.pipe(
-      switchMap(record => {
-        this.debugLog.debug(
-          'ThirdIronButtons.ngOnInit.hostRecord',
-          this.debugLog.safeSearchEntityMeta(record)
-        );
+    this.displayInfo$ = defer(() => {
+      this.debugLog.debug('ThirdIronButtons.displayInfo$.subscribe', {
+        instanceId: this.instanceId,
+      });
 
-        const shouldEnhance = this.searchEntityService.shouldEnhance(record);
-        if (!shouldEnhance) {
+      return hostRecord$.pipe(
+        switchMap(record => {
           this.debugLog.debug(
-            'ThirdIronButtons.enhance.skip',
+            'ThirdIronButtons.ngOnInit.hostRecord',
             this.debugLog.safeSearchEntityMeta(record)
           );
-          return of(null);
-        }
 
-        this.debugLog.debug('ThirdIronButtons.enhance.start', {
-          viewOption: this.viewOption,
-          ...this.debugLog.safeSearchEntityMeta(record),
-        });
+          const shouldEnhance = this.searchEntityService.shouldEnhance(record);
+          if (!shouldEnhance) {
+            this.debugLog.debug(
+              'ThirdIronButtons.enhance.skip',
+              this.debugLog.safeSearchEntityMeta(record)
+            );
+            return of(null);
+          }
 
-        return combineLatest([
-          this.buttonInfoService.getDisplayInfo(record),
-          this.viewModel$,
-          this.primoLinkLabels$,
-        ]).pipe(
-          map(([displayInfo, viewModel, primoLinkLabels]) => {
-            // If the TI API / waterfall yields no TI-specific button(s), we should leave the host Primo UI
-            // untouched and render nothing from this component.
-            this.hasThirdIronSourceItems = this.hasThirdIronAdditions(displayInfo);
-            if (!this.hasThirdIronSourceItems) {
-              this.combinedLinks = [];
-              this.primoLinks = [];
-              return displayInfo;
-            }
+          this.debugLog.debug('ThirdIronButtons.enhance.start', {
+            viewOption: this.viewOption,
+            ...this.debugLog.safeSearchEntityMeta(record),
+          });
 
-            if (this.viewOption !== ViewOptionType.NoStack) {
-              // build custom stack options array for StackPlusBrowzine and SingleStack view options
-              this.combinedLinks = this.buttonInfoService.buildCombinedLinks(
-                displayInfo,
-                viewModel,
-                primoLinkLabels
-              );
+          return combineLatest([
+            this.buttonInfoService.getDisplayInfo(record),
+            this.viewModel$,
+            this.primoLinkLabels$,
+          ]).pipe(
+            map(([displayInfo, viewModel, primoLinkLabels]) => {
+              // If the TI API / waterfall yields no TI-specific button(s), we should leave the host Primo UI
+              // untouched and render nothing from this component.
+              this.hasThirdIronSourceItems = this.hasThirdIronAdditions(displayInfo);
+              if (!this.hasThirdIronSourceItems) {
+                this.combinedLinks = [];
+                this.primoLinks = [];
+                return displayInfo;
+              }
 
-              // remove Primo generated buttons/stack if we have a custom stack (with TI added items)
-              if (this.combinedLinks.length > 0) {
+              if (this.viewOption !== ViewOptionType.NoStack) {
+                // build custom stack options array for StackPlusBrowzine and SingleStack view options
+                this.combinedLinks = this.buttonInfoService.buildCombinedLinks(
+                  displayInfo,
+                  viewModel,
+                  primoLinkLabels
+                );
+
+                // remove Primo generated buttons/stack if we have a custom stack (with TI added items)
+                if (this.combinedLinks.length > 0) {
+                  const hostElem = this.elementRef.nativeElement; // this component's template element
+                  const removedCount = this.removePrimoOnlineAvailability(hostElem);
+                  this.debugLog.debug('ThirdIronButtons.removePrimoOnlineAvailability', {
+                    reason: 'combinedLinks>0',
+                    removedCount,
+                  });
+                }
+              } else if (this.viewOption === ViewOptionType.NoStack) {
+                // Build array of Primo only links, filter based on TI config settings
+                this.primoLinks = this.buttonInfoService.buildPrimoLinks(
+                  viewModel,
+                  primoLinkLabels
+                );
+
+                // remove Primo "Online Options" button or Primo's stack (quick links and direct link)
+                // Will be replaced with our own primoLinks options
                 const hostElem = this.elementRef.nativeElement; // this component's template element
                 const removedCount = this.removePrimoOnlineAvailability(hostElem);
                 this.debugLog.debug('ThirdIronButtons.removePrimoOnlineAvailability', {
-                  reason: 'combinedLinks>0',
+                  reason: 'NoStack',
                   removedCount,
                 });
               }
-            } else if (this.viewOption === ViewOptionType.NoStack) {
-              // Build array of Primo only links, filter based on TI config settings
-              this.primoLinks = this.buttonInfoService.buildPrimoLinks(viewModel, primoLinkLabels);
 
-              // remove Primo "Online Options" button or Primo's stack (quick links and direct link)
-              // Will be replaced with our own primoLinks options
-              const hostElem = this.elementRef.nativeElement; // this component's template element
-              const removedCount = this.removePrimoOnlineAvailability(hostElem);
-              this.debugLog.debug('ThirdIronButtons.removePrimoOnlineAvailability', {
-                reason: 'NoStack',
-                removedCount,
-              });
-            }
-
-            return displayInfo;
-          })
-        );
-      }),
-      takeUntilDestroyed(this.destroyRef)
+              return displayInfo;
+            })
+          );
+        }),
+        takeUntilDestroyed(this.destroyRef),
+        finalize(() => {
+          this.debugLog.debug('ThirdIronButtons.displayInfo$.unsubscribe', {
+            instanceId: this.instanceId,
+          });
+        })
+      );
+    }).pipe(
+      // Defensive: if something causes multiple subscribers, share the work (and avoid duplicate HTTP calls).
+      shareReplay({ bufferSize: 1, refCount: true })
     );
   }
 
