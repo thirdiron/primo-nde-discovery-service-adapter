@@ -118,11 +118,6 @@ export class SearchEntityService {
     }
 
     const encoded = encodeURIComponent(issn);
-    this.debugLog.debug('SearchEntity.getIssn', {
-      raw: issn || null,
-      encoded: encoded || null,
-      changed: encoded !== issn,
-    });
     return encoded;
   };
 
@@ -137,11 +132,6 @@ export class SearchEntityService {
     }
 
     const encoded = encodeURIComponent(doi);
-    this.debugLog.debug('SearchEntity.getDoi', {
-      raw: doi || null,
-      encoded: encoded || null,
-      changed: encoded !== doi,
-    });
     return encoded;
   };
 
