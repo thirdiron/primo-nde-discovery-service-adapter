@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpErrorResponse, HttpResponse } from '@angular/common/http';
-import { catchError, Observable, throwError } from 'rxjs';
+import { catchError, Observable, throwError, tap } from 'rxjs';
 import { ApiResult, ArticleData, JournalData } from '../types/tiData.types';
 import { ConfigService } from './config.service';
 import { DebugLogService } from './debug-log.service';
@@ -28,16 +28,34 @@ export class HttpService {
       this.apiUrl
     }/articles/doi/${doi}?include=journal,library${this.appendAccessToken()}`;
 
-    return this.http
-      .get(endpoint, { observe: 'response' })
-      .pipe(catchError(err => this.handleError(err)));
+    return this.http.get(endpoint, { observe: 'response' }).pipe(
+      tap(res => {
+        this.debugLog.debug('HttpService.getArticle.response', {
+          doi,
+          status: res?.status,
+          statusText: res?.statusText,
+          url: this.debugLog.redactUrlTokens(res?.url || endpoint),
+          body: res?.body,
+        });
+      }),
+      catchError(err => this.handleError(err, { op: 'getArticle', doi, endpoint }))
+    );
   }
 
   getJournal(issn: string): Observable<any> {
     const endpoint = `${this.apiUrl}/search?issns=${issn}${this.appendAccessToken()}`;
-    return this.http
-      .get(endpoint, { observe: 'response' })
-      .pipe(catchError(err => this.handleError(err)));
+    return this.http.get(endpoint, { observe: 'response' }).pipe(
+      tap(res => {
+        this.debugLog.debug('HttpService.getJournal.response', {
+          issn,
+          status: res?.status,
+          statusText: res?.statusText,
+          url: this.debugLog.redactUrlTokens(res?.url || endpoint),
+          body: res?.body,
+        });
+      }),
+      catchError(err => this.handleError(err, { op: 'getJournal', issn, endpoint }))
+    );
   }
 
   getUnpaywall(doi: string): Observable<HttpResponse<Object>> {
@@ -91,13 +109,24 @@ export class HttpService {
     return `&access_token=${this.apiKey}`;
   }
 
-  private handleError(error: HttpErrorResponse) {
+  private handleError(
+    error: HttpErrorResponse,
+    context?: {
+      op?: 'getArticle' | 'getJournal' | 'getUnpaywall';
+      doi?: string;
+      issn?: string;
+      endpoint?: string;
+    }
+  ) {
     const errorMessageRedacted =
       typeof error?.message === 'string' ? this.debugLog.redactUrlTokens(error.message) : undefined;
     this.debugLog.warn('HttpService.handleError', {
+      op: context?.op,
+      doi: context?.doi,
+      issn: context?.issn,
       status: error?.status,
       statusText: error?.statusText,
-      url: error?.url,
+      url: this.debugLog.redactUrlTokens(error?.url || context?.endpoint || ''),
       errorMessageRedacted,
     });
 
