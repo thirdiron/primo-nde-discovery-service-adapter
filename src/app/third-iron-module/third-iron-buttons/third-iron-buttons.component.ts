@@ -1,6 +1,7 @@
 import { Component, ElementRef, Input, ViewEncapsulation, DestroyRef } from '@angular/core';
 import {
   Observable,
+  auditTime,
   combineLatest,
   distinctUntilChanged,
   defer,
@@ -87,6 +88,7 @@ export class ThirdIronButtonsComponent {
   viewOption = this.configService.getViewOption();
   hasThirdIronSourceItems = false;
   private readonly instanceId = Math.random().toString(36).slice(2, 8);
+  private lastPrimoRemovalRecordId: string | null = null;
 
   // Expose enum to template
   ViewOptionType = ViewOptionType;
@@ -164,10 +166,11 @@ export class ThirdIronButtonsComponent {
 
       return hostRecord$.pipe(
         switchMap(record => {
-          this.debugLog.debug(
-            'ThirdIronButtons.ngOnInit.hostRecord',
-            this.debugLog.safeSearchEntityMeta(record)
-          );
+          const recordId = record?.pnx?.control?.recordid?.[0] ?? null;
+          this.debugLog.debug('ThirdIronButtons.ngOnInit.hostRecord', {
+            ...this.debugLog.safeSearchEntityMeta(record),
+            hasRecordId: !!recordId,
+          });
 
           const shouldEnhance = this.searchEntityService.shouldEnhance(record);
           if (!shouldEnhance) {
@@ -183,10 +186,20 @@ export class ThirdIronButtonsComponent {
             ...this.debugLog.safeSearchEntityMeta(record),
           });
 
+          // The host `viewModel$` commonly emits multiple times as it stabilizes (online links can be built
+          // incrementally). Coalesce bursts and ignore duplicates so we don't rebuild links / re-hide Primo
+          // elements repeatedly.
+          const viewModelStable$ = this.viewModel$.pipe(
+            auditTime(0),
+            distinctUntilChanged((a, b) => this.viewModelKey(a) === this.viewModelKey(b))
+          );
+
           return combineLatest([
             this.buttonInfoService.getDisplayInfo(record),
-            this.viewModel$,
-            this.primoLinkLabels$,
+            viewModelStable$,
+            this.primoLinkLabels$.pipe(
+              distinctUntilChanged((a, b) => JSON.stringify(a) === JSON.stringify(b))
+            ),
           ]).pipe(
             map(([displayInfo, viewModel, primoLinkLabels]) => {
               // If the TI API / waterfall yields no TI-specific button(s), we should leave the host Primo UI
@@ -207,9 +220,17 @@ export class ThirdIronButtonsComponent {
                 );
 
                 // remove Primo generated buttons/stack if we have a custom stack (with TI added items)
-                if (this.combinedLinks.length > 0) {
+                const recordId = record?.pnx?.control?.recordid?.[0] ?? null;
+                if (
+                  this.combinedLinks.length > 0 &&
+                  recordId &&
+                  this.lastPrimoRemovalRecordId !== recordId
+                ) {
                   const hostElem = this.elementRef.nativeElement; // this component's template element
                   const removedCount = this.removePrimoOnlineAvailability(hostElem);
+                  // Only "lock" this record id once we actually found and hid something.
+                  // If the host Primo element isn't in the DOM yet, we want a later emission to retry.
+                  if (removedCount > 0) this.lastPrimoRemovalRecordId = recordId;
                   this.debugLog.debug('ThirdIronButtons.removePrimoOnlineAvailability', {
                     reason: 'combinedLinks>0',
                     removedCount,
@@ -225,11 +246,17 @@ export class ThirdIronButtonsComponent {
                 // remove Primo "Online Options" button or Primo's stack (quick links and direct link)
                 // Will be replaced with our own primoLinks options
                 const hostElem = this.elementRef.nativeElement; // this component's template element
-                const removedCount = this.removePrimoOnlineAvailability(hostElem);
-                this.debugLog.debug('ThirdIronButtons.removePrimoOnlineAvailability', {
-                  reason: 'NoStack',
-                  removedCount,
-                });
+                const recordId = record?.pnx?.control?.recordid?.[0] ?? null;
+                if (recordId && this.lastPrimoRemovalRecordId !== recordId) {
+                  const removedCount = this.removePrimoOnlineAvailability(hostElem);
+                  // Only "lock" this record id once we actually found and hid something.
+                  // If the host Primo element isn't in the DOM yet, we want a later emission to retry.
+                  if (removedCount > 0) this.lastPrimoRemovalRecordId = recordId;
+                  this.debugLog.debug('ThirdIronButtons.removePrimoOnlineAvailability', {
+                    reason: 'NoStack',
+                    removedCount,
+                  });
+                }
               }
 
               return displayInfo;
@@ -264,6 +291,32 @@ export class ThirdIronButtonsComponent {
     const hasThirdIronBrowzine = !!displayInfo.showBrowzineButton && !!displayInfo.browzineUrl;
 
     return hasThirdIronMainButton || hasThirdIronSecondaryButton || hasThirdIronBrowzine;
+  }
+
+  /**
+   * Returns a stable, string "signature" for the parts of the host Primo viewModel that affect:
+   * - which links we build (Primo onlineLinks + directLink)
+   * - whether we need to re-render our button UI
+   *
+   * Why we need this:
+   * - The host `viewModel$` often emits multiple times while it "settles" (links can be added/rewritten
+   *   incrementally, and the host may emit new object references even when content is unchanged).
+   * - We use this signature with `distinctUntilChanged()` to skip duplicate emissions and avoid
+   *   rebuilding stacks / re-hiding the Primo element repeatedly for the same effective state.
+   *
+   * Note:
+   * - This is not intended to be cryptographically unique; it's a best-effort equality key.
+   */
+  private viewModelKey(vm: PrimoViewModel | null | undefined): string {
+    const onlineLinksKey = (vm?.onlineLinks ?? [])
+      .map(l => `${l?.type ?? ''}:${l?.url ?? ''}:${l?.source ?? ''}`)
+      .join('|');
+    return [
+      vm?.directLink ?? '',
+      vm?.consolidatedCoverage ?? '',
+      vm?.ariaLabel ?? '',
+      onlineLinksKey,
+    ].join('||');
   }
 
   removePrimoOnlineAvailability = (hostElement: HTMLElement): number => {
