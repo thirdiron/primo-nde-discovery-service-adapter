@@ -102,6 +102,19 @@ Example multicampus config:
 }
 ```
 
+Multicampus data flow (high level):
+
+```mermaid
+flowchart TD
+  AlmaConfigJson[AlmaConfigJson] --> moduleParameters[MODULE_PARAMETERS]
+  AlmaLabels[AlmaLabels] --> translateService[TranslateService]
+  translateService --> institutionName["LibKey.institutionName"]
+  moduleParameters --> configService[ConfigService]
+  institutionName --> configService
+  configService --> resolvedValue[ResolvedConfigValue]
+  resolvedValue --> consumers[HttpService/Buttons/Unpaywall]
+```
+
 ### Step 3: Setup Add-On configuration in Alma
 
 1. In Alma, navigate to the "Configuration" section
