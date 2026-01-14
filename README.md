@@ -106,21 +106,21 @@ Multicampus data flow (high level):
 
 ```mermaid
 flowchart TD
-  subgraph Alma[Alma]
-    AlmaLabels[Label Config]
-    AlmaConfigJson[Add-On Config Json Upload]
+  subgraph Alma["Alma"]
+    AlmaLabels["Label Config"]
+    AlmaConfigJson["Add-On Config Json Upload"]
   end
 
-  subgraph PrimoNDE[PrimoNDE (AngularApp)]
-    TranslateService[TranslateService]
-    ModuleParameters[MODULE_PARAMETERS]
+  subgraph PrimoNDE["PrimoNDE (AngularApp)"]
+    TranslateService["TranslateService"]
+    ModuleParameters["MODULE_PARAMETERS"]
     InstitutionName["LibKey.institutionName"]
   end
 
-  subgraph LibKeyAddon[LibKey Add-On]
-    ConfigService[ConfigService]
-    ResolvedConfig[Resolved Config Value]
-    Consumers[HttpService/Buttons/Unpaywall/etc.]
+  subgraph LibKeyAddon["LibKey Add-On"]
+    ConfigService["ConfigService"]
+    ResolvedConfig["Resolved Config Value"]
+    Consumers["HttpService/Buttons/Unpaywall/etc."]
   end
 
   AlmaLabels --> TranslateService
