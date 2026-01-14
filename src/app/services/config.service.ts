@@ -1,5 +1,7 @@
-import { Injectable, Inject } from '@angular/core';
+import { Injectable, Inject, Optional } from '@angular/core';
 import { ViewOptionType } from '../shared/view-option.enum';
+import { TranslateService } from '@ngx-translate/core';
+import { DebugLogService } from './debug-log.service';
 
 /**
  * This Service is responsible for getting config values from the corresponding
@@ -10,11 +12,76 @@ import { ViewOptionType } from '../shared/view-option.enum';
   providedIn: 'root',
 })
 export class ConfigService {
-  constructor(@Inject('MODULE_PARAMETERS') public moduleParameters: any) {}
+  // Case-insensitive config key lookup: maps lowercased config keys -> original key as stored in MODULE_PARAMETERS.
+  // Used in multicampus mode to resolve `${institutionName}.${paramName}` even if casing differs.
+  private readonly keyIndexLowerToActual: Map<string, string>;
+  private readonly isMulticampusMode: boolean;
+  private readonly institutionName: string | null;
+
+  constructor(
+    @Inject('MODULE_PARAMETERS') public moduleParameters: any,
+    @Optional() private translate?: TranslateService,
+    @Optional() private debugLog?: DebugLogService
+  ) {
+    const keys = Object.keys(this.moduleParameters ?? {});
+    this.keyIndexLowerToActual = new Map<string, string>();
+    for (const k of keys) {
+      if (typeof k !== 'string') continue;
+      this.keyIndexLowerToActual.set(k.toLowerCase(), k);
+    }
+
+    const modeRaw = this.moduleParameters?.mode;
+    this.isMulticampusMode = typeof modeRaw === 'string' && modeRaw.toLowerCase() === 'multicampus';
+    this.institutionName = this.isMulticampusMode ? this.resolveInstitutionName() : null;
+  }
+
+  private resolveInstitutionName(): string | null {
+    const key = 'LibKey.institutionName';
+    try {
+      const value = this.translate?.instant ? this.translate.instant(key) : null;
+      const normalized = typeof value === 'string' ? value.trim() : '';
+      const resolved = normalized && normalized !== key ? normalized : null; // if the value is the same as the key, we didn't find a value (key not set in Alma)
+      if (!resolved) {
+        this.debugLog?.warn?.('ConfigService.multicampus.missingInstitutionName', {
+          translationKey: key,
+          resolvedValue: normalized || null,
+        });
+      }
+      return resolved;
+    } catch (err) {
+      this.debugLog?.warn?.('ConfigService.multicampus.institutionNameLookupError', {
+        translationKey: key,
+        error: this.debugLog?.safeError?.(err) ?? undefined,
+      });
+      return null;
+    }
+  }
+
+  private getParam(paramName: string): any {
+    // if not multicampus mode, return the config value with no prefix
+    if (!this.isMulticampusMode) return this.moduleParameters?.[paramName];
+
+    // Multicampus mode: always resolve `${institutionName}.${paramName}` (no fallback to unprefixed keys)
+    if (!this.institutionName) return undefined;
+    const lookupLower = `${this.institutionName}.${paramName}`.toLowerCase();
+    const actualKey = this.keyIndexLowerToActual.get(lookupLower);
+    if (!actualKey) {
+      // Missing is treated as unset; optionally warn in debug mode for critical keys only.
+      if (paramName === 'apiKey' || paramName === 'libraryId') {
+        this.debugLog?.warn?.('ConfigService.multicampus.missingPrefixedKey', {
+          paramName,
+          institutionName: this.institutionName,
+          expectedKeyLower: lookupLower,
+        });
+      }
+      return undefined;
+    }
+    return this.moduleParameters?.[actualKey];
+  }
 
   private getBooleanParam(paramName: string): boolean {
     try {
-      const parsedValue = JSON.parse(this.moduleParameters[paramName]);
+      const parsedValue = JSON.parse(this.getParam(paramName));
       return parsedValue === true;
     } catch {
       return false;
@@ -90,20 +157,20 @@ export class ConfigService {
   }
 
   getApiUrl(): string {
-    const libraryId = this.moduleParameters.libraryId;
+    const libraryId = this.getParam('libraryId');
     return `https://public-api.thirdiron.com/public/v1/libraries/${libraryId}`;
   }
 
   getApiKey(): string {
-    return this.moduleParameters.apiKey;
+    return this.getParam('apiKey');
   }
 
   getEmailAddressKey(): string {
-    return this.moduleParameters.unpaywallEmailAddressKey;
+    return this.getParam('unpaywallEmailAddressKey');
   }
 
   getViewOption(): ViewOptionType {
-    const viewOption = this.moduleParameters.viewOption;
+    const viewOption = this.getParam('viewOption');
     return Object.values(ViewOptionType).includes(viewOption)
       ? viewOption
       : ViewOptionType.StackPlusBrowzine;
