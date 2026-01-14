@@ -33,6 +33,13 @@ export class ConfigService {
     const modeRaw = this.moduleParameters?.mode;
     this.isMulticampusMode = typeof modeRaw === 'string' && modeRaw.toLowerCase() === 'multicampus';
     this.institutionName = this.isMulticampusMode ? this.resolveInstitutionName() : null;
+
+    // Debug-only: emit full MODULE_PARAMETERS for troubleshooting.
+    this.debugLog?.debug?.('ConfigService.moduleParameters', {
+      mode: this.isMulticampusMode ? 'multicampus' : 'single-campus',
+      institutionName: this.institutionName,
+      moduleParameters: this.moduleParameters,
+    });
   }
 
   private resolveInstitutionName(): string | null {
