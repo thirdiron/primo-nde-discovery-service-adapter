@@ -106,13 +106,31 @@ Multicampus data flow (high level):
 
 ```mermaid
 flowchart TD
-  AlmaConfigJson[AlmaConfigJson] --> moduleParameters[MODULE_PARAMETERS]
-  AlmaLabels[AlmaLabels] --> translateService[TranslateService]
-  translateService --> institutionName["LibKey.institutionName"]
-  moduleParameters --> configService[ConfigService]
-  institutionName --> configService
-  configService --> resolvedValue[ResolvedConfigValue]
-  resolvedValue --> consumers[HttpService/Buttons/Unpaywall]
+  subgraph Alma[Alma]
+    AlmaLabels[Label Config]
+    AlmaConfigJson[Add-On Config Json Upload]
+  end
+
+  subgraph PrimoNDE[PrimoNDE (AngularApp)]
+    TranslateService[TranslateService]
+    ModuleParameters[MODULE_PARAMETERS]
+    InstitutionName["LibKey.institutionName"]
+  end
+
+  subgraph LibKeyAddon[LibKey Add-On]
+    ConfigService[ConfigService]
+    ResolvedConfig[Resolved Config Value]
+    Consumers[HttpService/Buttons/Unpaywall/etc.]
+  end
+
+  AlmaLabels --> TranslateService
+  TranslateService --> InstitutionName
+  AlmaConfigJson --> ModuleParameters
+
+  ModuleParameters --> ConfigService
+  InstitutionName --> ConfigService
+
+  ConfigService --> ResolvedConfig --> Consumers
 ```
 
 ### Step 3: Setup Add-On configuration in Alma
