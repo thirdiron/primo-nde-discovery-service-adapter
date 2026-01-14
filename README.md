@@ -111,13 +111,10 @@ flowchart TD
     AlmaConfigJson["Add-On Config Json Upload"]
   end
 
-  subgraph PrimoNDE["PrimoNDE (AngularApp)"]
+  subgraph LibKeyAddon["LibKey Add-On"]
     TranslateService["TranslateService"]
     ModuleParameters["MODULE_PARAMETERS"]
     InstitutionName["LibKey.institutionName"]
-  end
-
-  subgraph LibKeyAddon["LibKey Add-On"]
     ConfigService["ConfigService"]
     ResolvedConfig["Resolved Config Value"]
     Consumers["HttpService/Buttons/Unpaywall/etc."]
