@@ -23,6 +23,8 @@ import { StackLink, PrimoViewModel } from 'src/app/types/primoViewModel.types';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSelectModule } from '@angular/material/select';
 import { ViewOptionType } from 'src/app/shared/view-option.enum';
+import { ButtonType } from 'src/app/shared/button-type.enum';
+import { EntityType } from 'src/app/shared/entity-type.enum';
 import { StackedDropdownComponent } from 'src/app/components/stacked-dropdown/stacked-dropdown.component';
 import { DebugLogService } from 'src/app/services/debug-log.service';
 import { HostComponentProxy } from 'src/app/shared/host-component-proxy';
@@ -81,6 +83,7 @@ export class ThirdIronButtonsComponent {
   primoLinks: StackLink[] = []; // used to build array of Primo only links for NoStack view option
   showDropdown = false;
   viewOption = this.configService.getViewOption();
+  hasThirdIronSourceItems = false;
 
   // Expose enum to template
   ViewOptionType = ViewOptionType;
@@ -174,6 +177,15 @@ export class ThirdIronButtonsComponent {
           this.primoLinkLabels$,
         ]).pipe(
           map(([displayInfo, viewModel, primoLinkLabels]) => {
+            // If the TI API / waterfall yields no TI-specific button(s), we should leave the host Primo UI
+            // untouched and render nothing from this component.
+            this.hasThirdIronSourceItems = this.hasThirdIronAdditions(displayInfo);
+            if (!this.hasThirdIronSourceItems) {
+              this.combinedLinks = [];
+              this.primoLinks = [];
+              return displayInfo;
+            }
+
             if (this.viewOption !== ViewOptionType.NoStack) {
               // build custom stack options array for StackPlusBrowzine and SingleStack view options
               this.combinedLinks = this.buttonInfoService.buildCombinedLinks(
@@ -182,7 +194,7 @@ export class ThirdIronButtonsComponent {
                 primoLinkLabels
               );
 
-              // remove Primo generated buttons/stack if we have a custom stack
+              // remove Primo generated buttons/stack if we have a custom stack (with TI added items)
               if (this.combinedLinks.length > 0) {
                 const hostElem = this.elementRef.nativeElement; // this component's template element
                 const removedCount = this.removePrimoOnlineAvailability(hostElem);
@@ -211,6 +223,23 @@ export class ThirdIronButtonsComponent {
       }),
       takeUntilDestroyed(this.destroyRef)
     );
+  }
+
+  private hasThirdIronAdditions(displayInfo: DisplayWaterfallResponse | null): boolean {
+    if (!displayInfo) return false;
+
+    const hasThirdIronMainButton =
+      displayInfo.entityType !== EntityType.Unknown &&
+      displayInfo.mainButtonType !== ButtonType.None &&
+      !!displayInfo.mainUrl;
+
+    const hasThirdIronSecondaryButton =
+      !!displayInfo.showSecondaryButton && !!displayInfo.secondaryUrl;
+
+    // For StackPlusBrowzine, Browzine may be shown outside the stack, so it must count as "TI present".
+    const hasThirdIronBrowzine = !!displayInfo.showBrowzineButton && !!displayInfo.browzineUrl;
+
+    return hasThirdIronMainButton || hasThirdIronSecondaryButton || hasThirdIronBrowzine;
   }
 
   removePrimoOnlineAvailability = (hostElement: HTMLElement): number => {
