@@ -16,7 +16,9 @@ export class ConfigService {
   // Used in multicampus mode to resolve `${institutionName}.${paramName}` even if casing differs.
   private readonly keyIndexLowerToActual: Map<string, string>;
   private readonly isMulticampusMode: boolean;
-  private readonly institutionName: string | null;
+  private institutionName: string | null;
+  private warnedMissingInstitutionName = false;
+  private warnedInstitutionNameLookupError = false;
 
   constructor(
     @Inject('MODULE_PARAMETERS') public moduleParameters: any,
@@ -32,7 +34,8 @@ export class ConfigService {
 
     const modeRaw = this.moduleParameters?.mode;
     this.isMulticampusMode = typeof modeRaw === 'string' && modeRaw.toLowerCase() === 'multicampus';
-    this.institutionName = this.isMulticampusMode ? this.resolveInstitutionName() : null;
+    // In multicampus mode, resolve the institution name lazily (translations may not be ready when the constructor here runs).
+    this.institutionName = null;
 
     // Debug-only: emit full MODULE_PARAMETERS for troubleshooting.
     this.debugLog?.debug?.('ConfigService.moduleParameters', {
@@ -49,17 +52,23 @@ export class ConfigService {
       const normalized = typeof value === 'string' ? value.trim() : '';
       const resolved = normalized && normalized !== key ? normalized : null; // if the value is the same as the key, we didn't find a value (key not set in Alma)
       if (!resolved) {
-        this.debugLog?.warn?.('ConfigService.multicampus.missingInstitutionName', {
-          translationKey: key,
-          resolvedValue: normalized || null,
-        });
+        if (!this.warnedMissingInstitutionName) {
+          this.warnedMissingInstitutionName = true;
+          this.debugLog?.warn?.('ConfigService.multicampus.missingInstitutionName', {
+            translationKey: key,
+            resolvedValue: normalized || null,
+          });
+        }
       }
       return resolved;
     } catch (err) {
-      this.debugLog?.warn?.('ConfigService.multicampus.institutionNameLookupError', {
-        translationKey: key,
-        error: this.debugLog?.safeError?.(err) ?? undefined,
-      });
+      if (!this.warnedInstitutionNameLookupError) {
+        this.warnedInstitutionNameLookupError = true;
+        this.debugLog?.warn?.('ConfigService.multicampus.institutionNameLookupError', {
+          translationKey: key,
+          error: this.debugLog?.safeError?.(err) ?? undefined,
+        });
+      }
       return null;
     }
   }
@@ -69,6 +78,10 @@ export class ConfigService {
     if (!this.isMulticampusMode) return this.moduleParameters?.[paramName];
 
     // Multicampus mode: always resolve `${institutionName}.${paramName}` (no fallback to unprefixed keys)
+    if (!this.institutionName) {
+      // Re-check on demand until translations are available.
+      this.institutionName = this.resolveInstitutionName();
+    }
     if (!this.institutionName) return undefined;
     const lookupLower = `${this.institutionName}.${paramName}`.toLowerCase();
     const actualKey = this.keyIndexLowerToActual.get(lookupLower);

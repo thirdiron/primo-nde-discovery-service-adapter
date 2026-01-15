@@ -82,7 +82,10 @@ export class ThirdIronButtonsComponent {
   combinedLinks: StackLink[] = []; // used to build custom merged array of online services for stack views
   primoLinks: StackLink[] = []; // used to build array of Primo only links for NoStack view option
   showDropdown = false;
-  viewOption = this.configService.getViewOption();
+  get viewOption(): ViewOptionType {
+    // Resolve lazily so multicampus config can “start working” once translations become available.
+    return this.configService.getViewOption();
+  }
   hasThirdIronSourceItems = false;
 
   // Expose enum to template

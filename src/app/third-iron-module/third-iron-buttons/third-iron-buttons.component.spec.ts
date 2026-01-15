@@ -216,7 +216,6 @@ describe('ThirdIronButtonsComponent', () => {
 
     const fixture = TestBed.createComponent(ThirdIronButtonsComponent);
     const component = fixture.componentInstance;
-    component.viewOption = ViewOptionType.NoStack;
 
     component.hostComponent = {
       searchResult: { pnx: { control: { recordid: ['rec-1'] } } },
