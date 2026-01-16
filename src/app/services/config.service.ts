@@ -40,7 +40,7 @@ export class ConfigService {
     // Debug-only: emit full MODULE_PARAMETERS for troubleshooting.
     this.debugLog?.debug?.('ConfigService.moduleParameters', {
       mode: this.isMulticampusMode ? 'multicampus' : 'single-campus',
-      institutionName: this.institutionName,
+      institutionName: 'NOT YET SET',
       moduleParameters: this.moduleParameters,
     });
   }
