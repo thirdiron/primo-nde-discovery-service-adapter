@@ -68,73 +68,16 @@ export class HostComponentProxy<TRecord, TViewModel> {
 
   private bindHostViewModel(): void {
     const vmRef = this.opts.getViewModel$(this.host);
-    if (!vmRef || vmRef === this.lastViewModelRef) {
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/6f464193-ba2e-4950-8450-e8a059b7fbe3', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sessionId: 'debug-session',
-          runId: 'run1',
-          hypothesisId: 'H1',
-          location: 'host-component-proxy.ts:bindHostViewModel',
-          message: 'bindHostViewModel skipped (missing or unchanged viewModel$)',
-          data: {
-            hasViewModelRef: !!vmRef,
-            isSameRef: !!vmRef && vmRef === this.lastViewModelRef,
-          },
-          timestamp: Date.now(),
-        }),
-      }).catch(() => {});
-      // #endregion agent log
-      return;
-    }
+    if (!vmRef || vmRef === this.lastViewModelRef) return;
 
     this.lastViewModelRef = vmRef;
     this.viewModelSub?.unsubscribe();
     this.viewModelSub = vmRef.subscribe({
       next: vm => {
-        // #region agent log
-        fetch('http://127.0.0.1:7243/ingest/6f464193-ba2e-4950-8450-e8a059b7fbe3', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            sessionId: 'debug-session',
-            runId: 'run1',
-            hypothesisId: 'H1',
-            location: 'host-component-proxy.ts:bindHostViewModel',
-            message: 'viewModel$ emitted',
-            data: {
-              hasVm: !!vm,
-              vmType: vm ? ((vm as any).constructor?.name ?? typeof vm) : null,
-              // Avoid logging full view model; just a couple of likely-safe summary fields.
-              hasLinks: Array.isArray((vm as any)?.links),
-              hasConsolidatedCoverage: !!(vm as any)?.consolidatedCoverage,
-            },
-            timestamp: Date.now(),
-          }),
-        }).catch(() => {});
-        // #endregion agent log
         this.viewModelSubject.next(vm);
       },
       // errors are intentionally swallowed; the component can choose to log via its own DebugLogService
-      error: () => {
-        // #region agent log
-        fetch('http://127.0.0.1:7243/ingest/6f464193-ba2e-4950-8450-e8a059b7fbe3', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            sessionId: 'debug-session',
-            runId: 'run1',
-            hypothesisId: 'H1',
-            location: 'host-component-proxy.ts:bindHostViewModel',
-            message: 'viewModel$ errored (swallowed)',
-            data: {},
-            timestamp: Date.now(),
-          }),
-        }).catch(() => {});
-        // #endregion agent log
-      },
+      error: () => {},
     });
   }
 }

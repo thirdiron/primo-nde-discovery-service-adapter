@@ -142,6 +142,22 @@ export class ThirdIronButtonsComponent {
   }
 
   ngOnInit() {
+    // Debug: confirm whether the host viewModel$ ever emits (template won't render without it).
+    this.viewModel$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: vm => {
+        this.debugLog.debug('AGENT_DEBUG.ThirdIronButtons.viewModel.emitted', {
+          hasVm: !!vm,
+          hasLinks: Array.isArray((vm as any)?.links),
+          hasConsolidatedCoverage: !!(vm as any)?.consolidatedCoverage,
+        });
+      },
+      error: err => {
+        this.debugLog.warn('AGENT_DEBUG.ThirdIronButtons.viewModel.error', {
+          err: this.debugLog.safeError(err),
+        });
+      },
+    });
+
     const hostRecord$ = this.hostProxy.record$.pipe(
       filter((record): record is SearchEntity => !!record),
       distinctUntilChanged(
@@ -161,6 +177,10 @@ export class ThirdIronButtonsComponent {
         );
 
         const shouldEnhance = this.searchEntityService.shouldEnhance(record);
+        this.debugLog.debug('AGENT_DEBUG.ThirdIronButtons.shouldEnhance', {
+          shouldEnhance,
+          ...this.debugLog.safeSearchEntityMeta(record),
+        });
         if (!shouldEnhance) {
           this.debugLog.debug(
             'ThirdIronButtons.enhance.skip',
@@ -184,33 +204,19 @@ export class ThirdIronButtonsComponent {
             // untouched and render nothing from this component.
             this.hasThirdIronSourceItems = this.hasThirdIronAdditions(displayInfo);
 
-            // #region agent log
-            fetch('http://127.0.0.1:7243/ingest/6f464193-ba2e-4950-8450-e8a059b7fbe3', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                sessionId: 'debug-session',
-                runId: 'run1',
-                hypothesisId: 'H2',
-                location: 'third-iron-buttons.component.ts:displayInfo.map',
-                message: 'Render gating snapshot (displayInfo + viewModel)',
-                data: {
-                  recordId: record?.pnx?.control?.recordid?.[0] ?? null,
-                  viewOption: this.viewOption,
-                  hasDisplayInfo: !!displayInfo,
-                  hasViewModel: !!viewModel,
-                  hasThirdIronSourceItems: this.hasThirdIronSourceItems,
-                  entityType: (displayInfo as any)?.entityType ?? null,
-                  mainButtonType: (displayInfo as any)?.mainButtonType ?? null,
-                  hasMainUrl: !!(displayInfo as any)?.mainUrl,
-                  showSecondaryButton: !!(displayInfo as any)?.showSecondaryButton,
-                  showBrowzineButton: !!(displayInfo as any)?.showBrowzineButton,
-                  hasBrowzineUrl: !!(displayInfo as any)?.browzineUrl,
-                },
-                timestamp: Date.now(),
-              }),
-            }).catch(() => {});
-            // #endregion agent log
+            this.debugLog.debug('AGENT_DEBUG.ThirdIronButtons.renderGate', {
+              recordId: record?.pnx?.control?.recordid?.[0] ?? null,
+              viewOption: this.viewOption,
+              hasDisplayInfo: !!displayInfo,
+              hasViewModel: !!viewModel,
+              hasThirdIronSourceItems: this.hasThirdIronSourceItems,
+              entityType: (displayInfo as any)?.entityType ?? null,
+              mainButtonType: (displayInfo as any)?.mainButtonType ?? null,
+              hasMainUrl: !!(displayInfo as any)?.mainUrl,
+              showSecondaryButton: !!(displayInfo as any)?.showSecondaryButton,
+              showBrowzineButton: !!(displayInfo as any)?.showBrowzineButton,
+              hasBrowzineUrl: !!(displayInfo as any)?.browzineUrl,
+            });
 
             if (!this.hasThirdIronSourceItems) {
               this.combinedLinks = [];
@@ -226,26 +232,12 @@ export class ThirdIronButtonsComponent {
                 primoLinkLabels
               );
 
-              // #region agent log
-              fetch('http://127.0.0.1:7243/ingest/6f464193-ba2e-4950-8450-e8a059b7fbe3', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  sessionId: 'debug-session',
-                  runId: 'run1',
-                  hypothesisId: 'H2',
-                  location: 'third-iron-buttons.component.ts:combinedLinks',
-                  message: 'Combined links built',
-                  data: {
-                    recordId: record?.pnx?.control?.recordid?.[0] ?? null,
-                    combinedLinksCount: Array.isArray(this.combinedLinks)
-                      ? this.combinedLinks.length
-                      : null,
-                  },
-                  timestamp: Date.now(),
-                }),
-              }).catch(() => {});
-              // #endregion agent log
+              this.debugLog.debug('AGENT_DEBUG.ThirdIronButtons.combinedLinks.built', {
+                recordId: record?.pnx?.control?.recordid?.[0] ?? null,
+                combinedLinksCount: Array.isArray(this.combinedLinks)
+                  ? this.combinedLinks.length
+                  : null,
+              });
 
               // remove Primo generated buttons/stack if we have a custom stack (with TI added items)
               if (this.combinedLinks.length > 0) {
@@ -260,24 +252,10 @@ export class ThirdIronButtonsComponent {
               // Build array of Primo only links, filter based on TI config settings
               this.primoLinks = this.buttonInfoService.buildPrimoLinks(viewModel, primoLinkLabels);
 
-              // #region agent log
-              fetch('http://127.0.0.1:7243/ingest/6f464193-ba2e-4950-8450-e8a059b7fbe3', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  sessionId: 'debug-session',
-                  runId: 'run1',
-                  hypothesisId: 'H2',
-                  location: 'third-iron-buttons.component.ts:primoLinks',
-                  message: 'Primo links built (NoStack)',
-                  data: {
-                    recordId: record?.pnx?.control?.recordid?.[0] ?? null,
-                    primoLinksCount: Array.isArray(this.primoLinks) ? this.primoLinks.length : null,
-                  },
-                  timestamp: Date.now(),
-                }),
-              }).catch(() => {});
-              // #endregion agent log
+              this.debugLog.debug('AGENT_DEBUG.ThirdIronButtons.primoLinks.built', {
+                recordId: record?.pnx?.control?.recordid?.[0] ?? null,
+                primoLinksCount: Array.isArray(this.primoLinks) ? this.primoLinks.length : null,
+              });
 
               // remove Primo "Online Options" button or Primo's stack (quick links and direct link)
               // Will be replaced with our own primoLinks options
