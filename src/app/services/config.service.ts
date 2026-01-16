@@ -43,11 +43,6 @@ export class ConfigService {
       institutionName: this.institutionName,
       moduleParameters: this.moduleParameters,
     });
-    this.debugLog?.debug?.('AGENT_DEBUG.ConfigService.init', {
-      isMulticampusMode: this.isMulticampusMode,
-      modeRaw: this.moduleParameters?.mode ?? null,
-      keyCount: Object.keys(this.moduleParameters ?? {}).length,
-    });
   }
 
   private resolveInstitutionName(): string | null {
@@ -56,12 +51,6 @@ export class ConfigService {
       const value = this.translate?.instant ? this.translate.instant(key) : null;
       const normalized = typeof value === 'string' ? value.trim() : '';
       const resolved = normalized && normalized !== key ? normalized : null; // if the value is the same as the key, we didn't find a value (key not set in Alma)
-
-      this.debugLog?.debug?.('AGENT_DEBUG.ConfigService.resolveInstitutionName', {
-        hasTranslate: !!this.translate,
-        normalized: normalized || null,
-        resolved: resolved || null,
-      });
 
       if (!resolved) {
         if (!this.warnedMissingInstitutionName) {
@@ -109,15 +98,6 @@ export class ConfigService {
       return undefined;
     }
     const value = this.moduleParameters?.[actualKey];
-    if (paramName === 'apiKey' || paramName === 'libraryId' || paramName === 'viewOption') {
-      this.debugLog?.debug?.('AGENT_DEBUG.ConfigService.multicampus.getParam', {
-        paramName,
-        institutionName: this.institutionName,
-        actualKey,
-        valueType: typeof value,
-        valuePreview: typeof value === 'string' ? value.slice(0, 24) : (value ?? null),
-      });
-    }
 
     return value;
   }
