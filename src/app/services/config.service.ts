@@ -43,6 +43,26 @@ export class ConfigService {
       institutionName: this.institutionName,
       moduleParameters: this.moduleParameters,
     });
+
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/6f464193-ba2e-4950-8450-e8a059b7fbe3', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sessionId: 'debug-session',
+        runId: 'run1',
+        hypothesisId: 'H3',
+        location: 'config.service.ts:constructor',
+        message: 'ConfigService init (multicampus + key index)',
+        data: {
+          isMulticampusMode: this.isMulticampusMode,
+          modeRaw: this.moduleParameters?.mode ?? null,
+          keyCount: Object.keys(this.moduleParameters ?? {}).length,
+        },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion agent log
   }
 
   private resolveInstitutionName(): string | null {
@@ -51,6 +71,32 @@ export class ConfigService {
       const value = this.translate?.instant ? this.translate.instant(key) : null;
       const normalized = typeof value === 'string' ? value.trim() : '';
       const resolved = normalized && normalized !== key ? normalized : null; // if the value is the same as the key, we didn't find a value (key not set in Alma)
+
+      this.debugLog?.debug?.('ConfigService.resolveInstitutionName', {
+        value: value,
+        resolved,
+      });
+
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/6f464193-ba2e-4950-8450-e8a059b7fbe3', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionId: 'debug-session',
+          runId: 'run1',
+          hypothesisId: 'H3',
+          location: 'config.service.ts:resolveInstitutionName',
+          message: 'Resolve institutionName (multicampus)',
+          data: {
+            hasTranslate: !!this.translate,
+            normalized: normalized || null,
+            resolved: resolved || null,
+          },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {});
+      // #endregion agent log
+
       if (!resolved) {
         if (!this.warnedMissingInstitutionName) {
           this.warnedMissingInstitutionName = true;
@@ -82,7 +128,24 @@ export class ConfigService {
       // Re-check on demand until translations are available.
       this.institutionName = this.resolveInstitutionName();
     }
-    if (!this.institutionName) return undefined;
+    if (!this.institutionName) {
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/6f464193-ba2e-4950-8450-e8a059b7fbe3', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionId: 'debug-session',
+          runId: 'run1',
+          hypothesisId: 'H3',
+          location: 'config.service.ts:getParam',
+          message: 'getParam blocked: institutionName unresolved',
+          data: { paramName },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {});
+      // #endregion agent log
+      return undefined;
+    }
     const lookupLower = `${this.institutionName}.${paramName}`.toLowerCase();
     const actualKey = this.keyIndexLowerToActual.get(lookupLower);
     if (!actualKey) {
@@ -96,7 +159,40 @@ export class ConfigService {
       }
       return undefined;
     }
-    return this.moduleParameters?.[actualKey];
+    const value = this.moduleParameters?.[actualKey];
+
+    // #region agent log
+    if (
+      paramName === 'libraryId' ||
+      paramName === 'viewOption' ||
+      paramName === 'articleLinkEnabled' ||
+      paramName === 'articlePDFDownloadLinkEnabled' ||
+      paramName === 'journalCoverImagesEnabled'
+    ) {
+      fetch('http://127.0.0.1:7243/ingest/6f464193-ba2e-4950-8450-e8a059b7fbe3', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionId: 'debug-session',
+          runId: 'run1',
+          hypothesisId: 'H3',
+          location: 'config.service.ts:getParam',
+          message: 'getParam resolved prefixed key',
+          data: {
+            paramName,
+            institutionName: this.institutionName,
+            actualKey,
+            valueType: typeof value,
+            valuePreview:
+              typeof value === 'string' ? value.slice(0, 20) : value === null ? null : undefined,
+          },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {});
+    }
+    // #endregion agent log
+
+    return value;
   }
 
   private getBooleanParam(paramName: string): boolean {
