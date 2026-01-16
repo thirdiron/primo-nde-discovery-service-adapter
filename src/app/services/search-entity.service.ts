@@ -1,12 +1,13 @@
 import { Injectable } from '@angular/core';
 import { SearchEntity } from '../types/searchEntity.types';
 import { EntityType } from '../shared/entity-type.enum';
+import { DebugLogService } from './debug-log.service';
 
 @Injectable({
   providedIn: 'root',
 })
 export class SearchEntityService {
-  constructor() {}
+  constructor(private debugLog: DebugLogService) {}
 
   isFiltered = (result: SearchEntity): boolean => {
     let validation = false;
@@ -39,11 +40,7 @@ export class SearchEntityService {
         validation = true;
       }
 
-      if (
-        this.isArticle(result) &&
-        !this.getDoi(result) &&
-        this.getIssn(result)
-      ) {
+      if (this.isArticle(result) && !this.getDoi(result) && this.getIssn(result)) {
         validation = true;
       }
     }
@@ -120,7 +117,8 @@ export class SearchEntityService {
       }
     }
 
-    return encodeURIComponent(issn);
+    const encoded = encodeURIComponent(issn);
+    return encoded;
   };
 
   getDoi = (result: SearchEntity): string => {
@@ -133,7 +131,8 @@ export class SearchEntityService {
       }
     }
 
-    return encodeURIComponent(doi);
+    const encoded = encodeURIComponent(doi);
+    return encoded;
   };
 
   getEntityType = (entity: SearchEntity): EntityType | undefined => {
@@ -147,11 +146,7 @@ export class SearchEntityService {
       return EntityType.Article;
     }
 
-    if (
-      this.isArticle(entity) &&
-      !this.getDoi(entity) &&
-      this.getIssn(entity)
-    ) {
+    if (this.isArticle(entity) && !this.getDoi(entity) && this.getIssn(entity)) {
       return EntityType.Journal;
     }
 

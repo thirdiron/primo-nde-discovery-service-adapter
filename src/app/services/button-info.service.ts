@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { map, mergeMap, Observable, of } from 'rxjs';
+import { catchError, map, mergeMap, Observable, of, throwError } from 'rxjs';
 import { HttpService } from './http.service';
 import { SearchEntityService } from './search-entity.service';
 import { UnpaywallService } from './unpaywall.service';
@@ -11,16 +11,22 @@ import { EntityType } from '../shared/entity-type.enum';
 import { ButtonType } from '../shared/button-type.enum';
 import { StackLink, OnlineLink } from '../types/primoViewModel.types';
 import { PrimoViewModel } from '../types/primoViewModel.types';
-import { TranslationService } from './translation.service';
 import { ViewOptionType } from '../shared/view-option.enum';
+import { DEFAULT_DISPLAY_WATERFALL_RESPONSE } from '../shared/displayWaterfall.constants';
+import { DebugLogService } from './debug-log.service';
 
-export const DEFAULT_DISPLAY_WATERFALL_RESPONSE = {
-  entityType: EntityType.Unknown,
-  mainButtonType: ButtonType.None,
-  mainUrl: '',
-  secondaryUrl: '',
-  showSecondaryButton: false,
-  showBrowzineButton: false,
+export type PrimoLinkTextBundle = {
+  htmlText: string;
+  pdfText: string;
+  otherOptions: string;
+  availableOnline: string;
+};
+
+export const DEFAULT_PRIMO_LINK_LABELS: PrimoLinkTextBundle = {
+  htmlText: 'Read Online',
+  pdfText: 'Get PDF',
+  otherOptions: 'Other online options',
+  availableOnline: 'Available Online',
 };
 
 /**
@@ -37,17 +43,54 @@ export class ButtonInfoService {
     private searchEntityService: SearchEntityService,
     private unpaywallService: UnpaywallService,
     private configService: ConfigService,
-    private translationService: TranslationService
+    private debugLog: DebugLogService
   ) {}
 
   getDisplayInfo(entity: SearchEntity): Observable<DisplayWaterfallResponse> {
     const entityType = this.searchEntityService.getEntityType(entity);
+    this.debugLog.debug('ButtonInfo.getDisplayInfo.start', {
+      entityType: entityType ?? null,
+      entity: this.debugLog.safeSearchEntityMeta(entity),
+    });
 
     // make API call for article or journal
     if (entityType) {
       if (entityType === EntityType.Article) {
+        const rawDoi = entity?.pnx?.addata?.doi?.[0]?.trim?.() ?? '';
         const doi = this.searchEntityService.getDoi(entity);
+
+        this.debugLog.debug('ButtonInfo.getDisplayInfo.article.doi', {
+          rawDoi: rawDoi || null,
+          encodedDoi: doi || null,
+          changed: !!rawDoi && doi !== rawDoi,
+        });
+
         return this.httpService.getArticle(doi).pipe(
+          catchError(err => {
+            this.debugLog.warn('ButtonInfo.getDisplayInfo.article.error', {
+              doi,
+              err: this.debugLog.safeError(err),
+            });
+
+            // If the TI API 404s, our HttpService turns that into an error stream before we can
+            // reach the normal `response.status === 404` fallback logic. In that specific case,
+            // route directly into the Unpaywall fallback instead of failing the entire pipeline.
+            if (err?.status === 404 && doi) {
+              const displayInfo404: DisplayWaterfallResponse = {
+                ...DEFAULT_DISPLAY_WATERFALL_RESPONSE,
+                entityType: EntityType.Article,
+              };
+              const fake404Response: ApiResult = { status: 404, body: { data: {} } } as any;
+
+              this.debugLog.info('ButtonInfo.getDisplayInfo.article.404_force_unpaywall', {
+                doi,
+              });
+
+              return this.unpaywallService.makeUnpaywallCall(fake404Response, displayInfo404, doi);
+            }
+
+            return throwError(() => err);
+          }),
           // first, pass article response into display waterfall to get display object
           map((articleResponse): { response: ApiResult; displayInfo: DisplayWaterfallResponse } =>
             this.displayWaterfall(articleResponse, entityType)
@@ -55,17 +98,34 @@ export class ButtonInfoService {
           // second, the result of map above is passed into mergeMap, and based on displayInfo object, determine if we need to fallback to Unpaywall
           mergeMap(
             ({ response: articleRes, displayInfo }): Observable<DisplayWaterfallResponse> =>
-              this.shouldMakeUnpaywallCall(articleRes, entityType, displayInfo.mainButtonType) &&
-              doi
-                ? // fallback to Unpaywall
-                  this.makeUnpaywallCall(articleRes, displayInfo, doi)
-                : // no fallback, just return displayInfo from display waterfall
-                  of(displayInfo)
+              (() => {
+                const shouldFallback =
+                  this.shouldMakeUnpaywallCall(
+                    articleRes,
+                    entityType,
+                    displayInfo.mainButtonType
+                  ) && !!doi;
+
+                this.debugLog.debug('ButtonInfo.getDisplayInfo.unpaywallDecision', {
+                  entityType,
+                  doi,
+                  tiStatus: (articleRes as any)?.status,
+                  mainButtonType: displayInfo?.mainButtonType,
+                  shouldFallback,
+                });
+
+                return shouldFallback
+                  ? // fallback to Unpaywall
+                    this.unpaywallService.makeUnpaywallCall(articleRes, displayInfo, doi as string)
+                  : // no fallback, just return displayInfo from display waterfall
+                    of(displayInfo);
+              })()
           )
         );
       }
       if (entityType === EntityType.Journal) {
         const issn = this.searchEntityService.getIssn(entity);
+        this.debugLog.debug('ButtonInfo.getDisplayInfo.journal', { issn });
         return this.httpService.getJournal(issn).pipe(
           map(journalResponse => {
             const waterfallResponse = this.displayWaterfall(journalResponse, entityType);
@@ -77,6 +137,10 @@ export class ButtonInfoService {
       // 'of' creates an Observable from the given value
       return of(DEFAULT_DISPLAY_WATERFALL_RESPONSE);
     } else {
+      this.debugLog.debug(
+        'ButtonInfo.getDisplayInfo.noEntityType',
+        this.debugLog.safeSearchEntityMeta(entity)
+      );
       return of(DEFAULT_DISPLAY_WATERFALL_RESPONSE);
     }
   }
@@ -163,7 +227,7 @@ export class ButtonInfoService {
     else if (
       articleLinkUrl &&
       type === EntityType.Article &&
-      // this.configService.showDirectToPDFLink() && // can this be removed? Think it might be a bug
+      // TODO this.configService.showDirectToPDFLink() && // can this be removed? Think it might be a bug
       this.configService.showArticleLink()
     ) {
       buttonType = ButtonType.ArticleLink;
@@ -183,6 +247,11 @@ export class ButtonInfoService {
     // Secondary button
     if (
       !this.isAlertButton(buttonType) &&
+      // Only add a secondary button when we have a real primary Third Iron main button.
+      // We don't want to display a "secondary-only" entry if we don't have a primary button first
+      buttonType !== ButtonType.None &&
+      linkUrl &&
+      linkUrl !== '' &&
       buttonType !== ButtonType.ArticleLink &&
       this.configService.showFormatChoice() &&
       articleLinkUrl &&
@@ -235,28 +304,50 @@ export class ButtonInfoService {
   }
 
   // Wrapper for buildStackOptions to build Primo links
-  buildPrimoLinks = (viewModel: PrimoViewModel): StackLink[] => {
-    return this.buildStackOptions(DEFAULT_DISPLAY_WATERFALL_RESPONSE, viewModel);
+  buildPrimoLinks = (
+    viewModel: PrimoViewModel,
+    labels: PrimoLinkTextBundle = DEFAULT_PRIMO_LINK_LABELS
+  ): StackLink[] => {
+    return this.buildStackOptions(DEFAULT_DISPLAY_WATERFALL_RESPONSE, viewModel, labels);
   };
 
   // Wrapper for buildStackOptions to build combined Third Iron and Primo links
   buildCombinedLinks = (
     displayInfo: DisplayWaterfallResponse,
-    viewModel: PrimoViewModel
+    viewModel: PrimoViewModel,
+    labels: PrimoLinkTextBundle = DEFAULT_PRIMO_LINK_LABELS
   ): StackLink[] => {
-    return this.buildStackOptions(displayInfo, viewModel);
+    return this.buildStackOptions(displayInfo, viewModel, labels);
   };
 
   /*
    * Builds the links for stacked view options - either the Third Iron stack option
    * or the Primo stack with quick links and direct link.
    *
-   * @param mode - 'combined' or 'primo', if 'combined' this is the merged array of Third Iron and Primo links
    * @param displayInfo - Third Iron button display object
    * @param viewModel - Primo view model
+   * @param labels - Translated text bundle for Primo labels
    * @returns an array of StackLink objects
    */
-  buildStackOptions(displayInfo: DisplayWaterfallResponse, viewModel: PrimoViewModel): StackLink[] {
+  buildStackOptions(
+    displayInfo: DisplayWaterfallResponse,
+    viewModel: PrimoViewModel,
+    labels: PrimoLinkTextBundle = DEFAULT_PRIMO_LINK_LABELS
+  ): StackLink[] {
+    this.debugLog.debug('ButtonInfo.buildStackOptions.start', {
+      viewOption: this.configService.getViewOption(),
+      enableLinkOptimizer: this.configService.enableLinkOptimizer(),
+      showLinkResolverLink: this.configService.showLinkResolverLink(),
+      hasThirdIronMainButton:
+        displayInfo.entityType !== EntityType.Unknown &&
+        displayInfo.mainButtonType !== ButtonType.None &&
+        !!displayInfo.mainUrl,
+      hasThirdIronSecondaryButton: !!displayInfo.showSecondaryButton && !!displayInfo.secondaryUrl,
+      hasThirdIronBrowzine: !!displayInfo.showBrowzineButton && !!displayInfo.browzineUrl,
+      primoOnlineLinks: viewModel?.onlineLinks,
+      primoDirectLink: viewModel?.directLink,
+    });
+
     const links: StackLink[] = [];
 
     // Third Iron display options
@@ -299,11 +390,11 @@ export class ButtonInfoService {
     }
 
     // Primo onlineLinks
-    const primoOnlineLinks = this.buildPrimoOnlineLinksBase(viewModel);
+    const primoOnlineLinks = this.buildPrimoOnlineLinksBase(viewModel, labels);
     primoOnlineLinks.forEach(link => links.push(link));
 
     // Primo directLink
-    const directLink = this.buildPrimoDirectLinkBase(viewModel, links.length > 0);
+    const directLink = this.buildPrimoDirectLinkBase(viewModel, links.length > 0, labels);
     if (directLink) {
       links.push(directLink);
     }
@@ -311,53 +402,155 @@ export class ButtonInfoService {
     return links;
   }
 
-  private buildPrimoOnlineLinksBase(viewModel: PrimoViewModel): StackLink[] {
+  private buildPrimoOnlineLinksBase(
+    viewModel: PrimoViewModel,
+    labels: PrimoLinkTextBundle = DEFAULT_PRIMO_LINK_LABELS
+  ): StackLink[] {
     const links: StackLink[] = [];
     if (
       viewModel?.onlineLinks &&
       viewModel.onlineLinks.length > 0 &&
       !this.configService.enableLinkOptimizer()
     ) {
-      const htmlText = this.translationService.getTranslatedText('fulldisplay.HTML', 'Read Online');
-      const pdfText = this.translationService.getTranslatedText('fulldisplay.PDF', 'Get PDF');
       viewModel.onlineLinks.forEach((link: OnlineLink) => {
         links.push({
           entityType: link.type,
           url: link.url,
           ariaLabel: link.ariaLabel || '',
           source: link.source,
-          label: link.type === 'PDF' ? pdfText : htmlText,
+          label: link.type === 'PDF' ? labels.pdfText : labels.htmlText,
         });
       });
     }
     return links;
   }
 
+  // For in-app navigation, we may need to take some extra steps to ensure the direct link is correct.
+  // Docid mismatches can happen because the host SPA can update the viewModel asynchronously
+  // (or rewrite the directLink to a resolver URL) while the browser is already on a specific /fulldisplay record.
+  // - If viewModel.directLink has a docid and it matches the current URL docid, trust viewModel.directLink.
+  // - Otherwise, if we're on fulldisplay, use window.location (host fulldisplay URL) since it reflects
+  //   the currently selected record, even if the host later changes viewModel.directLink to a resolver URL.
+  // - We may also need to strip '/nde' from the pathname if the host is deployed with a non-root base href.
   private buildPrimoDirectLinkBase(
     viewModel: PrimoViewModel,
-    hasOtherLinks: boolean
+    hasOtherLinks: boolean,
+    labels: PrimoLinkTextBundle = DEFAULT_PRIMO_LINK_LABELS
   ): StackLink | null {
-    if (viewModel.directLink && this.configService.showLinkResolverLink()) {
-      const anchor = '&state=#nui.getit.service_viewit';
-      const otherOptions = this.translationService.getTranslatedText(
-        'nde.delivery.code.otherOnlineOptions',
-        'Other online options'
-      );
-      const availableOnline = this.translationService.getTranslatedText(
-        'delivery.code.fulltext',
-        'Available Online'
-      );
-      return {
-        entityType: 'directLink',
-        url: viewModel.directLink.includes('/nde')
-          ? `${viewModel.directLink}${anchor}`
-          : `/nde${viewModel.directLink}${anchor}`,
-        ariaLabel: viewModel.ariaLabel || '',
-        source: 'directLink',
-        label: hasOtherLinks ? otherOptions : availableOnline,
-      };
+    if (!viewModel.directLink || !this.configService.showLinkResolverLink()) return null;
+
+    const rawDirectLink = (viewModel.directLink ?? '').trim();
+    if (!rawDirectLink) return null;
+
+    let effectiveDirectLink = rawDirectLink;
+
+    const isOnFullDisplay = window.location.pathname.includes('/fulldisplay');
+    if (isOnFullDisplay) {
+      let urlDocid: string | null = null;
+      try {
+        urlDocid = new URL(window.location.href).searchParams.get('docid');
+      } catch {
+        urlDocid = null;
+      }
+
+      let directLinkDocid: string | null = null;
+      try {
+        // viewModel.directLink can be absolute or relative
+        directLinkDocid = new URL(rawDirectLink, window.location.href).searchParams.get('docid');
+      } catch {
+        directLinkDocid = null;
+      }
+
+      const isDocidMatch = !!urlDocid && !!directLinkDocid && urlDocid === directLinkDocid;
+      if (!isDocidMatch) {
+        // If the host app is deployed with a non-root base href (e.g. "/nde/"),
+        // window.location.pathname will include that base. Passing that full path to the Angular router
+        // can produce duplicated segments (e.g. "/nde/nde/fulldisplay").
+        // Strip the host base path so we produce a router-friendly path (e.g. "/fulldisplay?...").
+        const rawPath = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+        let basePath = '/';
+        try {
+          basePath = new URL(document.baseURI).pathname || '/';
+        } catch {
+          basePath = '/';
+        }
+        // Normalize basePath: remove trailing slash except for root
+        if (basePath.length > 1 && basePath.endsWith('/')) {
+          basePath = basePath.slice(0, -1);
+        }
+        // If basePath is "/nde" and rawPath starts with "/nde/", strip it.
+        effectiveDirectLink =
+          basePath !== '/' && rawPath.startsWith(`${basePath}/`)
+            ? rawPath.slice(basePath.length)
+            : rawPath;
+      }
     }
-    return null;
+
+    return {
+      entityType: 'directLink',
+      url: this.normalizePrimoDirectLink(effectiveDirectLink),
+      ariaLabel: viewModel.ariaLabel || '',
+      source: 'directLink',
+      label: hasOtherLinks ? labels.otherOptions : labels.availableOnline,
+    };
+  }
+
+  /**
+   * Primo directLink handling:
+   * - For fulldisplay links, ensure the fragment `#nui.getit.service_viewit` is set so the host page
+   *   can jump/scroll to the "Get It" section.
+   */
+  private normalizePrimoDirectLink(directLinkRaw: string): string {
+    const directLink = (directLinkRaw ?? '').trim();
+    if (!directLink) {
+      return directLink;
+    }
+
+    const isFullDisplay = directLink.includes('/fulldisplay');
+    if (!isFullDisplay) {
+      return directLink;
+    }
+
+    // Primo sometimes gives absolute URLs and sometimes root-relative URLs.
+    // Preserve the "shape" of the input when returning the normalized link.
+    const isAbsolute = /^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(directLink) || directLink.startsWith('//');
+
+    let parsed: URL;
+    try {
+      parsed = new URL(directLink, window.location.href);
+    } catch {
+      // If parsing fails, fall back to the previous behavior without adding more complexity.
+      this.debugLog.warn('ButtonInfo.normalizePrimoDirectLink.parseError', {
+        directLink: this.debugLog.redactUrlTokens(directLink),
+      });
+      return directLink;
+    }
+
+    this.debugLog.debug('ButtonInfo.normalizePrimoDirectLink.parsed', {
+      href: this.debugLog.redactUrlTokens(parsed.href),
+      isAbsoluteInput: isAbsolute,
+      origin: parsed.origin,
+      pathname: parsed.pathname,
+      search: parsed.search,
+      hash: parsed.hash,
+    });
+
+    // Fulldisplay links: ensure the fragment is set for anchor scrolling.
+    const fullDisplayHash = '#nui.getit.service_viewit';
+
+    const beforeHash = parsed.hash;
+    if (beforeHash !== fullDisplayHash) {
+      parsed.hash = fullDisplayHash;
+    }
+
+    const returnedLink = isAbsolute
+      ? parsed.toString()
+      : `${parsed.pathname}${parsed.search}${parsed.hash}`;
+    this.debugLog.debug('ButtonInfo.normalizePrimoDirectLink.result', {
+      url: this.debugLog.redactUrlTokens(returnedLink),
+      isAbsoluteOutput: isAbsolute,
+    });
+    return returnedLink;
   }
 
   private getBrowZineWebLink(data: ArticleData | JournalData): string {
@@ -474,7 +667,8 @@ export class ButtonInfoService {
     }
 
     // If unpaywall config is not enabled, don't continue with Unpaywall call
-    if (!this.isUnpaywallEnabled()) {
+    const unpaywallEnabled = this.isUnpaywallEnabled();
+    if (!unpaywallEnabled) {
       return false;
     }
 
@@ -489,13 +683,11 @@ export class ButtonInfoService {
     const directToPDFUrl = this.getDirectToPDFUrl(entityType, data);
     const articleLinkUrl = this.getArticleLinkUrl(entityType, data);
 
-    if (
+    const shouldFallback =
       response.status === 404 ||
-      (!directToPDFUrl && !articleLinkUrl && !shouldAvoidUnpaywall && isUnpaywallUsable)
-    ) {
-      return true;
-    }
-    return false;
+      (!directToPDFUrl && !articleLinkUrl && !shouldAvoidUnpaywall && isUnpaywallUsable);
+
+    return shouldFallback;
   }
 
   private shouldAvoidUnpaywall(response: ApiResult) {
@@ -518,33 +710,6 @@ export class ButtonInfoService {
 
   private isUnpaywallEnabled() {
     return this.configService.getIsUnpaywallEnabled();
-  }
-
-  private makeUnpaywallCall(
-    articleResponse: ApiResult,
-    displayInfo: DisplayWaterfallResponse,
-    doi: string
-  ): Observable<DisplayWaterfallResponse> {
-    return this.httpService.getUnpaywall(doi).pipe(
-      map(unpaywallRes => {
-        const data = this.httpService.getData(articleResponse);
-        const avoidUnpaywallPublisherLinks = !!(
-          this.httpService.isArticle(data) && data?.avoidUnpaywallPublisherLinks
-        );
-
-        const unpaywallButtonInfo = this.unpaywallService.unpaywallWaterfall(
-          unpaywallRes,
-          avoidUnpaywallPublisherLinks
-        );
-
-        if (unpaywallButtonInfo.mainUrl && unpaywallButtonInfo.mainUrl !== '') {
-          return unpaywallButtonInfo;
-        } else {
-          // original display info from Article Response
-          return displayInfo;
-        }
-      })
-    );
   }
 
   private isAlertButton(buttonType: ButtonType): boolean {

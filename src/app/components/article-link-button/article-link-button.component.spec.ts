@@ -6,14 +6,15 @@ import { ButtonType } from 'src/app/shared/button-type.enum';
 import { EntityType } from 'src/app/shared/entity-type.enum';
 import { BaseButtonComponent } from '../base-button/base-button.component';
 import { TranslationService } from '../../services/translation.service';
+import { of } from 'rxjs';
 
 // Mock for TranslationService
 const mockTranslationService = {
-  getTranslatedText: (key: string, fallback: string) => {
+  getTranslatedText$: (key: string, fallback: string) => {
     const translations: { [key: string]: string } = {
       'LibKey.articleLinkText': 'Read Article',
     };
-    return translations[key] || fallback;
+    return of(translations[key] || fallback);
   },
 };
 
@@ -98,11 +99,11 @@ describe('ArticleLinkButtonComponent', () => {
   describe('Custom text behavior', () => {
     it('should display custom text value when provided', async () => {
       const customMockTranslationService = {
-        getTranslatedText: (key: string, fallback: string) => {
+        getTranslatedText$: (key: string, fallback: string) => {
           const customTranslations: { [key: string]: string } = {
             'LibKey.articleLinkText': 'Custom Read Article Text',
           };
-          return customTranslations[key] || fallback;
+          return of(customTranslations[key] || fallback);
         },
       };
 
@@ -122,8 +123,8 @@ describe('ArticleLinkButtonComponent', () => {
 
     it('should display fallback text when translation key is missing', async () => {
       const fallbackMockTranslationService = {
-        getTranslatedText: (key: string, fallback: string) => {
-          return fallback; // No translations available; always use fallback
+        getTranslatedText$: (key: string, fallback: string) => {
+          return of(fallback); // No translations available; always use fallback
         },
       };
 

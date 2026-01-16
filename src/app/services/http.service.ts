@@ -1,8 +1,9 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpErrorResponse, HttpResponse } from '@angular/common/http';
-import { catchError, Observable, throwError } from 'rxjs';
+import { catchError, Observable, throwError, tap } from 'rxjs';
 import { ApiResult, ArticleData, JournalData } from '../types/tiData.types';
 import { ConfigService } from './config.service';
+import { DebugLogService } from './debug-log.service';
 
 /**
  * This Service is responsible for all HTTP requests and includes some
@@ -18,7 +19,8 @@ export class HttpService {
 
   constructor(
     private http: HttpClient,
-    private configService: ConfigService
+    private configService: ConfigService,
+    private debugLog: DebugLogService
   ) {}
 
   getArticle(doi: string): Observable<any> {
@@ -26,19 +28,43 @@ export class HttpService {
       this.apiUrl
     }/articles/doi/${doi}?include=journal,library${this.appendAccessToken()}`;
 
-    return this.http.get(endpoint, { observe: 'response' }).pipe(catchError(this.handleError));
+    return this.http.get(endpoint, { observe: 'response' }).pipe(
+      tap(res => {
+        this.debugLog.debug('HttpService.getArticle.response', {
+          doi,
+          status: res?.status,
+          statusText: res?.statusText,
+          url: this.debugLog.redactUrlTokens(res?.url || endpoint),
+          body: res?.body,
+        });
+      }),
+      catchError(err => this.handleError(err, { op: 'getArticle', doi, endpoint }))
+    );
   }
 
   getJournal(issn: string): Observable<any> {
     const endpoint = `${this.apiUrl}/search?issns=${issn}${this.appendAccessToken()}`;
-    return this.http.get(endpoint, { observe: 'response' }).pipe(catchError(this.handleError));
+    return this.http.get(endpoint, { observe: 'response' }).pipe(
+      tap(res => {
+        this.debugLog.debug('HttpService.getJournal.response', {
+          issn,
+          status: res?.status,
+          statusText: res?.statusText,
+          url: this.debugLog.redactUrlTokens(res?.url || endpoint),
+          body: res?.body,
+        });
+      }),
+      catchError(err => this.handleError(err, { op: 'getJournal', issn, endpoint }))
+    );
   }
 
   getUnpaywall(doi: string): Observable<HttpResponse<Object>> {
     const email = this.configService.getEmailAddressKey();
 
     const endpoint = `https://api.unpaywall.org/v2/${doi}?email=${email}`;
-    return this.http.get(endpoint, { observe: 'response' }).pipe(catchError(this.handleError));
+    return this.http
+      .get(endpoint, { observe: 'response' })
+      .pipe(catchError(err => this.handleError(err)));
   }
 
   getData(response: ApiResult): ArticleData | JournalData | {} {
@@ -83,15 +109,36 @@ export class HttpService {
     return `&access_token=${this.apiKey}`;
   }
 
-  private handleError(error: HttpErrorResponse) {
+  private handleError(
+    error: HttpErrorResponse,
+    context?: {
+      op?: 'getArticle' | 'getJournal' | 'getUnpaywall';
+      doi?: string;
+      issn?: string;
+      endpoint?: string;
+    }
+  ) {
+    const errorMessageRedacted =
+      typeof error?.message === 'string' ? this.debugLog.redactUrlTokens(error.message) : undefined;
+    this.debugLog.warn('HttpService.handleError', {
+      op: context?.op,
+      doi: context?.doi,
+      issn: context?.issn,
+      status: error?.status,
+      statusText: error?.statusText,
+      url: this.debugLog.redactUrlTokens(error?.url || context?.endpoint || ''),
+      errorMessageRedacted,
+    });
+
     // Return an observable with a user-facing error message.
     console.error(`Backend returned code ${error.status}, body was: `, error.error);
 
-    return throwError(
-      () =>
-        new Error(
-          'Something bad in fetching data from the TI API happened; please try again later.'
-        )
+    // Preserve the HTTP status code for downstream error handlers (e.g., Unpaywall fallback on 404).
+    const e: any = new Error(
+      'Something bad in fetching data from the TI API happened; please try again later.'
     );
+    e.status = error?.status;
+    e.name = error?.name || e.name;
+    return throwError(() => e);
   }
 }

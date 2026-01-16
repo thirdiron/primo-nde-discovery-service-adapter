@@ -1,4 +1,4 @@
-# Third Iron Primo NDE Adapter
+# Third Iron Primo NDE Add-On
 
 - [Using the Add-On](#using-the-third-iron-primo-nde-add-on)
 - [View Options](#view-options)
@@ -8,7 +8,7 @@
 
 ## Overview
 
-The NDE Customization package offers options to enhance and extend the functionality of Primo’s New Discovery Experience (NDE). This Third Iron Adapter adds LibKey support directly into the Primo NDE experience.
+The NDE Customization package offers options to enhance and extend the functionality of Primo’s New Discovery Experience (NDE). This Third Iron Add-On adds LibKey support directly into the Primo NDE experience.
 
 The NDE UI supports loading of custom modules at runtime and also provides infrastructure to dynamically load add-ons developed by vendors, consortia, or community members. This enables seamless integration, allowing institutions to configure and deploy external add-ons through **Add-On Configuration in Alma**.
 
@@ -88,7 +88,7 @@ Default configuration JSON:
 
    Configure the following:
    - **Add-on Name** – The identifier used in Alma’s configuration (View ID set in step 1).
-   - **Add-on URL** – The location where the add-on is hosted (static folder to load the add-on at runtime). The current URL for the LibKey adaptor is `https://thirdiron-adapters.s3.amazonaws.com/primo-nde/production/` (keep the trailing '/')
+   - **Add-on URL** – The location where the add-on is hosted (static folder to load the add-on at runtime). The current URL for the LibKey add-on is `https://discovery-adapters.thirdiron.com/primo-nde/production` (keep the trailing '/')
    - **Add-on Configuration File** – JSON-based config parameters to be referenced at runtime by the add-on. Upload your modified JSON configuration file from Step 2.
 
 ## View Options
@@ -163,6 +163,68 @@ Button label text can be customized and translated by setting up label codes in 
    ![Alma Add Row](./readme-files/alma-translation-field.png)
 
 ## Developer notes
+
+### Debug mode
+
+This add-on supports a **runtime-toggleable debug mode**. When enabled, the add-on will emit structured log messages to the browser console at key points in the app flow (API calls, decision points, DOM removal, etc.).
+
+To add a debug message, make sure to inject the debugLog service, then construct your log message as follows, keeping the convention of
+`Component.FunctionName.descriptionRelevantToLoggedData`:
+
+```
+import { DebugLogService } from './debug-log.service';
+...
+constructor(
+    private debugLog: DebugLogService
+  ) {}
+...
+this.debugLog.debug('Navigation.openUrl.resolvedTarget', {
+      url: this.debugLog.redactUrlTokens(url),
+      resolvedTarget,
+});
+```
+
+**Console API**
+
+- Enable: `window.__TI_NDE__.debug.enable()`
+- Disable: `window.__TI_NDE__.debug.disable()`
+- Toggle: `window.__TI_NDE__.debug.toggle()`
+- Check: `window.__TI_NDE__.debug.isEnabled()`
+- Help: `window.__TI_NDE__.debug.help()`
+
+**Persistence**
+
+Debug mode persists across reloads via `localStorage` key `__TI_NDE_DEBUG__`:
+
+- Force ON: `localStorage.setItem('__TI_NDE_DEBUG__', '1')`
+- Force OFF: `localStorage.setItem('__TI_NDE_DEBUG__', '0')`
+- Clear: `localStorage.removeItem('__TI_NDE_DEBUG__')`
+
+Generally you can just use the functions described above in the Console API, but if you wanted to set the localStorage value directly you can in this way.
+
+Once the localStorage value is set to true, either directly or via the exposed functions, log statements will be emitted to the browser console on the next action that would trigger a log message.
+
+**Redaction policy**
+
+- Never log API keys, `access_token` values, or full PNX/record payloads.
+- Logs should contain small identifiers/booleans and other non-sensitive metadata.
+
+**Simple flow**
+
+```mermaid
+sequenceDiagram
+participant HostPage
+participant RemoteBootstrap as bootstrapRemoteApp
+participant DebugApi as window.__TI_NDE__.debug
+participant App as AngularServices_Components
+
+HostPage->>RemoteBootstrap: loads remoteEntry + calls bootstrapRemoteApp()
+RemoteBootstrap->>DebugApi: installDebugApi() (reads localStorage)
+RemoteBootstrap->>App: bootstrap(AppModule)
+HostPage->>DebugApi: debug.enable()/disable() at runtime
+DebugApi->>App: notify subscribers (optional)
+App->>HostPage: console logs gated by debug state
+```
 
 ### Sync the forked repo
 

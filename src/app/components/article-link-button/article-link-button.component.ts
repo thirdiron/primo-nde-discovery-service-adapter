@@ -1,4 +1,4 @@
-import { Component, input, computed } from '@angular/core';
+import { Component, input, computed, effect, signal } from '@angular/core';
 import { EntityType } from 'src/app/shared/entity-type.enum';
 import { IconType } from 'src/app/shared/icon-type.enum';
 import { BaseButtonComponent } from '../base-button/base-button.component';
@@ -26,7 +26,7 @@ export class ArticleLinkButtonComponent {
   EntityTypeEnum = EntityType;
   IconType = IconType;
 
-  buttonText = computed<string>(() => this.getButtonText());
+  buttonText = signal<string>('');
 
   updatedLink = computed(() => {
     const originalLink = this.link();
@@ -39,9 +39,16 @@ export class ArticleLinkButtonComponent {
     };
   });
 
-  constructor(private translationService: TranslationService) {}
-
-  private getButtonText(): string {
-    return this.translationService.getTranslatedText('LibKey.articleLinkText', 'Read Article');
+  constructor(private translationService: TranslationService) {
+    effect(
+      onCleanup => {
+        // Note: button text updates reactively via TranslateService stream subscription.
+        const sub = this.translationService
+          .getTranslatedText$('LibKey.articleLinkText', 'Read Article')
+          .subscribe(text => this.buttonText.set(text));
+        onCleanup(() => sub.unsubscribe());
+      },
+      { allowSignalWrites: true }
+    );
   }
 }

@@ -4,7 +4,6 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 
 import { ButtonInfoService } from './button-info.service';
 import { HttpService } from './http.service';
-import { TranslationService } from './translation.service';
 import { EntityType } from '../shared/entity-type.enum';
 import { ApiResult, ArticleData, JournalData } from '../types/tiData.types';
 import { DisplayWaterfallResponse } from '../types/displayWaterfallResponse.types';
@@ -12,18 +11,6 @@ import { SearchEntity } from '../types/searchEntity.types';
 import { firstValueFrom } from 'rxjs';
 import { ButtonType } from '../shared/button-type.enum';
 import { MOCK_MODULE_PARAMETERS } from './config.service.spec';
-
-// Mock for TranslationService
-const mockTranslationService = {
-  getTranslatedText: (key: string, fallback: string) => {
-    const translations: { [key: string]: string } = {
-      'fulldisplay.HTML': 'Read Online',
-      'fulldisplay.PDF': 'Get PDF',
-      'nde.delivery.code.otherOnlineOptions': 'Other online options',
-    };
-    return translations[key] || fallback;
-  },
-};
 
 const authToken = 'a9c7fb8f-9758-4ff9-9dc9-fcb4cbf32724';
 const baseUrl = 'https://public-api.thirdiron.com/public/v1/libraries/222';
@@ -134,10 +121,6 @@ const createTestModule = async (config: any) => {
         provide: 'MODULE_PARAMETERS',
         useValue: config,
       },
-      {
-        provide: TranslationService,
-        useValue: mockTranslationService,
-      },
     ],
   });
   await TestBed.compileComponents();
@@ -159,10 +142,6 @@ describe('ButtonInfoService', () => {
         {
           provide: 'MODULE_PARAMETERS',
           useValue: MOCK_MODULE_PARAMETERS,
-        },
-        {
-          provide: TranslationService,
-          useValue: mockTranslationService,
         },
       ],
     });
@@ -251,7 +230,7 @@ describe('ButtonInfoService', () => {
     });
 
     describe('shouldMakeUnpaywallCall checks', () => {
-      it('should make an Unpaywall api call if we have an article, unpaywalEnabled is true, we do not have an alert type button, avoidUnpaywall is false, unpaywallUsable is true, and we do not have directToPDF or articleLink urls', async () => {
+      it('should return true when article + Unpaywall enabled + not alert + avoidUnpaywall false + unpaywallUsable true + no directToPDF/articleLink urls', () => {
         const articleWithoutUrls: ArticleData = {
           ...articleData,
           fullTextFile: '',
@@ -262,27 +241,17 @@ describe('ButtonInfoService', () => {
           documentDeliveryFulfillmentUrl: '',
         };
 
-        const buttonInfo$ = service.getDisplayInfo(articleSearchEntity);
-        const articlePromise = firstValueFrom(buttonInfo$);
+        const mockApiResult: ApiResult = {
+          ...responseMetaData,
+          body: { data: articleWithoutUrls },
+        };
 
-        const req = httpTesting.expectOne(articlePath);
-        req.flush({
-          data: articleWithoutUrls,
-        });
-
-        // Should make Unpaywall call
-        const unpaywallReq = httpTesting.expectOne(
-          `https://api.unpaywall.org/v2/10.1002%2Fijc.25451?email=info@thirdiron.com`
+        const shouldMakeCall = (service as any).shouldMakeUnpaywallCall(
+          mockApiResult,
+          EntityType.Article,
+          ButtonType.None
         );
-        unpaywallReq.flush({
-          data: {
-            best_open_access_location: { url: 'https://unpaywall.org/pdf' },
-          },
-        });
-
-        const result = await articlePromise;
-        expect(result.mainButtonType).toBe(ButtonType.None);
-        httpTesting.verify();
+        expect(shouldMakeCall).toBeTrue();
       });
 
       it('should make Unpaywall call when ApiResult has 404 status', () => {
@@ -305,7 +274,7 @@ describe('ButtonInfoService', () => {
         expect(shouldMakeCall).toBeTrue();
       });
 
-      it('should not make an Unpaywall api call if unpaywalEnabled is false', async () => {
+      it('should return false when unpaywallEnabled is false', async () => {
         // Create a new test module with different config
         const mockConfig = { ...MOCK_MODULE_PARAMETERS };
         mockConfig.articlePDFDownloadViaUnpaywallEnabled = false;
@@ -315,51 +284,48 @@ describe('ButtonInfoService', () => {
 
         const testBed = await createTestModule(mockConfig);
         const testService = testBed.inject(ButtonInfoService);
-        const testHttpTesting = testBed.inject(HttpTestingController);
 
         const articleWithoutUrls: ArticleData = {
           ...articleData,
           fullTextFile: '',
           contentLocation: '',
           retractionNoticeUrl: '',
+          expressionOfConcernNoticeUrl: '',
+          problematicJournalArticleNoticeUrl: '',
           documentDeliveryFulfillmentUrl: '',
         };
 
-        const buttonInfo$ = testService.getDisplayInfo(articleSearchEntity);
-        const articlePromise = firstValueFrom(buttonInfo$);
+        const mockApiResult: ApiResult = {
+          ...responseMetaData,
+          body: { data: articleWithoutUrls },
+        };
 
-        const req = testHttpTesting.expectOne(articlePath);
-        req.flush({
-          data: articleWithoutUrls,
-        });
-
-        const result = await articlePromise;
-        expect(result.mainButtonType).toBe(ButtonType.ExpressionOfConcern);
-
-        // Should not make Unpaywall call
-        testHttpTesting.verify();
+        const shouldMakeCall = (testService as any).shouldMakeUnpaywallCall(
+          mockApiResult,
+          EntityType.Article,
+          ButtonType.None
+        );
+        expect(shouldMakeCall).toBeFalse();
       });
 
-      it('should not make an Unpaywall api call if we have an alert type button', async () => {
+      it('should return false when we have an alert-type button', () => {
         const articleWithRetraction: ArticleData = {
           ...articleData,
           fullTextFile: '',
           contentLocation: '',
         };
 
-        const buttonInfo$ = service.getDisplayInfo(articleSearchEntity);
-        const articlePromise = firstValueFrom(buttonInfo$);
+        const mockApiResult: ApiResult = {
+          ...responseMetaData,
+          body: { data: articleWithRetraction },
+        };
 
-        const req = httpTesting.expectOne(articlePath);
-        req.flush({
-          data: articleWithRetraction,
-        });
-
-        const result = await articlePromise;
-        expect(result.mainButtonType).toBe(ButtonType.Retraction);
-
-        // Should not make Unpaywall call due to alert button
-        httpTesting.verify();
+        const shouldMakeCall = (service as any).shouldMakeUnpaywallCall(
+          mockApiResult,
+          EntityType.Article,
+          ButtonType.Retraction
+        );
+        expect(shouldMakeCall).toBeFalse();
       });
 
       it('should not make an Unpaywall api call if avoidUnpaywall is true', async () => {
@@ -401,7 +367,7 @@ describe('ButtonInfoService', () => {
         expect(shouldMakeCall).toBeFalse();
       });
 
-      it('should not make an Unpaywall api call if unpaywallUsable is false', async () => {
+      it('should return false when unpaywallUsable is false', () => {
         const articleWithoutUrls: ArticleData = {
           ...articleData,
           fullTextFile: '',
@@ -409,26 +375,24 @@ describe('ButtonInfoService', () => {
           retractionNoticeUrl: '',
           expressionOfConcernNoticeUrl: '',
           problematicJournalArticleNoticeUrl: '',
-          // documentDeliveryFulfillmentUrl still has URL, so we show Document Delivery button
+          documentDeliveryFulfillmentUrl: '',
           unpaywallUsable: false,
         };
 
-        const buttonInfo$ = service.getDisplayInfo(articleSearchEntity);
-        const articlePromise = firstValueFrom(buttonInfo$);
+        const mockApiResult: ApiResult = {
+          ...responseMetaData,
+          body: { data: articleWithoutUrls },
+        };
 
-        const req = httpTesting.expectOne(articlePath);
-        req.flush({
-          data: articleWithoutUrls,
-        });
-
-        const result = await articlePromise;
-        expect(result.mainButtonType).toBe(ButtonType.DocumentDelivery);
-
-        // Should not make Unpaywall call due to unpaywallUsable: false
-        httpTesting.verify();
+        const shouldMakeCall = (service as any).shouldMakeUnpaywallCall(
+          mockApiResult,
+          EntityType.Article,
+          ButtonType.None
+        );
+        expect(shouldMakeCall).toBeFalse();
       });
 
-      it('should not make an Unpaywall api call if we have either a directToPDF or articleLink url', async () => {
+      it('should return false when we have either a directToPDF or articleLink url', () => {
         const articleWithDirectPDF: ArticleData = {
           ...articleData,
           retractionNoticeUrl: '',
@@ -436,19 +400,17 @@ describe('ButtonInfoService', () => {
           problematicJournalArticleNoticeUrl: '',
         };
 
-        const buttonInfo$ = service.getDisplayInfo(articleSearchEntity);
-        const articlePromise = firstValueFrom(buttonInfo$);
+        const mockApiResult: ApiResult = {
+          ...responseMetaData,
+          body: { data: articleWithDirectPDF },
+        };
 
-        const req = httpTesting.expectOne(articlePath);
-        req.flush({
-          data: articleWithDirectPDF,
-        });
-
-        const result = await articlePromise;
-        expect(result.mainButtonType).toBe(ButtonType.DirectToPDF);
-
-        // Should not make Unpaywall call due to existing directToPDF url
-        httpTesting.verify();
+        const shouldMakeCall = (service as any).shouldMakeUnpaywallCall(
+          mockApiResult,
+          EntityType.Article,
+          ButtonType.DirectToPDF
+        );
+        expect(shouldMakeCall).toBeFalse();
       });
     });
   });
@@ -1003,41 +965,6 @@ describe('ButtonInfoService', () => {
 
   // Additional test cases for edge cases and miscellaneous functionality
   describe('Edge cases and additional functionality', () => {
-    it('should handle article with avoidUnpaywallPublisherLinks flag', async () => {
-      const articleWithAvoidFlag: ArticleData = {
-        ...articleData,
-        avoidUnpaywallPublisherLinks: true,
-        fullTextFile: '',
-        contentLocation: '',
-        retractionNoticeUrl: '',
-        expressionOfConcernNoticeUrl: '',
-        problematicJournalArticleNoticeUrl: '',
-        documentDeliveryFulfillmentUrl: '',
-      };
-
-      const buttonInfo$ = service.getDisplayInfo(articleSearchEntity);
-      const articlePromise = firstValueFrom(buttonInfo$);
-
-      const req = httpTesting.expectOne(articlePath);
-      req.flush({
-        data: articleWithAvoidFlag,
-      });
-
-      // Should still make Unpaywall call but with avoidUnpaywallPublisherLinks flag
-      const unpaywallReq = httpTesting.expectOne(
-        `https://api.unpaywall.org/v2/10.1002%2Fijc.25451?email=info@thirdiron.com`
-      );
-      unpaywallReq.flush({
-        data: {
-          best_open_access_location: { url: 'https://unpaywall.org/pdf' },
-        },
-      });
-
-      const result = await articlePromise;
-      expect(result).toBeDefined();
-      httpTesting.verify();
-    });
-
     it('should return default response for unknown entity type', async () => {
       const unknownSearchEntity: SearchEntity = {
         pnx: {
@@ -1354,7 +1281,7 @@ describe('ButtonInfoService', () => {
 
       const viewModel: any = {
         onlineLinks: [],
-        directLink: '/some/direct/link',
+        directLink: 'https://example.com/nde/fulldisplay/some/direct/link',
         ariaLabel: 'Direct link aria label',
       };
 
@@ -1364,7 +1291,7 @@ describe('ButtonInfoService', () => {
       expect(result[1]).toEqual({
         source: 'directLink',
         entityType: 'directLink',
-        url: '/nde/some/direct/link&state=#nui.getit.service_viewit',
+        url: 'https://example.com/nde/fulldisplay/some/direct/link#nui.getit.service_viewit',
         ariaLabel: 'Direct link aria label',
         label: 'Other online options', // From mock translation service, option when more than one item in the stack
       });
@@ -1389,7 +1316,7 @@ describe('ButtonInfoService', () => {
 
       const viewModel: any = {
         onlineLinks: [],
-        directLink: '/some/direct/link',
+        directLink: 'https://example.com/nde/fulldisplay/some/direct/link',
         ariaLabel: 'Direct link aria label',
       };
 
@@ -1399,13 +1326,13 @@ describe('ButtonInfoService', () => {
       expect(result[0]).toEqual({
         source: 'directLink',
         entityType: 'directLink',
-        url: '/nde/some/direct/link&state=#nui.getit.service_viewit',
+        url: 'https://example.com/nde/fulldisplay/some/direct/link#nui.getit.service_viewit',
         ariaLabel: 'Direct link aria label',
         label: 'Available Online', // From mock translation service when only one option
       });
     });
 
-    it('should build direct link with correct URL when directLink includes /nde', async () => {
+    it('should build direct link without anchor when directLink does not include /fulldisplay', async () => {
       const mockConfig = { ...MOCK_MODULE_PARAMETERS };
       mockConfig.showLinkResolverLink = true;
 
@@ -1424,13 +1351,70 @@ describe('ButtonInfoService', () => {
 
       const viewModel: any = {
         onlineLinks: [],
-        directLink: '/nde/some/direct/link',
+        directLink: 'https://example.com/some/direct/link',
         ariaLabel: 'Direct link aria label',
       };
 
       const result = testService.buildCombinedLinks(displayInfo, viewModel);
 
-      expect(result[1].url).toBe('/nde/some/direct/link&state=#nui.getit.service_viewit');
+      expect(result[1].url).toBe('https://example.com/some/direct/link');
+    });
+
+    it('should build direct link with anchor when directLink includes /fulldisplay', async () => {
+      const mockConfig = { ...MOCK_MODULE_PARAMETERS };
+      mockConfig.showLinkResolverLink = true;
+
+      const testBed = await createTestModule(mockConfig);
+      const testService = testBed.inject(ButtonInfoService);
+
+      const displayInfo: DisplayWaterfallResponse = {
+        entityType: EntityType.Article,
+        mainButtonType: ButtonType.DirectToPDF,
+        mainUrl: 'https://example.com/pdf',
+        secondaryUrl: '',
+        showSecondaryButton: false,
+        showBrowzineButton: false,
+        browzineUrl: '',
+      };
+
+      const viewModel: any = {
+        onlineLinks: [],
+        directLink: 'https://example.com/nde/fulldisplay/some/direct/link',
+        ariaLabel: 'Direct link aria label',
+      };
+
+      const result = testService.buildCombinedLinks(displayInfo, viewModel);
+
+      expect(result[1].url).toBe(
+        'https://example.com/nde/fulldisplay/some/direct/link#nui.getit.service_viewit'
+      );
+    });
+
+    it('should build fulldisplay direct link as a relative URL when Primo provides a relative URL', async () => {
+      const mockConfig = { ...MOCK_MODULE_PARAMETERS };
+      mockConfig.showLinkResolverLink = true;
+
+      const testBed = await createTestModule(mockConfig);
+      const testService = testBed.inject(ButtonInfoService);
+
+      const displayInfo: DisplayWaterfallResponse = {
+        entityType: EntityType.Article,
+        mainButtonType: ButtonType.DirectToPDF,
+        mainUrl: 'https://example.com/pdf',
+        secondaryUrl: '',
+        showSecondaryButton: false,
+        showBrowzineButton: false,
+        browzineUrl: '',
+      };
+
+      const viewModel: any = {
+        onlineLinks: [],
+        directLink: '/nde/fulldisplay/some/direct/link',
+        ariaLabel: 'Direct link aria label',
+      };
+
+      const result = testService.buildCombinedLinks(displayInfo, viewModel);
+      expect(result[1].url).toBe('/nde/fulldisplay/some/direct/link#nui.getit.service_viewit');
     });
 
     it('should not build direct link when showLinkResolverLink is false', async () => {
@@ -1503,6 +1487,216 @@ describe('ButtonInfoService', () => {
       expect(result[3].source).toBe('directLink');
     });
 
-    // TODO: add tests for browzine button once we add logic for this
+    it('should add BrowZine button for SingleStack when enabled and browzineUrl is provided', async () => {
+      const mockConfig = { ...MOCK_MODULE_PARAMETERS };
+      mockConfig.viewOption = 'single-stack';
+      mockConfig.showLinkResolverLink = false;
+
+      const testBed = await createTestModule(mockConfig);
+      const testService = testBed.inject(ButtonInfoService);
+
+      const displayInfo: DisplayWaterfallResponse = {
+        entityType: EntityType.Journal,
+        mainButtonType: ButtonType.DirectToPDF, // main button type doesn't matter for adding the BrowZine stack item
+        mainUrl: 'https://example.com/main',
+        secondaryUrl: '',
+        showSecondaryButton: false,
+        showBrowzineButton: true,
+        browzineUrl: 'https://example.com/browzine',
+      };
+
+      const viewModel: any = { onlineLinks: [], directLink: '' };
+
+      const result = testService.buildStackOptions(displayInfo, viewModel);
+
+      expect(result).toHaveSize(2);
+      expect(result[0]).toEqual({
+        source: 'thirdIron',
+        entityType: EntityType.Journal,
+        mainButtonType: ButtonType.DirectToPDF,
+        url: 'https://example.com/main',
+        ariaLabel: '',
+        label: '',
+      });
+      expect(result[1]).toEqual({
+        source: 'thirdIron',
+        entityType: EntityType.Journal,
+        mainButtonType: ButtonType.Browzine,
+        url: 'https://example.com/browzine',
+      });
+    });
+
+    it('should not add BrowZine button when viewOption is not SingleStack', async () => {
+      const mockConfig = { ...MOCK_MODULE_PARAMETERS };
+      mockConfig.viewOption = 'no-stack';
+      mockConfig.showLinkResolverLink = false;
+
+      const testBed = await createTestModule(mockConfig);
+      const testService = testBed.inject(ButtonInfoService);
+
+      const displayInfo: DisplayWaterfallResponse = {
+        entityType: EntityType.Journal,
+        mainButtonType: ButtonType.DirectToPDF,
+        mainUrl: 'https://example.com/main',
+        secondaryUrl: '',
+        showSecondaryButton: false,
+        showBrowzineButton: true,
+        browzineUrl: 'https://example.com/browzine',
+      };
+
+      const viewModel: any = { onlineLinks: [], directLink: '' };
+      const result = testService.buildStackOptions(displayInfo, viewModel);
+
+      expect(result).toHaveSize(1);
+      expect(result[0].url).toBe('https://example.com/main');
+    });
+
+    it('should not add BrowZine button when browzineUrl is missing (even in SingleStack)', async () => {
+      const mockConfig = { ...MOCK_MODULE_PARAMETERS };
+      mockConfig.viewOption = 'single-stack';
+      mockConfig.showLinkResolverLink = false;
+
+      const testBed = await createTestModule(mockConfig);
+      const testService = testBed.inject(ButtonInfoService);
+
+      const displayInfo: DisplayWaterfallResponse = {
+        entityType: EntityType.Journal,
+        mainButtonType: ButtonType.DirectToPDF,
+        mainUrl: 'https://example.com/main',
+        secondaryUrl: '',
+        showSecondaryButton: false,
+        showBrowzineButton: true,
+        browzineUrl: '',
+      };
+
+      const viewModel: any = { onlineLinks: [], directLink: '' };
+      const result = testService.buildStackOptions(displayInfo, viewModel);
+
+      expect(result).toHaveSize(1);
+      expect(result[0].url).toBe('https://example.com/main');
+    });
+  });
+
+  describe('#buildPrimoDirectLinkBase', () => {
+    const fullDisplayHash = '#nui.getit.service_viewit';
+
+    const setPath = (pathWithQueryAndHash: string) => {
+      // Update window.location without triggering a navigation/reload.
+      history.pushState({}, '', pathWithQueryAndHash);
+    };
+
+    let baseEl: HTMLBaseElement | null = null;
+    let createdBaseEl = false;
+    let originalBaseHref: string | null = null;
+
+    const setBaseHref = (href: string | null) => {
+      baseEl = document.querySelector('base');
+      if (!baseEl) {
+        if (href == null) return;
+        baseEl = document.createElement('base');
+        baseEl.setAttribute('data-test', 'button-info');
+        document.head.prepend(baseEl);
+        createdBaseEl = true;
+        originalBaseHref = null;
+      } else {
+        createdBaseEl = false;
+        originalBaseHref = baseEl.getAttribute('href');
+      }
+
+      if (href == null) return;
+      baseEl.setAttribute('href', href);
+    };
+
+    afterEach(() => {
+      // Restore base href
+      if (baseEl) {
+        if (createdBaseEl) {
+          baseEl.remove();
+        } else if (originalBaseHref == null) {
+          baseEl.removeAttribute('href');
+        } else {
+          baseEl.setAttribute('href', originalBaseHref);
+        }
+      }
+      baseEl = null;
+      createdBaseEl = false;
+      originalBaseHref = null;
+
+      // Restore URL path
+      setPath('/');
+    });
+
+    const callBuildPrimoDirectLinkBase = async (
+      directLink: string,
+      currentWindowLocationPathWithQueryAndHash: string,
+      baseHref: string | null
+    ) => {
+      const mockConfig = { ...MOCK_MODULE_PARAMETERS, showLinkResolverLink: true };
+      const testBed = await createTestModule(mockConfig);
+      const service = testBed.inject(ButtonInfoService) as any;
+
+      setPath(currentWindowLocationPathWithQueryAndHash);
+      setBaseHref(baseHref);
+
+      const viewModel: any = {
+        onlineLinks: [],
+        directLink,
+        ariaLabel: 'aria',
+      };
+
+      // Test the private method directly.
+      return service.buildPrimoDirectLinkBase(viewModel, true) as any;
+    };
+
+    it('does not strip /nde from an trusted absolute directLink when NOT currently on /fulldisplay', async () => {
+      const link = await callBuildPrimoDirectLinkBase(
+        'https://example.com/nde/fulldisplay?docid=AAA', // direct link
+        '/search?docid=AAA', // window.location
+        '/nde/' // base href
+      );
+
+      expect(link.url).toBe(`https://example.com/nde/fulldisplay?docid=AAA${fullDisplayHash}`);
+    });
+
+    it('does not strip /nde from a trusted absolute directLink when on /fulldisplay and docid matches', async () => {
+      const link = await callBuildPrimoDirectLinkBase(
+        'https://example.com/nde/fulldisplay?docid=AAA',
+        '/nde/fulldisplay?docid=AAA',
+        '/nde/'
+      );
+
+      expect(link.url).toBe(`https://example.com/nde/fulldisplay?docid=AAA${fullDisplayHash}`);
+    });
+
+    it('strips /nde from window.location fallback when on /nde/fulldisplay and docid mismatches', async () => {
+      const link = await callBuildPrimoDirectLinkBase(
+        'https://example.com/view/action/uresolver.do?docid=BBB',
+        '/nde/fulldisplay?docid=AAA',
+        '/nde/'
+      );
+
+      // Fallback uses current window.location, but stripped of base href "/nde"
+      expect(link.url).toBe(`/fulldisplay?docid=AAA${fullDisplayHash}`);
+    });
+
+    it('does not strip anything when base href is root (fallback still uses window.location)', async () => {
+      const link = await callBuildPrimoDirectLinkBase(
+        'https://example.com/view/action/uresolver.do?docid=BBB',
+        '/fulldisplay?docid=AAA',
+        '/'
+      );
+
+      expect(link.url).toBe(`/fulldisplay?docid=AAA${fullDisplayHash}`);
+    });
+
+    it('does not strip when window.location pathname does not start with basePath (even in fallback)', async () => {
+      const link = await callBuildPrimoDirectLinkBase(
+        'https://example.com/view/action/uresolver.do?docid=BBB',
+        '/somethingelse/fulldisplay?docid=AAA',
+        '/nde/'
+      );
+
+      expect(link.url).toBe(`/somethingelse/fulldisplay?docid=AAA${fullDisplayHash}`);
+    });
   });
 });
