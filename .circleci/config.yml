@@ -44,38 +44,6 @@ jobs:
           paths:
             - 'project'
 
-  deploy-to-dev-test:
-    <<: *settings
-    steps:
-      - checkout
-      - restore_cache:
-          <<: *package-cache
-      - run:
-          name: Install project dependencies
-          command: |
-            npm ci --loglevel verbose
-      - run:
-          name: Build project
-          command: |
-            npm run build
-      - aws-cli/install
-      - run:
-          name: Upload to S3
-          command: |
-            aws s3 sync dist/THIRD-IRON-LIBKEY s3://$AWS_BUCKET/primo-nde/dev-test \
-              --delete \
-              --cache-control "max-age=31536000,public" \
-              --exclude "*.html" \
-              --exclude "*.json"
-      - run:
-          name: Upload HTML files with no-cache
-          command: |
-            aws s3 sync dist/THIRD-IRON-LIBKEY s3://$AWS_BUCKET/primo-nde/dev-test \
-              --delete \
-              --cache-control "no-cache,no-store,must-revalidate" \
-              --include "*.html" \
-              --include "*.json"
-
   deploy-to-staging:
     <<: *settings
     steps:
@@ -180,12 +148,6 @@ workflows:
       #       branches:
       #         only: /feature\/.*/
       - build-and-test
-      - deploy-to-dev-test:
-          requires:
-            - build-and-test
-          filters:
-            branches:
-              only: /feature\/.*/
       - deploy-to-staging:
           requires:
             - build-and-test
