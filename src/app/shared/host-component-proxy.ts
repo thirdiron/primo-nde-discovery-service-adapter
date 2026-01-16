@@ -73,11 +73,11 @@ export class HostComponentProxy<TRecord, TViewModel> {
     this.lastViewModelRef = vmRef;
     this.viewModelSub?.unsubscribe();
     this.viewModelSub = vmRef.subscribe({
-      next: vm => this.viewModelSubject.next(vm),
+      next: vm => {
+        this.viewModelSubject.next(vm);
+      },
       // errors are intentionally swallowed; the component can choose to log via its own DebugLogService
       error: () => {},
     });
   }
 }
-
-

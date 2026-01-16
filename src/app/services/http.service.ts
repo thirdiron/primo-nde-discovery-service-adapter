@@ -14,9 +14,6 @@ import { DebugLogService } from './debug-log.service';
   providedIn: 'root',
 })
 export class HttpService {
-  private apiUrl = this.configService.getApiUrl();
-  private apiKey = this.configService.getApiKey();
-
   constructor(
     private http: HttpClient,
     private configService: ConfigService,
@@ -24,8 +21,9 @@ export class HttpService {
   ) {}
 
   getArticle(doi: string): Observable<any> {
+    const apiUrl = this.configService.getApiUrl();
     const endpoint = `${
-      this.apiUrl
+      apiUrl
     }/articles/doi/${doi}?include=journal,library${this.appendAccessToken()}`;
 
     return this.http.get(endpoint, { observe: 'response' }).pipe(
@@ -43,7 +41,8 @@ export class HttpService {
   }
 
   getJournal(issn: string): Observable<any> {
-    const endpoint = `${this.apiUrl}/search?issns=${issn}${this.appendAccessToken()}`;
+    const apiUrl = this.configService.getApiUrl();
+    const endpoint = `${apiUrl}/search?issns=${issn}${this.appendAccessToken()}`;
     return this.http.get(endpoint, { observe: 'response' }).pipe(
       tap(res => {
         this.debugLog.debug('HttpService.getJournal.response', {
@@ -106,7 +105,8 @@ export class HttpService {
   }
 
   private appendAccessToken() {
-    return `&access_token=${this.apiKey}`;
+    const apiKey = this.configService.getApiKey();
+    return `&access_token=${apiKey}`;
   }
 
   private handleError(
