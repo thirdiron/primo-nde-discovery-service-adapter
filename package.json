@@ -44,7 +44,7 @@
   "devDependencies": {
     "@angular-architects/module-federation-tools": "^19.0.1",
     "@angular-devkit/build-angular": "^18.2.13",
-    "@angular/cli": "^18.2.20",
+    "@angular/cli": "^21.1.0",
     "@angular/compiler-cli": "^18.2.13",
     "@types/jasmine": "~5.1.13",
     "archiver": "^7.0.1",
