@@ -38,15 +38,15 @@
           @if (displayInfo.showSecondaryButton && displayInfo.secondaryUrl) {
             <article-link-button class="ti-single-button" [url]="displayInfo.secondaryUrl || ''"></article-link-button>
           }
+          @if (primoLinks.length > 0) {
+            <stacked-dropdown [links]="primoLinks"></stacked-dropdown>
+          }
           @if (displayInfo.showBrowzineButton && displayInfo.browzineUrl) {
             <custom-browzine-button
               class="ti-single-button"
               [entityType]="displayInfo.entityType"
               [url]="displayInfo.browzineUrl"
             ></custom-browzine-button>
-          }
-          @if (primoLinks.length > 0) {
-            <stacked-dropdown [links]="primoLinks"></stacked-dropdown>
           }
           @if (viewModel.consolidatedCoverage) {
             <div class="ti-consolidated-coverage">
