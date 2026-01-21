@@ -211,79 +211,77 @@ describe('ThirdIronButtonsComponent', () => {
       expect(el.querySelector('.ti-consolidated-coverage')).toBeNull();
     });
 
-    it('StackPlusBrowzine: renders merged stack dropdown + Browzine button when both are present', async () => {
-      const { el } = await setupRender({
-        viewOption: ViewOptionType.StackPlusBrowzine,
-        // Mirrors buildStackOptions()/buildCombinedLinks() output: TI + (optional) Primo links.
-        combinedLinks: [
-          {
-            source: 'thirdIron',
-            entityType: EntityType.Article,
-            mainButtonType: ButtonType.ArticleLink,
-            url: 'https://example.com/merged',
-            ariaLabel: '',
-            label: '',
-          },
-          {
-            entityType: 'directLink',
-            url: '/fulldisplay?docid=123#nui.getit.service_viewit',
-            ariaLabel: '',
-            source: 'directLink',
-            label: 'Other online options',
-          },
-        ],
-        displayInfo: {
-          ...baseDisplayInfo,
-          showBrowzineButton: true,
-          browzineUrl: 'https://example.com/browzine',
+    describe('StackPlusBrowzine', () => {
+      const baseStackPlusCombinedLinks = [
+        {
+          source: 'thirdIron',
+          entityType: EntityType.Article,
+          mainButtonType: ButtonType.ArticleLink,
+          url: 'https://example.com/merged',
+          ariaLabel: '',
+          label: '',
         },
+      ];
+
+      const renderStackPlusBrowzine = async (opts?: { combinedLinks?: any[]; displayInfo?: any }) => {
+        const { el } = await setupRender({
+          viewOption: ViewOptionType.StackPlusBrowzine,
+          combinedLinks: opts?.combinedLinks ?? baseStackPlusCombinedLinks,
+          displayInfo: opts?.displayInfo ?? baseDisplayInfo,
+        });
+
+        const container = el.querySelector('.ti-stack-options-container');
+        expect(container).withContext(el.innerHTML).not.toBeNull();
+        expect(container?.querySelectorAll('stacked-dropdown').length).toBe(1);
+
+        return { el, container };
+      };
+
+      it('renders merged stack dropdown + Browzine button when both are present', async () => {
+        const { container } = await renderStackPlusBrowzine({
+          // Mirrors buildStackOptions()/buildCombinedLinks() output: TI + (optional) Primo links.
+          combinedLinks: [
+            ...baseStackPlusCombinedLinks,
+            {
+              entityType: 'directLink',
+              url: '/fulldisplay?docid=123#nui.getit.service_viewit',
+              ariaLabel: '',
+              source: 'directLink',
+              label: 'Other online options',
+            },
+          ],
+          displayInfo: {
+            ...baseDisplayInfo,
+            showBrowzineButton: true,
+            browzineUrl: 'https://example.com/browzine',
+          },
+        });
+
+        const browzine = container?.querySelector('custom-browzine-button') as HTMLElement | null;
+        expect(browzine).not.toBeNull();
+        expect(browzine?.classList.contains('ti-browzine-button-with-stack')).toBeTrue();
+
+        // assert that the browzine button is rendered after the stacked dropdown
+        const ordered = Array.from(
+          container?.querySelectorAll('stacked-dropdown, custom-browzine-button') ?? []
+        );
+        expect(ordered.map(n => n.tagName.toLowerCase())).toEqual([
+          'stacked-dropdown',
+          'custom-browzine-button',
+        ]);
       });
 
-      const container = el.querySelector('.ti-stack-options-container');
-      expect(container).withContext(el.innerHTML).not.toBeNull();
-
-      // this would be one button for the baseDisplayInfo article link
-      expect(container?.querySelectorAll('stacked-dropdown').length).toBe(1);
-
-      const browzine = container?.querySelector('custom-browzine-button') as HTMLElement | null;
-      expect(browzine).not.toBeNull();
-      expect(browzine?.classList.contains('ti-browzine-button-with-stack')).toBeTrue();
-
-      // assert that the browzine button is rendered after the stacked dropdown
-      const ordered = Array.from(
-        container?.querySelectorAll('stacked-dropdown, custom-browzine-button') ?? []
-      );
-      expect(ordered.map(n => n.tagName.toLowerCase())).toEqual([
-        'stacked-dropdown',
-        'custom-browzine-button',
-      ]);
-    });
-
-    it('StackPlusBrowzine: does not render Browzine button when showBrowzineButton is false (still shows dropdown)', async () => {
-      const { el } = await setupRender({
-        viewOption: ViewOptionType.StackPlusBrowzine,
-        combinedLinks: [
-          {
-            source: 'thirdIron',
-            entityType: EntityType.Article,
-            mainButtonType: ButtonType.ArticleLink,
-            url: 'https://example.com/merged',
-            ariaLabel: '',
-            label: '',
+      it('does not render Browzine button when showBrowzineButton is false (still shows dropdown)', async () => {
+        const { container } = await renderStackPlusBrowzine({
+          displayInfo: {
+            ...baseDisplayInfo,
+            showBrowzineButton: false,
+            browzineUrl: 'https://example.com/browzine',
           },
-        ],
-        displayInfo: {
-          ...baseDisplayInfo,
-          showBrowzineButton: false,
-          browzineUrl: 'https://example.com/browzine',
-        },
+        });
+
+        expect(container?.querySelector('custom-browzine-button')).toBeNull();
       });
-
-      const container = el.querySelector('.ti-stack-options-container');
-      expect(container).withContext(el.innerHTML).not.toBeNull();
-
-      expect(container?.querySelectorAll('stacked-dropdown').length).toBe(1);
-      expect(container?.querySelector('custom-browzine-button')).toBeNull();
     });
 
     it('SingleStack: renders merged stack dropdown, and never renders the individual Browzine button (Browzine is rendered as a link inside the stack dropdown)', async () => {
