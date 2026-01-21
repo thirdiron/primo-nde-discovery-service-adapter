@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { BehaviorSubject, of } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { Store } from '@ngrx/store';
-import { Component, CUSTOM_ELEMENTS_SCHEMA, Input } from '@angular/core';
+import { Component, Input } from '@angular/core';
 import { AsyncPipe } from '@angular/common';
 import { By } from '@angular/platform-browser';
 
@@ -24,6 +24,35 @@ import { DebugLogService } from 'src/app/services/debug-log.service';
 })
 class StackedDropdownStubComponent {
   @Input() links: any[] = [];
+}
+
+@Component({
+  selector: 'main-button',
+  standalone: true,
+  template: '',
+})
+class MainButtonStubComponent {
+  @Input() url = '';
+  @Input() buttonType: any;
+}
+
+@Component({
+  selector: 'article-link-button',
+  standalone: true,
+  template: '',
+})
+class ArticleLinkButtonStubComponent {
+  @Input() url = '';
+}
+
+@Component({
+  selector: 'custom-browzine-button',
+  standalone: true,
+  template: '',
+})
+class BrowzineButtonStubComponent {
+  @Input() entityType: any;
+  @Input() url = '';
 }
 
 describe('ThirdIronButtonsComponent', () => {
@@ -71,7 +100,7 @@ describe('ThirdIronButtonsComponent', () => {
   describe('template rendering permutations', () => {
     beforeEach(async () => {
       // These tests focus on ThirdIronButtonsComponent's template branching / ordering.
-      // We stub child components via CUSTOM_ELEMENTS_SCHEMA to avoid their translation effects.
+      // We stub child components to keep tests focused on template branching / ordering.
       state$ = new BehaviorSubject<any>({});
 
       await TestBed.resetTestingModule()
@@ -89,7 +118,15 @@ describe('ThirdIronButtonsComponent', () => {
         })
         .overrideComponent(ThirdIronButtonsComponent, {
           // Replace standalone imports to avoid instantiating child components.
-          set: { imports: [AsyncPipe, StackedDropdownStubComponent], schemas: [CUSTOM_ELEMENTS_SCHEMA] },
+          set: {
+            imports: [
+              AsyncPipe,
+              StackedDropdownStubComponent,
+              MainButtonStubComponent,
+              ArticleLinkButtonStubComponent,
+              BrowzineButtonStubComponent,
+            ],
+          },
         })
         .compileComponents();
     });
