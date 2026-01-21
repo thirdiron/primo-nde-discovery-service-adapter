@@ -73,6 +73,7 @@ jobs:
             aws s3 sync dist/THIRD-IRON-LIBKEY s3://$AWS_BUCKET/primo-nde/dev-test \
               --delete \
               --cache-control "no-cache,no-store,must-revalidate" \
+              --exclude "*" \
               --include "*.html" \
               --include "*.json"
 
@@ -105,6 +106,7 @@ jobs:
             aws s3 sync dist/THIRD-IRON-LIBKEY s3://$AWS_BUCKET/primo-nde/staging \
               --delete \
               --cache-control "no-cache,no-store,must-revalidate" \
+              --exclude "*" \
               --include "*.html" \
               --include "*.json"
 
@@ -137,6 +139,7 @@ jobs:
             aws s3 sync dist/THIRD-IRON-LIBKEY s3://$AWS_BUCKET/primo-nde/production \
               --delete \
               --cache-control "no-cache,no-store,must-revalidate" \
+              --exclude "*" \
               --include "*.html" \
               --include "*.json"
 
