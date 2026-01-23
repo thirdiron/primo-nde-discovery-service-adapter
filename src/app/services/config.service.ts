@@ -19,15 +19,12 @@ export class ConfigService {
   private institutionName: string | null;
   private warnedMissingInstitutionName = false;
   private warnedInstitutionNameLookupError = false;
-  private benchGetParamCount = 0;
-  private readonly benchRunId = `cfg-bench-${Date.now()}`;
 
   constructor(
     @Inject('MODULE_PARAMETERS') public moduleParameters: any,
     @Optional() private translate?: TranslateService,
     @Optional() private debugLog?: DebugLogService
   ) {
-    const benchCtorStart = this.nowMs();
     const keys = Object.keys(this.moduleParameters ?? {});
     this.keyIndexLowerToActual = new Map<string, string>();
     for (const k of keys) {
@@ -46,68 +43,14 @@ export class ConfigService {
       institutionName: 'NOT YET SET',
       moduleParameters: this.moduleParameters,
     });
-
-    // #region agent log TEMP-BENCH
-    this.tempBenchLog('A', 'ctor: built moduleParameters key index', {
-      runId: this.benchRunId,
-      modeRaw: typeof modeRaw === 'string' ? modeRaw : null,
-      isMulticampusMode: this.isMulticampusMode,
-      keyCount: keys.length,
-      elapsedMs: this.nowMs() - benchCtorStart,
-    });
-    // #endregion
-  }
-
-  private nowMs(): number {
-    // Use performance.now when available (higher resolution in browsers), otherwise Date.now.
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const p: any = (globalThis as any)?.performance;
-      if (p && typeof p.now === 'function') return p.now();
-    } catch {
-      // ignore
-    }
-    return Date.now();
-  }
-
-  private tempBenchLog(hypothesisId: string, message: string, data: Record<string, unknown>) {
-    // Marked TEMP-BENCH so we can safely remove after analysis.
-    this.debugLog?.debug?.(`TEMP-BENCH ConfigService: ${message}`, data);
-    // Send a copy to the session log collector (no secrets).
-    // #region agent log TEMP-BENCH
-    fetch('http://127.0.0.1:7243/ingest/6f464193-ba2e-4950-8450-e8a059b7fbe3', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        sessionId: 'debug-session',
-        runId: this.benchRunId,
-        hypothesisId,
-        location: 'src/app/services/config.service.ts:tempBenchLog',
-        message: `TEMP-BENCH ConfigService: ${message}`,
-        data,
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
-    // #endregion
   }
 
   private resolveInstitutionName(): string | null {
     const key = 'LibKey.institutionName';
     try {
-      const benchStart = this.nowMs();
       const value = this.translate?.instant ? this.translate.instant(key) : null;
       const normalized = typeof value === 'string' ? value.trim() : '';
       const resolved = normalized && normalized !== key ? normalized : null; // if the value is the same as the key, we didn't find a value (key not set in Alma)
-
-      // #region agent log TEMP-BENCH
-      this.tempBenchLog('B', 'resolveInstitutionName', {
-        runId: this.benchRunId,
-        translateInstantAvailable: !!this.translate?.instant,
-        resolved: !!resolved,
-        resolvedLength: resolved ? resolved.length : 0,
-        elapsedMs: this.nowMs() - benchStart,
-      });
-      // #endregion
 
       if (!resolved) {
         if (!this.warnedMissingInstitutionName) {
@@ -132,59 +75,17 @@ export class ConfigService {
   }
 
   private getParam(paramName: string): any {
-    const benchStart = this.nowMs();
-    this.benchGetParamCount += 1;
-    // #region agent log TEMP-BENCH
-    this.tempBenchLog('C', 'getParam: enter', {
-      runId: this.benchRunId,
-      count: this.benchGetParamCount,
-      isMulticampusMode: this.isMulticampusMode,
-      paramName,
-      institutionNameCached: !!this.institutionName,
-    });
-    // #endregion
-
     // if not multicampus mode, return the config value with no prefix
     if (!this.isMulticampusMode) {
-      const hasKey = this.moduleParameters ? Object.prototype.hasOwnProperty.call(this.moduleParameters, paramName) : false;
-      const value = this.moduleParameters?.[paramName];
-      // #region agent log TEMP-BENCH
-      this.tempBenchLog('C', 'getParam: single-campus lookup complete', {
-        runId: this.benchRunId,
-        count: this.benchGetParamCount,
-        paramName,
-        hasKey,
-        valueType: typeof value,
-        elapsedMs: this.nowMs() - benchStart,
-      });
-      // #endregion
-      return value;
+      return this.moduleParameters?.[paramName];
     }
 
     // Multicampus mode: always resolve `${institutionName}.${paramName}` (no fallback to unprefixed keys)
     if (!this.institutionName) {
       // Re-check on demand until translations are available.
-      const instStart = this.nowMs();
       this.institutionName = this.resolveInstitutionName();
-      // #region agent log TEMP-BENCH
-      this.tempBenchLog('D', 'getParam: institutionName lazy-resolve complete', {
-        runId: this.benchRunId,
-        count: this.benchGetParamCount,
-        resolved: !!this.institutionName,
-        resolvedLength: this.institutionName ? this.institutionName.length : 0,
-        elapsedMs: this.nowMs() - instStart,
-      });
-      // #endregion
     }
     if (!this.institutionName) {
-      // #region agent log TEMP-BENCH
-      this.tempBenchLog('D', 'getParam: multicampus missing institutionName (return undefined)', {
-        runId: this.benchRunId,
-        count: this.benchGetParamCount,
-        paramName,
-        elapsedMs: this.nowMs() - benchStart,
-      });
-      // #endregion
       return undefined;
     }
     const lookupLower = `${this.institutionName}.${paramName}`.toLowerCase();
@@ -198,28 +99,9 @@ export class ConfigService {
           expectedKeyLower: lookupLower,
         });
       }
-      // #region agent log TEMP-BENCH
-      this.tempBenchLog('C', 'getParam: multicampus key not found (return undefined)', {
-        runId: this.benchRunId,
-        count: this.benchGetParamCount,
-        paramName,
-        lookupLowerLength: lookupLower.length,
-        elapsedMs: this.nowMs() - benchStart,
-      });
-      // #endregion
       return undefined;
     }
     const value = this.moduleParameters?.[actualKey];
-
-    // #region agent log TEMP-BENCH
-    this.tempBenchLog('C', 'getParam: multicampus lookup complete', {
-      runId: this.benchRunId,
-      count: this.benchGetParamCount,
-      paramName,
-      valueType: typeof value,
-      elapsedMs: this.nowMs() - benchStart,
-    });
-    // #endregion
 
     return value;
   }
