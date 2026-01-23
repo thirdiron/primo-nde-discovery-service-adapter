@@ -152,7 +152,10 @@ describe('ThirdIronButtonsComponent', () => {
       const fixture = TestBed.createComponent(ThirdIronButtonsComponent);
       const component = fixture.componentInstance;
 
-      component.viewOption = opts?.viewOption ?? ViewOptionType.NoStack;
+      const configService = TestBed.inject(ConfigService);
+      spyOn(configService, 'getViewOption').and.returnValue(
+        opts?.viewOption ?? ViewOptionType.NoStack
+      );
       component.combinedLinks = opts?.combinedLinks ?? [];
       component.primoLinks = opts?.primoLinks ?? [];
       component.hasThirdIronSourceItems = opts?.hasThirdIronSourceItems ?? true;
