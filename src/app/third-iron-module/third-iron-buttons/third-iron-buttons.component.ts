@@ -198,6 +198,10 @@ export class ThirdIronButtonsComponent {
                 primoLinkLabels
               );
 
+              this.debugLog.debug('ThirdIronButtons.combinedLinks', {
+                combinedLinks: this.combinedLinks,
+              });
+
               // remove Primo generated buttons/stack if we have a custom stack (with TI added items)
               if (this.combinedLinks.length > 0) {
                 const hostElem = this.elementRef.nativeElement; // this component's template element
