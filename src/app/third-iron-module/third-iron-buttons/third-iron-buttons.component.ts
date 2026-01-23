@@ -180,6 +180,9 @@ export class ThirdIronButtonsComponent {
           this.primoLinkLabels$,
         ]).pipe(
           map(([displayInfo, viewModel, primoLinkLabels]) => {
+            // Read once per emission; config may change (e.g. multicampus translations become available).
+            const viewOption = this.viewOption;
+
             // If the TI API / waterfall yields no TI-specific button(s), we should leave the host Primo UI
             // untouched and render nothing from this component.
             this.hasThirdIronSourceItems = this.hasThirdIronAdditions(displayInfo);
@@ -190,8 +193,10 @@ export class ThirdIronButtonsComponent {
               return displayInfo;
             }
 
-            if (this.viewOption !== ViewOptionType.NoStack) {
+            if (viewOption !== ViewOptionType.NoStack) {
               // build custom stack options array for StackPlusBrowzine and SingleStack view options
+              // Clear stale NoStack links so template can't get "stuck" on old state.
+              this.primoLinks = [];
               this.combinedLinks = this.buttonInfoService.buildCombinedLinks(
                 displayInfo,
                 viewModel,
@@ -211,8 +216,10 @@ export class ThirdIronButtonsComponent {
                   removedCount,
                 });
               }
-            } else if (this.viewOption === ViewOptionType.NoStack) {
+            } else {
               // Build array of Primo only links, filter based on TI config settings
+              // Clear stale stack links (viewOption can change during lifecycle in multicampus mode).
+              this.combinedLinks = [];
               this.primoLinks = this.buttonInfoService.buildPrimoLinks(viewModel, primoLinkLabels);
 
               // remove Primo "Online Options" button or Primo's stack (quick links and direct link)
