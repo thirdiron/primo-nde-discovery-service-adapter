@@ -76,13 +76,15 @@ Default configuration JSON:
   }
 ```
 
-#### Multicampus mode (multiple institutions)
+<details>
+<summary><strong>Multicampus mode (multiple institutions)</strong></summary>
 
 If your organization has multiple institution IDs and needs **different LibKey settings per institution**, you can upload a single config JSON containing **prefixed keys** and enable multicampus mode.
 
 - Add `"mode": "multicampus"` to your config JSON
 - Prefix each setting with the institution name, e.g. `"institution1.apiKey"`, `"institution2.apiKey"`, etc.
 - Define an Alma label/translation for `LibKey.institutionName` whose value corresponds to the institution prefix you want to use at runtime
+  - Example: one Primo campus would have "LibKey.institutionName" set to "institution1", and another would have "LibKey.institutionName" set to "institution2"
   - Matching is **case-insensitive**, but we recommend consistent casing for readability
 - In multicampus mode, **there is no fallback** to unprefixed keys. If a prefixed key is missing, it is treated as unset and internal defaults apply.
 
@@ -92,12 +94,14 @@ Example multicampus config:
 {
   "mode": "multicampus",
 
-  "institution1.apiKey": "your-libkey-api-key",
-  "institution1.libraryId": "your-libkey-library-id",
+  "institution1.apiKey": "your-inst1-libkey-api-key-123",
+  "institution1.libraryId": "inst1-libkey-library-id",
   "institution1.viewOption": "stack-plus-browzine",
 
-  "institution2.apiKey": "your-libkey-api-key",
-  "institution2.libraryId": "your-libkey-library-id",
+  ...
+
+  "institution2.apiKey": "your-inst2-libkey-api-key-456",
+  "institution2.libraryId": "inst2-libkey-library-id",
   "institution2.viewOption": "single-stack"
 }
 ```
@@ -129,6 +133,8 @@ flowchart TD
 
   ConfigService --> ResolvedConfig --> Consumers
 ```
+
+</details>
 
 ### Step 3: Setup Add-On configuration in Alma
 
