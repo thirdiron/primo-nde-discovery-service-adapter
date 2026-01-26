@@ -1,13 +1,12 @@
 import { Injectable } from '@angular/core';
 import { SearchEntity } from '../types/searchEntity.types';
 import { EntityType } from '../shared/entity-type.enum';
-import { DebugLogService } from './debug-log.service';
 
 @Injectable({
   providedIn: 'root',
 })
 export class SearchEntityService {
-  constructor(private debugLog: DebugLogService) {}
+  constructor() {}
 
   isFiltered = (result: SearchEntity): boolean => {
     let validation = false;
