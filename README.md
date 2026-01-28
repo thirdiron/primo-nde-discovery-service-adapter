@@ -2,7 +2,7 @@
 
 ## Customer Documentaion for Third Iron Add-On
 
-Our customer facing documentation for getting up and running with this Primo NDE add-on can be found [in our confluence docs](https://thirdiron.atlassian.net/wiki/spaces/BrowZineAPIDocs/pages/4018733059/Ex+Libris+Primo+NDE+Beta). This README is targeted mostly for advanced users who may be adding additional customization to their add-on or for Third Iron internal developers. If you are a customer who will be integrating the Third Iron LibKey add-on in a standard way, please refer to the documentation in the above.
+Our customer facing documentation for getting up and running with this Primo NDE add-on can be found [in our confluence docs](https://thirdiron.atlassian.net/wiki/spaces/BrowZineAPIDocs/pages/4018733059/Ex+Libris+Primo+NDE+Beta). This README is targeted mostly for advanced users who may be adding additional customization to their add-on or for Third Iron internal developers. If you are a customer who will be integrating the Third Iron LibKey add-on in a standard way, please refer to the documentation in the link above.
 
 > [!IMPORTANT]
 > This add-on is currently undergoing active development and is not yet considered to be in a stable production-ready state. Various configuration settings may change.
