@@ -169,9 +169,22 @@ export class ButtonInfoService {
       displayInfo: DEFAULT_DISPLAY_WATERFALL_RESPONSE,
     };
 
+    this.debugLog.debug('ButtonInfo.displayWaterfall.start', {
+      entityType: type,
+      status: (response as any)?.status ?? null,
+      hasData: !!data,
+      isArticle: this.httpService.isArticle(data),
+      isJournal: this.httpService.isJournal(data),
+      hasIncludedJournal: !!journal,
+    });
+
     // If our response object data isn't an Article and isn't a Journal,
     // we can't proceed, so return the default empty button info
     if (!this.httpService.isArticle(data) && !this.httpService.isJournal(data)) {
+      this.debugLog.debug('ButtonInfo.displayWaterfall.defaultReturn.invalidData', {
+        entityType: type,
+        status: (response as any)?.status ?? null,
+      });
       return defaultReturn;
     }
 
@@ -296,6 +309,19 @@ export class ButtonInfoService {
       showSecondaryButton,
       showBrowzineButton,
     };
+
+    this.debugLog.debug('ButtonInfo.displayWaterfall.result', {
+      entityType: type,
+      status: (response as any)?.status ?? null,
+      mainButtonType: buttonType,
+      mainUrl: linkUrl ? this.debugLog.redactUrlTokens(linkUrl) : '',
+      showSecondaryButton,
+      secondaryUrl: secondaryButtonUrl
+        ? this.debugLog.redactUrlTokens(secondaryButtonUrl)
+        : '',
+      showBrowzineButton,
+      browzineUrl: browzineWebLink ? this.debugLog.redactUrlTokens(browzineWebLink) : '',
+    });
 
     return {
       displayInfo,
