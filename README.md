@@ -1,5 +1,14 @@
 # Third Iron Primo NDE Add-On
 
+## Customer Documentaion for Third Iron Add-On
+
+Our customer facing documentation for getting up and running with this Primo NDE add-on can be found [in our confluence docs](https://thirdiron.atlassian.net/wiki/spaces/BrowZineAPIDocs/pages/4018733059/Ex+Libris+Primo+NDE+Beta). This README is targeted mostly for advanced users who may be adding additional customization to their add-on or for Third Iron internal developers. If you are a customer who will be integrating the Third Iron LibKey add-on in a standard way, please refer to the documentation in the above.
+
+> [!IMPORTANT]
+> This add-on is currently undergoing active development and is not yet considered to be in a stable production-ready state. Various configuration settings may change.
+
+## README Outline
+
 - [Using the Add-On](#using-the-third-iron-primo-nde-add-on)
 - [View Options](#view-options)
 - [Custom Labels and Translation](#custom-labels-and-translation)
@@ -69,6 +78,7 @@ Default configuration JSON:
     "enableLinkOptimizer": "true",
     "articleRetractionWatchEnabled": "true",
     "articleExpressionOfConcernEnabled": "true",
+    "documentDeliveryFulfillmentEnabled": "true",
     "articlePDFDownloadViaUnpaywallEnabled": "true",
     "articleLinkViaUnpaywallEnabled": "true",
     "articleAcceptedManuscriptPDFViaUnpaywallEnabled": "true",
@@ -379,7 +389,3 @@ sequenceDiagram
 
 - **Customize Primo NDE UI**: Watch the ExLibris live demo on YouTube for a visual guide on how to customize the Primo NDE UI:
   [Customize Primo NDE UI: Live Demo](https://www.youtube.com/watch?v=z06l2hJYuLc)
-
-### Customer Documentaion for Third Iron Add-On
-
-Our customer facing documentation for getting up and running with this Primo NDE add-on can be found [in our confluence docs](https://thirdiron.atlassian.net/wiki/spaces/BrowZineAPIDocs/pages/4018733059/Ex+Libris+Primo+NDE+Beta).
