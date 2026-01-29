@@ -72,7 +72,7 @@ describe('ThirdIronButtonsComponent', () => {
         { provide: Store, useValue: mockStore },
         { provide: 'MODULE_PARAMETERS', useValue: MOCK_MODULE_PARAMETERS },
         // Minimal stubs to satisfy DI; we don't execute enhance in this basic test
-        { provide: SearchEntityService, useValue: { shouldEnhance: () => false } },
+        { provide: SearchEntityService, useValue: { shouldEnhance: () => ({ shouldEnhanceCover: false, shouldEnhanceButtons: false }) } },
         {
           provide: TranslateService,
           useValue: {
@@ -110,7 +110,7 @@ describe('ThirdIronButtonsComponent', () => {
             ConfigService,
             { provide: Store, useValue: mockStore },
             { provide: 'MODULE_PARAMETERS', useValue: MOCK_MODULE_PARAMETERS },
-            { provide: SearchEntityService, useValue: { shouldEnhance: () => false } },
+            { provide: SearchEntityService, useValue: { shouldEnhance: () => ({ shouldEnhanceCover: false, shouldEnhanceButtons: false }) } },
             { provide: ButtonInfoService, useValue: {} },
             { provide: DebugLogService, useValue: { debug: () => {}, safeSearchEntityMeta: () => ({}) } },
             { provide: TranslateService, useValue: { stream: (key: string) => of(key) } },
@@ -576,7 +576,7 @@ describe('ThirdIronButtonsComponent', () => {
       })
       // ThirdIronButtonsComponent declares its own `providers: [SearchEntityService]`, so we must override it
       // to ensure `shouldEnhance()` is controllable in this test.
-      .overrideProvider(SearchEntityService, { useValue: { shouldEnhance: () => true } })
+      .overrideProvider(SearchEntityService, { useValue: { shouldEnhance: () => ({ shouldEnhanceCover: true, shouldEnhanceButtons: true }) } })
       .overrideProvider(ButtonInfoService, { useValue: buttonInfoMock })
       .compileComponents();
 
