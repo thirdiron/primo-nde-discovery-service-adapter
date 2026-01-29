@@ -27,24 +27,35 @@ export class SearchEntityService {
     return validation;
   };
 
-  shouldEnhance = (result: SearchEntity): boolean => {
-    var validation = false;
+  shouldEnhance = (result: SearchEntity): { shouldEnhanceCover: boolean; shouldEnhanceButtons: boolean } => {
+    var shouldEnhanceCover = false;
+    var shouldEnhanceButtons = false;
 
     if (!this.isFiltered(result)) {
-      if (this.isJournal(result) && this.getIssn(result)) {
-        validation = true;
+      const isJournal = this.isJournal(result);
+      const isArticle = this.isArticle(result);
+      const hasIssn = !!this.getIssn(result);
+      const hasDoi = !!this.getDoi(result);
+
+      // Cover images: show for journals with ISSN or articles with ISSN
+      if ((isJournal && hasIssn) || (isArticle && hasIssn)) {
+        shouldEnhanceCover = true;
       }
 
-      if (this.isArticle(result) && this.getDoi(result)) {
-        validation = true;
+      // Buttons: show for journals with ISSN or articles with a DOI
+      if (isJournal && hasIssn) {
+        shouldEnhanceButtons = true;
       }
 
-      if (this.isArticle(result) && !this.getDoi(result) && this.getIssn(result)) {
-        validation = true;
+      if (isArticle && hasDoi) {
+        shouldEnhanceButtons = true;
       }
     }
 
-    return validation;
+    return {
+      shouldEnhanceCover,
+      shouldEnhanceButtons,
+    };
   };
 
   isArticle = (result: SearchEntity): boolean => {

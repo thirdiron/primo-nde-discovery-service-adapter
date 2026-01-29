@@ -160,8 +160,8 @@ export class ThirdIronButtonsComponent {
           this.debugLog.safeSearchEntityMeta(record)
         );
 
-        const shouldEnhance = this.searchEntityService.shouldEnhance(record);
-        if (!shouldEnhance) {
+        const { shouldEnhanceButtons } = this.searchEntityService.shouldEnhance(record);
+        if (!shouldEnhanceButtons) {
           this.debugLog.debug(
             'ThirdIronButtons.enhance.skip',
             this.debugLog.safeSearchEntityMeta(record)
@@ -193,7 +193,7 @@ export class ThirdIronButtonsComponent {
               return displayInfo;
             }
 
-            if (viewOption !== ViewOptionType.NoStack) {
+            if (viewOption !== ViewOptionType.NoStack && shouldEnhanceButtons) {
               // build custom stack options array for StackPlusBrowzine and SingleStack view options
               // Clear stale NoStack links so template can't get "stuck" on old state.
               this.primoLinks = [];
