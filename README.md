@@ -330,6 +330,21 @@ App->>HostPage: console logs gated by debug state
 3. A new case for the switch statement in the svg-icon component template file `svg-icon.component.html` also needs to be added.
 4. Also, for icon positioning, make sure to add a class to the svg-icon component's style file (`svg-icon.component.scss`) specific to the new icon or extend existing style classes.
 
+### Examining individual search result data (pnx data)
+
+Primo NDE uses Redux to manage the state of search results or single items displayed onscreen, so for us to examine everything in there, it's highly recommended to use the [Redux DevTools browser extension](https://chromewebstore.google.com/detail/redux-devtools/lmhkpmbekcpmknklioeibfkpmmfibljd?hl=en).
+
+Once it's installed, to see the various pnx items:
+
+1. Probably turn on debug mode to see data the Add-on is ingesting from the Primo pnx data
+2. Open the Redux DevTools
+3. Load a Primo NDE search result or single item
+4. Click on "State" on the right side of the Redux DevTools, then "Tree" inside there
+5. Expand the "Search" item - you'll now see each individual pnx record 
+  - ![Redux DevTools showing a single result from the pnx data](readme-files/redux-devtools-search-pnx-items.png)
+6. The ID like `cdi_projectmuse_journals_1234_S402391...` appears both in the visible DOM, and in the pnx data, so that's how you can associate what is displayed with what is in the Redux in-memory state
+
+
 ### Environment Variables
 
 The following environment variables are used in CircleCI:
