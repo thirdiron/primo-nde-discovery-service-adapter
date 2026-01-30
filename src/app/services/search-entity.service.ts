@@ -38,19 +38,16 @@ export class SearchEntityService {
       const hasDoi = !!this.getDoi(result);
 
       // Cover images: show for journals with ISSN or articles with ISSN
-      if ((isJournal && hasIssn) || (isArticle && hasIssn)) {
+      if ((isJournal && hasIssn) || (isArticle && (hasIssn || hasDoi))) {
         shouldEnhanceCover = true;
-        shouldEnhanceButtons = true;
       }
 
       // Buttons: show for journals with ISSN or articles with a DOI
       if (isJournal && hasIssn) {
-        shouldEnhanceCover = true;
         shouldEnhanceButtons = true;
       }
 
       if (isArticle && hasDoi) {
-        shouldEnhanceCover = true;
         shouldEnhanceButtons = true;
       }
     }
