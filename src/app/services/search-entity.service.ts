@@ -39,16 +39,24 @@ export class SearchEntityService {
 
       // Cover images: show for journals with ISSN or articles with ISSN
       if ((isJournal && hasIssn) || (isArticle && hasIssn)) {
+        // shouldEnhanceCover = true;
+        shouldEnhanceButtons = true;
         shouldEnhanceCover = true;
       }
 
       // Buttons: show for journals with ISSN or articles with a DOI
       if (isJournal && hasIssn) {
+        // shouldEnhanceCover = true;
+        // shouldEnhanceButtons = true;
         shouldEnhanceButtons = true;
+        shouldEnhanceCover = true;
       }
 
       if (isArticle && hasDoi) {
+        // shouldEnhanceCover = true;
+        // shouldEnhanceButtons = true;
         shouldEnhanceButtons = true;
+        shouldEnhanceCover = true;
       }
     }
 
