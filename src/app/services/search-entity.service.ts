@@ -40,6 +40,7 @@ export class SearchEntityService {
       // Cover images: show for journals with ISSN or articles with ISSN
       if ((isJournal && hasIssn) || (isArticle && hasIssn)) {
         shouldEnhanceCover = true;
+        shouldEnhanceButtons = true;
       }
 
       // Buttons: show for journals with ISSN or articles with a DOI

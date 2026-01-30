@@ -70,8 +70,8 @@ export class ThirdIronJournalCoverComponent {
     this.journalCoverUrl$ = this.hostProxy.record$.pipe(
       filter((record): record is SearchEntity => !!record),
       switchMap(record => {
-        const { shouldEnhanceCover } = this.searchEntityService.shouldEnhance(record);
-        if (!shouldEnhanceCover) {
+        const { shouldEnhanceButtons } = this.searchEntityService.shouldEnhance(record);
+        if (!shouldEnhanceButtons) {
           return of('');
         }
         return this.journalCoverService.getJournalCoverUrl(record);
