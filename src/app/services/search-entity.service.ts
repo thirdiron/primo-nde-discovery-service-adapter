@@ -1,12 +1,13 @@
-import { Injectable } from '@angular/core';
+import { Injectable, Optional } from '@angular/core';
 import { SearchEntity } from '../types/searchEntity.types';
 import { EntityType } from '../shared/entity-type.enum';
+import { DebugLogService } from './debug-log.service';
 
 @Injectable({
   providedIn: 'root',
 })
 export class SearchEntityService {
-  constructor() {}
+  constructor(@Optional() private debugLog?: DebugLogService) {}
 
   isFiltered = (result: SearchEntity): boolean => {
     let validation = false;
@@ -28,15 +29,15 @@ export class SearchEntityService {
   };
 
   shouldEnhance = (result: SearchEntity): { shouldEnhanceCover: boolean; shouldEnhanceButtons: boolean } => {
-    var shouldEnhanceCover = false;
-    var shouldEnhanceButtons = false;
+    let shouldEnhanceCover = false;
+    let shouldEnhanceButtons = false;
+
+    const isJournal = this.isJournal(result);
+    const isArticle = this.isArticle(result);
+    const hasIssn = !!this.getIssn(result);
+    const hasDoi = !!this.getDoi(result);
 
     if (!this.isFiltered(result)) {
-      const isJournal = this.isJournal(result);
-      const isArticle = this.isArticle(result);
-      const hasIssn = !!this.getIssn(result);
-      const hasDoi = !!this.getDoi(result);
-
       // Cover images: show for journals with ISSN or articles with ISSN
       if ((isJournal && hasIssn) || (isArticle && (hasIssn || hasDoi))) {
         shouldEnhanceCover = true;
@@ -52,10 +53,16 @@ export class SearchEntityService {
       }
     }
 
-    return {
+    this.debugLog?.debug?.('SearchEntity.shouldEnhance', {
+      isJournal,
+      isArticle,
+      hasIssn,
+      hasDoi,
       shouldEnhanceCover,
       shouldEnhanceButtons,
-    };
+    });
+
+    return { shouldEnhanceCover, shouldEnhanceButtons };
   };
 
   isArticle = (result: SearchEntity): boolean => {
