@@ -28,8 +28,8 @@ export class SearchEntityService {
   };
 
   shouldEnhance = (result: SearchEntity): { shouldEnhanceCover: boolean; shouldEnhanceButtons: boolean } => {
-    var shouldEnhanceCover = false;
-    var shouldEnhanceButtons = false;
+    let shouldEnhanceCover = false;
+    let shouldEnhanceButtons = false;
 
     if (!this.isFiltered(result)) {
       const isJournal = this.isJournal(result);
