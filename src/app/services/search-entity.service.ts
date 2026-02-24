@@ -160,6 +160,7 @@ export class SearchEntityService {
     return encoded;
   };
 
+  // Type is used to determine which API endpoint is used, either doi article lookup or issn journal lookup
   getEntityType = (entity: SearchEntity): EntityType | undefined => {
     let type = EntityType.Unknown;
 

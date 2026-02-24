@@ -2,6 +2,7 @@ import { TestBed } from '@angular/core/testing';
 
 import { SearchEntityService } from './search-entity.service';
 import { SearchEntity } from '../types/searchEntity.types';
+import { EntityType } from '../shared/entity-type.enum';
 
 describe('SearchEntityService', () => {
   let service: SearchEntityService;
@@ -108,6 +109,28 @@ describe('SearchEntityService', () => {
     it('returns false for a journal without an ISSN', () => {
       const entity = makeEntity({ type: 'journal' });
       expect(service.shouldEnhanceButtons(entity)).toBe(false);
+    });
+  });
+
+  describe('getEntityType', () => {
+    it('returns Journal for a journal with an ISSN', () => {
+      const entity = makeEntity({ type: 'journal', issn: ['1234-5678'] });
+      expect(service.getEntityType(entity)).toBe(EntityType.Journal);
+    });
+
+    it('returns Article for an article with a DOI', () => {
+      const entity = makeEntity({ type: 'article', doi: ['10.1234/abc'] });
+      expect(service.getEntityType(entity)).toBe(EntityType.Article);
+    });
+
+    it('returns Unknown for an article with an ISSN but no DOI', () => {
+      const entity = makeEntity({ type: 'article', issn: ['1234-5678'] });
+      expect(service.getEntityType(entity)).toBe(EntityType.Unknown);
+    });
+
+    it('returns Unknown for an article with neither DOI nor ISSN', () => {
+      const entity = makeEntity({ type: 'article' });
+      expect(service.getEntityType(entity)).toBe(EntityType.Unknown);
     });
   });
 });
