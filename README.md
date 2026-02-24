@@ -158,7 +158,7 @@ flowchart TD
 
    Configure the following:
    - **Add-on Name** – The identifier used in Alma’s configuration (View ID set in step 1).
-   - **Add-on URL** – The location where the add-on is hosted (static folder to load the add-on at runtime). The current URL for the LibKey add-on is `https://discovery-adapters.thirdiron.com/primo-nde/production` (keep the trailing '/')
+   - **Add-on URL** – The location where the add-on is hosted (static folder to load the add-on at runtime). The current URL for the LibKey add-on is `https://discovery-adapters.thirdiron.com/primo-nde/production/` (keep the trailing '/')
    - **Add-on Configuration File** – JSON-based config parameters to be referenced at runtime by the add-on. Upload your modified JSON configuration file from Step 2.
 
 ## View Options
@@ -340,10 +340,11 @@ Once it's installed, to see the various pnx items:
 2. Open the Redux DevTools
 3. Load a Primo NDE search result or single item
 4. Click on "State" on the right side of the Redux DevTools, then "Tree" inside there
-5. Expand the "Search" item - you'll now see each individual pnx record 
-  - ![Redux DevTools showing a single result from the pnx data](readme-files/redux-devtools-search-pnx-items.png)
-6. The ID like `cdi_projectmuse_journals_1234_S402391...` appears both in the visible DOM, and in the pnx data, so that's how you can associate what is displayed with what is in the Redux in-memory state
+5. Expand the "Search" item - you'll now see each individual pnx record
 
+- ![Redux DevTools showing a single result from the pnx data](readme-files/redux-devtools-search-pnx-items.png)
+
+6. The ID like `cdi_projectmuse_journals_1234_S402391...` appears both in the visible DOM, and in the pnx data, so that's how you can associate what is displayed with what is in the Redux in-memory state
 
 ### Environment Variables
 

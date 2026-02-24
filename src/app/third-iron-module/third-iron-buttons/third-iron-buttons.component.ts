@@ -160,8 +160,8 @@ export class ThirdIronButtonsComponent {
           this.debugLog.safeSearchEntityMeta(record)
         );
 
-        const shouldEnhance = this.searchEntityService.shouldEnhance(record);
-        if (!shouldEnhance) {
+        const shouldEnhanceButtons = this.searchEntityService.shouldEnhanceButtons(record);
+        if (!shouldEnhanceButtons) {
           this.debugLog.debug(
             'ThirdIronButtons.enhance.skip',
             this.debugLog.safeSearchEntityMeta(record)
