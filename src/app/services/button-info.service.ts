@@ -316,9 +316,7 @@ export class ButtonInfoService {
       mainButtonType: buttonType,
       mainUrl: linkUrl ? this.debugLog.redactUrlTokens(linkUrl) : '',
       showSecondaryButton,
-      secondaryUrl: secondaryButtonUrl
-        ? this.debugLog.redactUrlTokens(secondaryButtonUrl)
-        : '',
+      secondaryUrl: secondaryButtonUrl ? this.debugLog.redactUrlTokens(secondaryButtonUrl) : '',
       showBrowzineButton,
       browzineUrl: browzineWebLink ? this.debugLog.redactUrlTokens(browzineWebLink) : '',
     });
@@ -701,6 +699,12 @@ export class ButtonInfoService {
     // if we have an alert type button (retraction, EOC, problematic journal),
     // don't continue with Unpaywall call
     if (this.isAlertButton(buttonType)) {
+      return false;
+    }
+
+    // Doc Delivery should always supersede Unpaywall. If the article response includes a
+    // documentDeliveryFulfillmentUrl (and the feature is enabled), do not fall back to Unpaywall
+    if (buttonType === ButtonType.DocumentDelivery) {
       return false;
     }
 
