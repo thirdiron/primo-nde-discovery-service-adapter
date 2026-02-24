@@ -72,7 +72,7 @@ describe('ThirdIronButtonsComponent', () => {
         { provide: Store, useValue: mockStore },
         { provide: 'MODULE_PARAMETERS', useValue: MOCK_MODULE_PARAMETERS },
         // Minimal stubs to satisfy DI; we don't execute enhance in this basic test
-        { provide: SearchEntityService, useValue: { shouldEnhance: () => false } },
+        { provide: SearchEntityService, useValue: { shouldEnhanceButtons: () => false } },
         {
           provide: TranslateService,
           useValue: {
@@ -110,9 +110,17 @@ describe('ThirdIronButtonsComponent', () => {
             ConfigService,
             { provide: Store, useValue: mockStore },
             { provide: 'MODULE_PARAMETERS', useValue: MOCK_MODULE_PARAMETERS },
-            { provide: SearchEntityService, useValue: { shouldEnhance: () => false } },
+            {
+              provide: SearchEntityService,
+              useValue: {
+                shouldEnhanceButtons: () => false,
+              },
+            },
             { provide: ButtonInfoService, useValue: {} },
-            { provide: DebugLogService, useValue: { debug: () => {}, safeSearchEntityMeta: () => ({}) } },
+            {
+              provide: DebugLogService,
+              useValue: { debug: () => {}, safeSearchEntityMeta: () => ({}) },
+            },
             { provide: TranslateService, useValue: { stream: (key: string) => of(key) } },
           ],
         })
@@ -214,6 +222,101 @@ describe('ThirdIronButtonsComponent', () => {
       expect(el.querySelector('.ti-consolidated-coverage')).toBeNull();
     });
 
+    describe('skips enhancement when shouldEnhanceButtons is false (article has ISSN but no DOI)', () => {
+      const makeArticleIssnNoDoi = () => ({
+        pnx: {
+          control: { recordid: ['rec-article-issn-no-doi'] },
+          display: { type: ['article'] },
+          addata: { issn: ['1234-5678'] },
+        },
+      });
+
+      const setupSkipEnhancement = async () => {
+        const getDisplayInfoSpy = jasmine
+          .createSpy('getDisplayInfo')
+          .and.returnValue(of(baseDisplayInfo));
+
+        await TestBed.resetTestingModule()
+          .configureTestingModule({
+            imports: [ThirdIronButtonsComponent],
+            providers: [
+              ConfigService,
+              { provide: Store, useValue: mockStore },
+              { provide: 'MODULE_PARAMETERS', useValue: MOCK_MODULE_PARAMETERS },
+              // Use the real implementation so the record shape (article + ISSN + no DOI)
+              // drives shouldEnhanceButtons() === false.
+              SearchEntityService,
+              {
+                provide: ButtonInfoService,
+                useValue: {
+                  getDisplayInfo: getDisplayInfoSpy,
+                  buildCombinedLinks: () => [],
+                  buildPrimoLinks: () => [],
+                },
+              },
+              {
+                provide: DebugLogService,
+                useValue: { debug: () => {}, safeSearchEntityMeta: () => ({}) },
+              },
+              { provide: TranslateService, useValue: { stream: (key: string) => of(key) } },
+            ],
+          })
+          .overrideComponent(ThirdIronButtonsComponent, {
+            set: {
+              imports: [
+                AsyncPipe,
+                StackedDropdownStubComponent,
+                MainButtonStubComponent,
+                ArticleLinkButtonStubComponent,
+                BrowzineButtonStubComponent,
+              ],
+            },
+          })
+          .compileComponents();
+
+        const fixture = TestBed.createComponent(ThirdIronButtonsComponent);
+        const component = fixture.componentInstance;
+
+        component.hostComponent = {
+          searchResult: makeArticleIssnNoDoi(),
+          viewModel$: of({}),
+        };
+
+        // Spy on side-effect method to ensure enhancement pipeline didn't run.
+        spyOn(component, 'removePrimoOnlineAvailability').and.callThrough();
+
+        fixture.detectChanges(); // runs ngOnInit
+        // Ensure the Rx pipeline runs by subscribing (in the real app the template async pipe does this).
+        const sub = component.displayInfo$?.subscribe();
+        await fixture.whenStable();
+        fixture.detectChanges();
+
+        return {
+          fixture,
+          component,
+          el: fixture.nativeElement as HTMLElement,
+          getDisplayInfoSpy,
+          sub,
+        };
+      };
+
+      it('does not call ButtonInfoService.getDisplayInfo', async () => {
+        const { getDisplayInfoSpy, sub } = await setupSkipEnhancement();
+
+        expect(getDisplayInfoSpy).not.toHaveBeenCalled();
+        sub?.unsubscribe();
+      });
+
+      it('renders nothing and does not remove original Primo online availability element', async () => {
+        const { component, el, sub } = await setupSkipEnhancement();
+
+        expect(component.removePrimoOnlineAvailability).not.toHaveBeenCalled();
+        expect(el.querySelector('.ti-stack-options-container')).toBeNull();
+        expect(el.querySelector('.ti-no-stack-container')).toBeNull();
+        sub?.unsubscribe();
+      });
+    });
+
     describe('StackPlusBrowzine', () => {
       const baseStackPlusCombinedLinks = [
         {
@@ -226,7 +329,10 @@ describe('ThirdIronButtonsComponent', () => {
         },
       ];
 
-      const renderStackPlusBrowzine = async (opts?: { combinedLinks?: any[]; displayInfo?: any }) => {
+      const renderStackPlusBrowzine = async (opts?: {
+        combinedLinks?: any[];
+        displayInfo?: any;
+      }) => {
         const { el } = await setupRender({
           viewOption: ViewOptionType.StackPlusBrowzine,
           combinedLinks: opts?.combinedLinks ?? baseStackPlusCombinedLinks,
@@ -374,8 +480,9 @@ describe('ThirdIronButtonsComponent', () => {
       expect(container?.querySelectorAll('custom-browzine-button').length).toBe(1); // individual Browzine button
 
       const ordered = Array.from(
-        container?.querySelectorAll('main-button, article-link-button, stacked-dropdown, custom-browzine-button') ??
-          []
+        container?.querySelectorAll(
+          'main-button, article-link-button, stacked-dropdown, custom-browzine-button'
+        ) ?? []
       );
 
       // assert that the buttons are rendered in the correct order:
@@ -575,8 +682,12 @@ describe('ThirdIronButtonsComponent', () => {
         ],
       })
       // ThirdIronButtonsComponent declares its own `providers: [SearchEntityService]`, so we must override it
-      // to ensure `shouldEnhance()` is controllable in this test.
-      .overrideProvider(SearchEntityService, { useValue: { shouldEnhance: () => true } })
+      // to ensure `shouldEnhanceButtons()` is controllable in this test.
+      .overrideProvider(SearchEntityService, {
+        useValue: {
+          shouldEnhanceButtons: () => true,
+        },
+      })
       .overrideProvider(ButtonInfoService, { useValue: buttonInfoMock })
       .compileComponents();
 

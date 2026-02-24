@@ -27,24 +27,50 @@ export class SearchEntityService {
     return validation;
   };
 
-  shouldEnhance = (result: SearchEntity): boolean => {
-    var validation = false;
+  shouldEnhanceCover = (result: SearchEntity): boolean => {
+    let shouldEnhanceCover = false;
+
+    const isJournal = this.isJournal(result);
+    const isArticle = this.isArticle(result);
+    const hasIssn = !!this.getIssn(result);
+    const hasDoi = !!this.getDoi(result);
+
+    if (isArticle && hasDoi) {
+      shouldEnhanceCover = true;
+    }
+
+    if (isArticle && !hasDoi && hasIssn) {
+      shouldEnhanceCover = true;
+    }
+
+    if (isJournal && hasIssn) {
+      shouldEnhanceCover = true;
+    }
+
+    return shouldEnhanceCover;
+  };
+
+  shouldEnhanceButtons = (result: SearchEntity): boolean => {
+    let shouldEnhanceButtons = false;
 
     if (!this.isFiltered(result)) {
-      if (this.isJournal(result) && this.getIssn(result)) {
-        validation = true;
+      const isJournal = this.isJournal(result);
+      const isArticle = this.isArticle(result);
+      const hasIssn = !!this.getIssn(result);
+      const hasDoi = !!this.getDoi(result);
+
+      // Buttons: show for journals with ISSN or articles with a DOI
+      // not for articles with only ISSN
+      if (isJournal && hasIssn) {
+        shouldEnhanceButtons = true;
       }
 
-      if (this.isArticle(result) && this.getDoi(result)) {
-        validation = true;
-      }
-
-      if (this.isArticle(result) && !this.getDoi(result) && this.getIssn(result)) {
-        validation = true;
+      if (isArticle && hasDoi) {
+        shouldEnhanceButtons = true;
       }
     }
 
-    return validation;
+    return shouldEnhanceButtons;
   };
 
   isArticle = (result: SearchEntity): boolean => {
@@ -134,6 +160,7 @@ export class SearchEntityService {
     return encoded;
   };
 
+  // Type is used to determine which API endpoint is used, either doi article lookup or issn journal lookup
   getEntityType = (entity: SearchEntity): EntityType | undefined => {
     let type = EntityType.Unknown;
 
@@ -143,10 +170,6 @@ export class SearchEntityService {
 
     if (this.isArticle(entity) && this.getDoi(entity)) {
       return EntityType.Article;
-    }
-
-    if (this.isArticle(entity) && !this.getDoi(entity) && this.getIssn(entity)) {
-      return EntityType.Journal;
     }
 
     return type;
