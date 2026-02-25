@@ -257,6 +257,7 @@ export class ThirdIronButtonsComponent {
     // Depending on the host (and `ngComponentOutlet`), our host element may be an `<ng-component>`
     // node or some other wrapper. Walk up the DOM until we find an ancestor that actually contains
     // the `nde-online-availability` element, then hide it.
+    // Choosing to look up the tree to a depth of 12 is arbitrary, but seemed a reasonable depth.
     let current: HTMLElement | null = hostElement ?? null;
     for (let depth = 0; current && depth < 12; depth++) {
       const onlineAvailabilityElems = current.getElementsByTagName(
