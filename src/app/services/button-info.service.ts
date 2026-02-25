@@ -704,9 +704,9 @@ export class ButtonInfoService {
 
     // Doc Delivery should always supersede Unpaywall. If the article response includes a
     // documentDeliveryFulfillmentUrl (and the feature is enabled), do not fall back to Unpaywall
-    if (buttonType === ButtonType.DocumentDelivery) {
-      return false;
-    }
+    // if (buttonType === ButtonType.DocumentDelivery) {
+    //   return false;
+    // }
 
     const shouldAvoidUnpaywall = this.shouldAvoidUnpaywall(response);
     const isUnpaywallUsable = this.getUnpaywallUsable(entityType, data);
