@@ -43,7 +43,7 @@
   },
   "devDependencies": {
     "@angular-architects/module-federation-tools": "^19.0.1",
-    "@angular-devkit/build-angular": "^18.2.13",
+    "@angular-devkit/build-angular": "^21.1.5",
     "@angular/cli": "^18.2.20",
     "@angular/compiler-cli": "^18.2.13",
     "@types/jasmine": "~5.1.13",
@@ -54,10 +54,10 @@
     "karma-coverage": "~2.2.0",
     "karma-jasmine": "~5.1.0",
     "karma-jasmine-html-reporter": "~2.1.0",
-    "ngx-build-plus": "^18.0.0",
+    "ngx-build-plus": "^20.0.0",
     "prettier": "^3.7.4",
     "typescript": "^5.5.4",
-    "webpack": "^5.88.2",
+    "webpack": "^5.105.0",
     "webpack-cli": "^5.1.4",
     "webpack-dev-server": "^5.2.2"
   }
