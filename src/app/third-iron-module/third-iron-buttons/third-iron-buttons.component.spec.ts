@@ -391,127 +391,203 @@ describe('ThirdIronButtonsComponent', () => {
 
         expect(container?.querySelector('custom-browzine-button')).toBeNull();
       });
-    });
 
-    it('SingleStack: renders merged stack dropdown, and never renders the individual Browzine button (Browzine is rendered as a link inside the stack dropdown)', async () => {
-      const { fixture, el } = await setupRender({
-        viewOption: ViewOptionType.SingleStack,
-        // In SingleStack, any BrowZine entry should be represented as a link inside the single dropdown,
-        // rather than rendering a separate <custom-browzine-button>.
-        combinedLinks: [
-          // Mirrors the shape produced by ButtonInfoService.buildCombinedLinks() for TI main button.
-          {
-            source: 'thirdIron',
-            entityType: EntityType.Article,
-            mainButtonType: ButtonType.ArticleLink,
-            url: 'https://example.com/merged',
-            ariaLabel: '',
-            label: '',
+      it('renders consolidated coverage next to the stack dropdown when present', async () => {
+        const { el } = await setupRender({
+          viewOption: ViewOptionType.StackPlusBrowzine,
+          combinedLinks: baseStackPlusCombinedLinks,
+          primoLinks: [],
+          displayInfo: {
+            ...baseDisplayInfo,
+            showBrowzineButton: true,
+            browzineUrl: 'https://example.com/browzine',
           },
-          // Mirrors the shape produced by ButtonInfoService.buildCombinedLinks() for SingleStack BrowZine.
-          {
-            source: 'thirdIron',
-            entityType: EntityType.Article,
-            mainButtonType: ButtonType.Browzine,
-            url: 'https://example.com/browzine',
-          },
-        ],
-        displayInfo: {
-          ...baseDisplayInfo,
-          showBrowzineButton: true,
-          browzineUrl: 'https://example.com/browzine',
-        },
+          viewModel: { consolidatedCoverage: 'Coverage: 2010 - present' },
+        });
+
+        const cov = el.querySelector('.ti-stack-options-container .ti-consolidated-coverage');
+        expect(cov).withContext(el.innerHTML).not.toBeNull();
+        expect(cov?.textContent ?? '').toContain('Coverage: 2010 - present');
       });
 
-      const container = el.querySelector('.ti-stack-options-container');
-      expect(container).withContext(el.innerHTML).not.toBeNull();
+      it('BrowZine-only (combinedLinks empty): still renders consolidated coverage in the fallback buttons container', async () => {
+        const { el } = await setupRender({
+          viewOption: ViewOptionType.StackPlusBrowzine,
+          combinedLinks: [],
+          primoLinks: [],
+          displayInfo: {
+            ...baseDisplayInfo,
+            // No main/secondary; only BrowZine should render.
+            mainUrl: '',
+            mainButtonType: ButtonType.None,
+            showSecondaryButton: false,
+            secondaryUrl: '',
+            showBrowzineButton: true,
+            browzineUrl: 'https://example.com/browzine',
+          },
+          viewModel: { consolidatedCoverage: 'Coverage: 2010 - present' },
+        });
 
-      expect(container?.querySelectorAll('stacked-dropdown').length).toBe(1);
-      expect(container?.querySelector('custom-browzine-button')).toBeNull(); // individual Browzine button is not rendered
+        const container = el.querySelector('.ti-no-stack-container');
+        expect(container).withContext(el.innerHTML).not.toBeNull();
+        expect(container?.querySelector('custom-browzine-button')).withContext(el.innerHTML).not.toBeNull();
 
-      // Verify the BrowZine entry is passed into the stacked dropdown's [links] input.
-      const dropdownDe = fixture.debugElement.query(By.directive(StackedDropdownStubComponent));
-      expect(dropdownDe).withContext(el.innerHTML).not.toBeNull();
-
-      const dropdownCmp = dropdownDe.componentInstance as StackedDropdownStubComponent;
-      expect(Array.isArray(dropdownCmp.links)).toBeTrue();
-      expect(dropdownCmp.links.length).toBe(2);
-      expect(dropdownCmp.links.some(l => l?.url === 'https://example.com/browzine')).toBeTrue();
-      expect(dropdownCmp.links.some(l => l?.mainButtonType === ButtonType.Browzine)).toBeTrue();
+        const cov = container?.querySelector('.ti-consolidated-coverage');
+        expect(cov).withContext(el.innerHTML).not.toBeNull();
+        expect(cov?.textContent ?? '').toContain('Coverage: 2010 - present');
+      });
     });
 
-    it('NoStack: renders main + secondary + Primo dropdown + Browzine, with Primo dropdown before Browzine (ordering regression test)', async () => {
-      const { el } = await setupRender({
-        viewOption: ViewOptionType.NoStack,
-        combinedLinks: [],
-        primoLinks: [
-          // Mirrors buildPrimoLinks()/buildStackOptions() output: Primo online links are StackLink[].
-          {
-            entityType: 'HTML',
-            url: 'https://example.com/ro',
-            ariaLabel: '',
-            source: 'quicklink',
-            label: 'Read Online',
+    describe('SingleStack', () => {
+      it('renders merged stack dropdown, and never renders the individual Browzine button (BrowZine is rendered as a link inside the stack dropdown)', async () => {
+        const { fixture, el } = await setupRender({
+          viewOption: ViewOptionType.SingleStack,
+          // In SingleStack, any BrowZine entry should be represented as a link inside the single dropdown,
+          // rather than rendering a separate <custom-browzine-button>.
+          combinedLinks: [
+            // Mirrors the shape produced by ButtonInfoService.buildCombinedLinks() for TI main button.
+            {
+              source: 'thirdIron',
+              entityType: EntityType.Article,
+              mainButtonType: ButtonType.ArticleLink,
+              url: 'https://example.com/merged',
+              ariaLabel: '',
+              label: '',
+            },
+            // Mirrors the shape produced by ButtonInfoService.buildCombinedLinks() for SingleStack BrowZine.
+            {
+              source: 'thirdIron',
+              entityType: EntityType.Article,
+              mainButtonType: ButtonType.Browzine,
+              url: 'https://example.com/browzine',
+            },
+          ],
+          displayInfo: {
+            ...baseDisplayInfo,
+            showBrowzineButton: true,
+            browzineUrl: 'https://example.com/browzine',
           },
-          {
-            entityType: 'PDF',
-            url: 'https://example.com/pdf',
-            ariaLabel: '',
-            source: 'quicklink',
-            label: 'Get PDF',
-          },
-        ],
-        displayInfo: {
-          ...baseDisplayInfo,
-          mainUrl: 'https://example.com/article',
-          showSecondaryButton: true,
-          secondaryUrl: 'https://example.com/secondary',
-          showBrowzineButton: true,
-          browzineUrl: 'https://example.com/browzine',
-        },
+        });
+
+        const container = el.querySelector('.ti-stack-options-container');
+        expect(container).withContext(el.innerHTML).not.toBeNull();
+
+        expect(container?.querySelectorAll('stacked-dropdown').length).toBe(1);
+        expect(container?.querySelector('custom-browzine-button')).toBeNull(); // individual Browzine button is not rendered
+
+        // Verify the BrowZine entry is passed into the stacked dropdown's [links] input.
+        const dropdownDe = fixture.debugElement.query(By.directive(StackedDropdownStubComponent));
+        expect(dropdownDe).withContext(el.innerHTML).not.toBeNull();
+
+        const dropdownCmp = dropdownDe.componentInstance as StackedDropdownStubComponent;
+        expect(Array.isArray(dropdownCmp.links)).toBeTrue();
+        expect(dropdownCmp.links.length).toBe(2);
+        expect(dropdownCmp.links.some(l => l?.url === 'https://example.com/browzine')).toBeTrue();
+        expect(dropdownCmp.links.some(l => l?.mainButtonType === ButtonType.Browzine)).toBeTrue();
       });
 
-      const container = el.querySelector('.ti-no-stack-container');
-      expect(container).withContext(el.innerHTML).not.toBeNull();
+      it('renders consolidated coverage next to the stack dropdown when present', async () => {
+        const { el } = await setupRender({
+          viewOption: ViewOptionType.SingleStack,
+          combinedLinks: [
+            {
+              source: 'thirdIron',
+              entityType: EntityType.Article,
+              mainButtonType: ButtonType.ArticleLink,
+              url: 'https://example.com/merged',
+              ariaLabel: '',
+              label: '',
+            },
+          ],
+          primoLinks: [],
+          displayInfo: {
+            ...baseDisplayInfo,
+            showBrowzineButton: false,
+            browzineUrl: '',
+          },
+          viewModel: { consolidatedCoverage: 'Coverage: 2010 - present' },
+        });
 
-      expect(container?.querySelectorAll('main-button').length).toBe(1); // Third Iron main button
-      expect(container?.querySelectorAll('article-link-button').length).toBe(1); // Third Iron secondary button
-      expect(container?.querySelectorAll('stacked-dropdown').length).toBe(1); // for Primo links
-      expect(container?.querySelectorAll('custom-browzine-button').length).toBe(1); // individual Browzine button
-
-      const ordered = Array.from(
-        container?.querySelectorAll(
-          'main-button, article-link-button, stacked-dropdown, custom-browzine-button'
-        ) ?? []
-      );
-
-      // assert that the buttons are rendered in the correct order:
-      // Third Iron main button, Third Iron secondary button, Primo links, individual Browzine button
-      expect(ordered.map(n => n.tagName.toLowerCase())).toEqual([
-        'main-button',
-        'article-link-button',
-        'stacked-dropdown',
-        'custom-browzine-button',
-      ]);
+        const cov = el.querySelector('.ti-stack-options-container .ti-consolidated-coverage');
+        expect(cov).withContext(el.innerHTML).not.toBeNull();
+        expect(cov?.textContent ?? '').toContain('Coverage: 2010 - present');
+      });
     });
 
-    it('NoStack: does not render Primo dropdown when primoLinks is empty', async () => {
-      const { el } = await setupRender({
-        viewOption: ViewOptionType.NoStack,
-        combinedLinks: [],
-        primoLinks: [],
-        displayInfo: {
-          ...baseDisplayInfo,
-          showBrowzineButton: true,
-          browzineUrl: 'https://example.com/browzine',
-        },
+    describe('NoStack', () => {
+      it('renders main + secondary + Primo dropdown + Browzine, with Primo dropdown before Browzine (ordering regression test)', async () => {
+        const { el } = await setupRender({
+          viewOption: ViewOptionType.NoStack,
+          combinedLinks: [],
+          primoLinks: [
+            // Mirrors buildPrimoLinks()/buildStackOptions() output: Primo online links are StackLink[].
+            {
+              entityType: 'HTML',
+              url: 'https://example.com/ro',
+              ariaLabel: '',
+              source: 'quicklink',
+              label: 'Read Online',
+            },
+            {
+              entityType: 'PDF',
+              url: 'https://example.com/pdf',
+              ariaLabel: '',
+              source: 'quicklink',
+              label: 'Get PDF',
+            },
+          ],
+          displayInfo: {
+            ...baseDisplayInfo,
+            mainUrl: 'https://example.com/article',
+            showSecondaryButton: true,
+            secondaryUrl: 'https://example.com/secondary',
+            showBrowzineButton: true,
+            browzineUrl: 'https://example.com/browzine',
+          },
+        });
+
+        const container = el.querySelector('.ti-no-stack-container');
+        expect(container).withContext(el.innerHTML).not.toBeNull();
+
+        expect(container?.querySelectorAll('main-button').length).toBe(1); // Third Iron main button
+        expect(container?.querySelectorAll('article-link-button').length).toBe(1); // Third Iron secondary button
+        expect(container?.querySelectorAll('stacked-dropdown').length).toBe(1); // for Primo links
+        expect(container?.querySelectorAll('custom-browzine-button').length).toBe(1); // individual Browzine button
+
+        const ordered = Array.from(
+          container?.querySelectorAll(
+            'main-button, article-link-button, stacked-dropdown, custom-browzine-button'
+          ) ?? []
+        );
+
+        // assert that the buttons are rendered in the correct order:
+        // Third Iron main button, Third Iron secondary button, Primo links, individual Browzine button
+        expect(ordered.map(n => n.tagName.toLowerCase())).toEqual([
+          'main-button',
+          'article-link-button',
+          'stacked-dropdown',
+          'custom-browzine-button',
+        ]);
       });
 
-      const container = el.querySelector('.ti-no-stack-container');
-      expect(container).withContext(el.innerHTML).not.toBeNull();
+      it('does not render Primo dropdown when primoLinks is empty', async () => {
+        const { el } = await setupRender({
+          viewOption: ViewOptionType.NoStack,
+          combinedLinks: [],
+          primoLinks: [],
+          displayInfo: {
+            ...baseDisplayInfo,
+            showBrowzineButton: true,
+            browzineUrl: 'https://example.com/browzine',
+          },
+        });
 
-      expect(container?.querySelector('stacked-dropdown')).toBeNull();
-      expect(container?.querySelector('custom-browzine-button')).not.toBeNull();
+        const container = el.querySelector('.ti-no-stack-container');
+        expect(container).withContext(el.innerHTML).not.toBeNull();
+
+        expect(container?.querySelector('stacked-dropdown')).toBeNull();
+        expect(container?.querySelector('custom-browzine-button')).not.toBeNull();
+      });
     });
 
     it('renders consolidated coverage when present on the viewModel', async () => {
