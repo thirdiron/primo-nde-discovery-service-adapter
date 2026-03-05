@@ -1,6 +1,6 @@
 import { Component, ElementRef, Input } from '@angular/core';
 import { SearchEntity } from '../../types/searchEntity.types';
-import { Observable, filter, switchMap, tap, shareReplay, of } from 'rxjs';
+import { Observable, filter, switchMap, tap, shareReplay } from 'rxjs';
 import { AsyncPipe } from '@angular/common';
 import { JournalCoverService } from '../../services/journal-cover.service';
 import { SearchEntityService } from '../../services/search-entity.service';
@@ -48,7 +48,6 @@ export class ThirdIronJournalCoverComponent {
 
   constructor(
     private journalCoverService: JournalCoverService,
-    private searchEntityService: SearchEntityService,
     elementRef: ElementRef
   ) {
     this.elementRef = elementRef;
@@ -69,13 +68,8 @@ export class ThirdIronJournalCoverComponent {
     // performs side-effects (hide default images) without extra subscriptions.
     this.journalCoverUrl$ = this.hostProxy.record$.pipe(
       filter((record): record is SearchEntity => !!record),
-      switchMap(record => {
-        const shouldEnhanceCover = this.searchEntityService.shouldEnhanceCover(record);
-        if (!shouldEnhanceCover) {
-          return of('');
-        }
-        return this.journalCoverService.getJournalCoverUrl(record);
-      }),
+      // Delegate all eligibility/identifier checks to JournalCoverService.
+      switchMap(record => this.journalCoverService.getJournalCoverUrl(record)),
       tap(journalCoverUrl => {
         // hide default Primo image blocks if we find a Third Iron provided image
         if (journalCoverUrl !== '') {
