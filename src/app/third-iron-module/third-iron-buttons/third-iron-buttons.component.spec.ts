@@ -176,7 +176,6 @@ describe('ThirdIronButtonsComponent', () => {
       component.displayInfo$ = of(opts?.displayInfo ?? baseDisplayInfo);
 
       fixture.detectChanges();
-      fixture.detectChanges();
       await fixture.whenStable();
       fixture.detectChanges();
 
