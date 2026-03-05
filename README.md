@@ -86,6 +86,11 @@ Default configuration JSON:
   }
 ```
 
+<details>
+<summary><strong>Multicampus mode (multiple institutions)</strong></summary>
+Coming soon. Full solution still under development, no multicampus features should be used yet.
+</details>
+
 ### Step 3: Setup Add-On configuration in Alma
 
 1. In Alma, navigate to the "Configuration" section
@@ -98,7 +103,7 @@ Default configuration JSON:
 
    Configure the following:
    - **Add-on Name** – The identifier used in Alma’s configuration (View ID set in step 1).
-   - **Add-on URL** – The location where the add-on is hosted (static folder to load the add-on at runtime). The current URL for the LibKey add-on is `https://discovery-adapters.thirdiron.com/primo-nde/production` (keep the trailing '/')
+   - **Add-on URL** – The location where the add-on is hosted (static folder to load the add-on at runtime). The current URL for the LibKey add-on is `https://discovery-adapters.thirdiron.com/primo-nde/production/` (keep the trailing '/')
    - **Add-on Configuration File** – JSON-based config parameters to be referenced at runtime by the add-on. Upload your modified JSON configuration file from Step 2.
 
 ## View Options
@@ -269,6 +274,22 @@ App->>HostPage: console logs gated by debug state
 2. a new icon component needs to be created in `/src/app/components/icons` and imported in `svg-icon.component.ts`.
 3. A new case for the switch statement in the svg-icon component template file `svg-icon.component.html` also needs to be added.
 4. Also, for icon positioning, make sure to add a class to the svg-icon component's style file (`svg-icon.component.scss`) specific to the new icon or extend existing style classes.
+
+### Examining individual search result data (pnx data)
+
+Primo NDE uses Redux to manage the state of search results or single items displayed onscreen, so for us to examine everything in there, it's highly recommended to use the [Redux DevTools browser extension](https://chromewebstore.google.com/detail/redux-devtools/lmhkpmbekcpmknklioeibfkpmmfibljd?hl=en).
+
+Once it's installed, to see the various pnx items:
+
+1. Probably turn on debug mode to see data the Add-on is ingesting from the Primo pnx data
+2. Open the Redux DevTools
+3. Load a Primo NDE search result or single item
+4. Click on "State" on the right side of the Redux DevTools, then "Tree" inside there
+5. Expand the "Search" item - you'll now see each individual pnx record
+
+- ![Redux DevTools showing a single result from the pnx data](readme-files/redux-devtools-search-pnx-items.png)
+
+6. The ID like `cdi_projectmuse_journals_1234_S402391...` appears both in the visible DOM, and in the pnx data, so that's how you can associate what is displayed with what is in the Redux in-memory state
 
 ### Environment Variables
 

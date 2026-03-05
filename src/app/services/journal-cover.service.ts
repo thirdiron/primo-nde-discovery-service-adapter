@@ -1,6 +1,6 @@
-import { Injectable, Inject } from '@angular/core';
+import { Injectable } from '@angular/core';
 import { SearchEntity } from '../types/searchEntity.types';
-import { map, Observable, Observer, of } from 'rxjs';
+import { map, Observable, of } from 'rxjs';
 import { SearchEntityService } from './search-entity.service';
 import { EntityType } from '../shared/entity-type.enum';
 import { HttpService } from './http.service';
@@ -32,26 +32,32 @@ export class JournalCoverService {
   ) {}
 
   getJournalCoverUrl(entity: SearchEntity): Observable<string> {
-    const entityType = this.searchEntityService.getEntityType(entity);
-
-    // make API call for article or journal
-    if (entityType) {
-      if (entityType === EntityType.Article) {
-        return this.httpService
-          .getArticle(this.searchEntityService.getDoi(entity))
-          .pipe(map((res) => this.transformRes(res, entityType)));
-      }
-      if (entityType === EntityType.Journal) {
-        return this.httpService
-          .getJournal(this.searchEntityService.getIssn(entity))
-          .pipe(map((res) => this.transformRes(res, entityType)));
-      }
-      // if not article or journal, just return empty button info
-      // 'of' creates an Observable
-      return of('');
-    } else {
+    // Route cover enhancement based on cover-eligibility (shouldEnhanceCover) and
+    // available identifiers, rather than getEntityType (which is DOI-centric for articles).
+    const shouldEnhanceCover = this.searchEntityService.shouldEnhanceCover(entity);
+    if (!shouldEnhanceCover) {
       return of('');
     }
+
+    const isArticle = this.searchEntityService.isArticle(entity);
+    const doi = this.searchEntityService.getDoi(entity);
+    const issn = this.searchEntityService.getIssn(entity);
+
+    // If a DOI is present, use the article endpoint (it returns the journal via include=journal).
+    if (isArticle && doi) {
+      return this.httpService
+        .getArticle(doi)
+        .pipe(map(res => this.transformRes(res, EntityType.Article)));
+    }
+
+    // Otherwise, if an ISSN is present (journals and ISSN-only articles), use the journal endpoint.
+    if (issn) {
+      return this.httpService
+        .getJournal(issn)
+        .pipe(map(res => this.transformRes(res, EntityType.Journal)));
+    }
+
+    return of('');
   }
 
   transformRes(response: ApiResult, type: EntityType): string {

@@ -82,7 +82,10 @@ export class ThirdIronButtonsComponent {
   combinedLinks: StackLink[] = []; // used to build custom merged array of online services for stack views
   primoLinks: StackLink[] = []; // used to build array of Primo only links for NoStack view option
   showDropdown = false;
-  viewOption = this.configService.getViewOption();
+  get viewOption(): ViewOptionType {
+    // Resolve lazily so multicampus config can “start working” once translations become available.
+    return this.configService.getViewOption();
+  }
   hasThirdIronSourceItems = false;
 
   // Expose enum to template
@@ -157,8 +160,8 @@ export class ThirdIronButtonsComponent {
           this.debugLog.safeSearchEntityMeta(record)
         );
 
-        const shouldEnhance = this.searchEntityService.shouldEnhance(record);
-        if (!shouldEnhance) {
+        const shouldEnhanceButtons = this.searchEntityService.shouldEnhanceButtons(record);
+        if (!shouldEnhanceButtons) {
           this.debugLog.debug(
             'ThirdIronButtons.enhance.skip',
             this.debugLog.safeSearchEntityMeta(record)
@@ -177,44 +180,51 @@ export class ThirdIronButtonsComponent {
           this.primoLinkLabels$,
         ]).pipe(
           map(([displayInfo, viewModel, primoLinkLabels]) => {
+            // Read once per emission; config may change (e.g. multicampus translations become available).
+            const viewOption = this.viewOption;
+
             // If the TI API / waterfall yields no TI-specific button(s), we should leave the host Primo UI
             // untouched and render nothing from this component.
             this.hasThirdIronSourceItems = this.hasThirdIronAdditions(displayInfo);
+
             if (!this.hasThirdIronSourceItems) {
               this.combinedLinks = [];
               this.primoLinks = [];
               return displayInfo;
             }
 
-            if (this.viewOption !== ViewOptionType.NoStack) {
+            // We are enhancing this record with at least one TI-provided button (main/secondary/BrowZine).
+            // Hide the host Primo online availability UI so we don't show duplicate "Online access available"
+            // buttons alongside our custom buttons (notably, BrowZine-only records).
+            {
+              const hostElem = this.elementRef.nativeElement as HTMLElement; // this component's host element
+              const removedCount = this.removePrimoOnlineAvailability(hostElem);
+              this.debugLog.debug('ThirdIronButtons.removePrimoOnlineAvailability', {
+                reason: 'hasThirdIronSourceItems',
+                removedCount,
+              });
+            }
+
+            if (viewOption !== ViewOptionType.NoStack) {
               // build custom stack options array for StackPlusBrowzine and SingleStack view options
+              // Clear stale NoStack links so template can't get "stuck" on old state.
+              this.primoLinks = [];
               this.combinedLinks = this.buttonInfoService.buildCombinedLinks(
                 displayInfo,
                 viewModel,
                 primoLinkLabels
               );
 
-              // remove Primo generated buttons/stack if we have a custom stack (with TI added items)
-              if (this.combinedLinks.length > 0) {
-                const hostElem = this.elementRef.nativeElement; // this component's template element
-                const removedCount = this.removePrimoOnlineAvailability(hostElem);
-                this.debugLog.debug('ThirdIronButtons.removePrimoOnlineAvailability', {
-                  reason: 'combinedLinks>0',
-                  removedCount,
-                });
-              }
-            } else if (this.viewOption === ViewOptionType.NoStack) {
+              this.debugLog.debug('ThirdIronButtons.combinedLinks', {
+                combinedLinks: this.combinedLinks,
+              });
+            } else {
               // Build array of Primo only links, filter based on TI config settings
+              // Clear stale stack links (viewOption can change during lifecycle in multicampus mode).
+              this.combinedLinks = [];
               this.primoLinks = this.buttonInfoService.buildPrimoLinks(viewModel, primoLinkLabels);
 
-              // remove Primo "Online Options" button or Primo's stack (quick links and direct link)
-              // Will be replaced with our own primoLinks options
-              const hostElem = this.elementRef.nativeElement; // this component's template element
-              const removedCount = this.removePrimoOnlineAvailability(hostElem);
-              this.debugLog.debug('ThirdIronButtons.removePrimoOnlineAvailability', {
-                reason: 'NoStack',
-                removedCount,
-              });
+              // Primo links are re-rendered via our own `stacked-dropdown` in NoStack mode.
             }
 
             return displayInfo;
@@ -243,21 +253,29 @@ export class ThirdIronButtonsComponent {
   }
 
   removePrimoOnlineAvailability = (hostElement: HTMLElement): number => {
-    const blockParent = hostElement?.parentElement?.parentElement ?? null;
-    if (!blockParent) {
-      this.debugLog.debug('ThirdIronButtons.removePrimoOnlineAvailability.noAncestor', {
-        hasParent: !!hostElement?.parentElement,
-      });
-      return 0;
+    // This component is injected *before* the host `nde-online-availability` block.
+    // Depending on the host (and `ngComponentOutlet`), our host element may be an `<ng-component>`
+    // node or some other wrapper. Walk up the DOM until we find an ancestor that actually contains
+    // the `nde-online-availability` element, then hide it.
+    // Choosing to look up the tree to a depth of 12 is arbitrary, but seemed a reasonable depth.
+    let current: HTMLElement | null = hostElement ?? null;
+    for (let depth = 0; current && depth < 12; depth++) {
+      const onlineAvailabilityElems = current.getElementsByTagName(
+        'nde-online-availability'
+      ) as HTMLCollectionOf<HTMLElement>;
+      if (onlineAvailabilityElems.length > 0) {
+        const arr = Array.from(onlineAvailabilityElems);
+        for (const elem of arr) {
+          elem.style.display = 'none';
+        }
+        return arr.length;
+      }
+      current = current.parentElement;
     }
 
-    const elems = blockParent.getElementsByTagName(
-      'nde-online-availability'
-    ) as HTMLCollectionOf<HTMLElement>;
-    const arr = Array.from(elems);
-    for (const elem of arr) {
-      elem.style.display = 'none';
-    }
-    return arr.length;
+    this.debugLog.debug('ThirdIronButtons.removePrimoOnlineAvailability.notFound', {
+      maxDepth: 12,
+    });
+    return 0;
   };
 }

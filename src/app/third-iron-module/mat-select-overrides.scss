@@ -43,6 +43,7 @@
       align-items: center;
       justify-content: center;
       gap: 8px;
+      white-space: nowrap !important;
       .quicklink-button-text {
         font-size: 14px;
       }
@@ -180,6 +181,7 @@
           align-items: center;
           justify-content: center;
           gap: 8px;
+          white-space: nowrap !important;
           .quicklink-button-text {
             font-size: 14px;
           }

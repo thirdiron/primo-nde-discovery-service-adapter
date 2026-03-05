@@ -254,6 +254,60 @@ describe('ButtonInfoService', () => {
         expect(shouldMakeCall).toBeTrue();
       });
 
+      it('should return false when documentDeliveryFulfillmentUrl exists and document delivery is enabled', () => {
+        const articleWithDocDeliveryOnly: ArticleData = {
+          ...articleData,
+          fullTextFile: '',
+          contentLocation: '',
+          retractionNoticeUrl: '',
+          expressionOfConcernNoticeUrl: '',
+          problematicJournalArticleNoticeUrl: '',
+          documentDeliveryFulfillmentUrl: 'https://example.com/document-delivery',
+        };
+
+        const mockApiResult: ApiResult = {
+          ...responseMetaData,
+          body: { data: articleWithDocDeliveryOnly },
+        };
+
+        const shouldMakeCall = (service as any).shouldMakeUnpaywallCall(
+          mockApiResult,
+          EntityType.Article,
+          ButtonType.DocumentDelivery
+        );
+        expect(shouldMakeCall).toBeFalse();
+      });
+
+      it('should return true when documentDeliveryFulfillmentUrl exists but document delivery is disabled', async () => {
+        const mockConfig = { ...MOCK_MODULE_PARAMETERS };
+        mockConfig.documentDeliveryFulfillmentEnabled = false;
+
+        const testBed = await createTestModule(mockConfig);
+        const testService = testBed.inject(ButtonInfoService);
+
+        const articleWithDocDeliveryOnly: ArticleData = {
+          ...articleData,
+          fullTextFile: '',
+          contentLocation: '',
+          retractionNoticeUrl: '',
+          expressionOfConcernNoticeUrl: '',
+          problematicJournalArticleNoticeUrl: '',
+          documentDeliveryFulfillmentUrl: 'https://example.com/document-delivery',
+        };
+
+        const mockApiResult: ApiResult = {
+          ...responseMetaData,
+          body: { data: articleWithDocDeliveryOnly },
+        };
+
+        const shouldMakeCall = (testService as any).shouldMakeUnpaywallCall(
+          mockApiResult,
+          EntityType.Article,
+          ButtonType.None
+        );
+        expect(shouldMakeCall).toBeTrue();
+      });
+
       it('should make Unpaywall call when ApiResult has 404 status', () => {
         // Test the 404 condition by directly testing the shouldMakeUnpaywallCall method
         const mockApiResult: ApiResult = {

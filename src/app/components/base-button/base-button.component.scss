@@ -9,10 +9,27 @@
   line-height: 32px;
   white-space: nowrap;
 
+  /*
+   * Angular Material (MDC) wraps button content in `.mdc-button__label`
+   * and may set `white-space: normal` there. Force single-line and
+   * keep the label from wrapping.
+   */
+  .mdc-button__label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap !important;
+  }
+
   .ti-custom-button-text {
     display: flex;
     align-items: center;
     gap: 8px;
+
+    // prevent the icon from shrinking
+    custom-svg-icon {
+      flex: 0 0 auto;
+    }
   }
 }
 

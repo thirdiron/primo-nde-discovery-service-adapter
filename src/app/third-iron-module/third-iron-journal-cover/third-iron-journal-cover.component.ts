@@ -3,6 +3,7 @@ import { SearchEntity } from '../../types/searchEntity.types';
 import { Observable, filter, switchMap, tap, shareReplay } from 'rxjs';
 import { AsyncPipe } from '@angular/common';
 import { JournalCoverService } from '../../services/journal-cover.service';
+import { SearchEntityService } from '../../services/search-entity.service';
 import { HostComponentProxy } from 'src/app/shared/host-component-proxy';
 
 @Component({
@@ -11,7 +12,7 @@ import { HostComponentProxy } from 'src/app/shared/host-component-proxy';
   imports: [AsyncPipe],
   templateUrl: './third-iron-journal-cover.component.html',
   styleUrl: './third-iron-journal-cover.component.scss',
-  providers: [JournalCoverService],
+  providers: [JournalCoverService, SearchEntityService],
 })
 export class ThirdIronJournalCoverComponent {
   // **Host record proxy**:
@@ -67,6 +68,7 @@ export class ThirdIronJournalCoverComponent {
     // performs side-effects (hide default images) without extra subscriptions.
     this.journalCoverUrl$ = this.hostProxy.record$.pipe(
       filter((record): record is SearchEntity => !!record),
+      // Delegate all eligibility/identifier checks to JournalCoverService.
       switchMap(record => this.journalCoverService.getJournalCoverUrl(record)),
       tap(journalCoverUrl => {
         // hide default Primo image blocks if we find a Third Iron provided image
