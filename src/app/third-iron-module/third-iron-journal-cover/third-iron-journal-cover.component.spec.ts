@@ -7,14 +7,11 @@ import { Store } from '@ngrx/store';
 
 import { ThirdIronJournalCoverComponent } from './third-iron-journal-cover.component';
 import { JournalCoverService } from '../../services/journal-cover.service';
-import { SearchEntityService } from '../../services/search-entity.service';
 import { SearchEntity } from '../../types/searchEntity.types';
 import { MOCK_MODULE_PARAMETERS } from '../../services/config.service.spec';
 
 describe('ThirdIronJournalCoverComponent', () => {
   let httpTesting: HttpTestingController;
-  let journalCoverService: JournalCoverService;
-  let searchEntityService: SearchEntityService;
   let component: ThirdIronJournalCoverComponent;
   let fixture: ComponentFixture<ThirdIronJournalCoverComponent>;
   let state$: BehaviorSubject<any>;
@@ -57,8 +54,6 @@ describe('ThirdIronJournalCoverComponent', () => {
     }).compileComponents();
 
     httpTesting = TestBed.inject(HttpTestingController);
-    journalCoverService = TestBed.inject(JournalCoverService);
-    searchEntityService = TestBed.inject(SearchEntityService);
 
     fixture = TestBed.createComponent(ThirdIronJournalCoverComponent);
     component = fixture.componentInstance;
@@ -72,18 +67,12 @@ describe('ThirdIronJournalCoverComponent', () => {
     expect(component).toBeTruthy();
   });
 
-  describe('shouldEnhanceCover behavior', () => {
+  describe('journal cover service delegation', () => {
     const setup = async ({
-      enhanceCover,
       coverUrl = 'https://example.com/journal-cover.jpg',
     }: {
-      enhanceCover: boolean;
       coverUrl?: string;
     }) => {
-      const mockSearchEntityService = {
-        shouldEnhanceCover: jasmine.createSpy('shouldEnhanceCover').and.returnValue(enhanceCover),
-      };
-
       const mockJournalCoverService = {
         getJournalCoverUrl: jasmine.createSpy('getJournalCoverUrl').and.returnValue(of(coverUrl)),
       };
@@ -107,7 +96,6 @@ describe('ThirdIronJournalCoverComponent', () => {
         .overrideComponent(ThirdIronJournalCoverComponent, {
           set: {
             providers: [
-              { provide: SearchEntityService, useValue: mockSearchEntityService },
               { provide: JournalCoverService, useValue: mockJournalCoverService },
             ],
           },
@@ -125,23 +113,21 @@ describe('ThirdIronJournalCoverComponent', () => {
       fixture.detectChanges();
       await fixture.whenStable();
 
-      return { mockSearchEntityService, mockJournalCoverService };
+      return { mockJournalCoverService };
     };
 
-    it('should call getJournalCoverUrl when shouldEnhanceCover is true', async () => {
-      const { mockJournalCoverService } = await setup({
-        enhanceCover: true,
-      });
+    it('calls getJournalCoverUrl for the current record', async () => {
+      const { mockJournalCoverService } = await setup({});
 
       expect(mockJournalCoverService.getJournalCoverUrl).toHaveBeenCalledWith(mockSearchEntity);
     });
 
-    it('should NOT call getJournalCoverUrl when shouldEnhanceCover is false', async () => {
+    it('still delegates to getJournalCoverUrl when service returns empty cover', async () => {
       const { mockJournalCoverService } = await setup({
-        enhanceCover: false,
+        coverUrl: '',
       });
 
-      expect(mockJournalCoverService.getJournalCoverUrl).not.toHaveBeenCalled();
+      expect(mockJournalCoverService.getJournalCoverUrl).toHaveBeenCalledWith(mockSearchEntity);
     });
   });
 });
