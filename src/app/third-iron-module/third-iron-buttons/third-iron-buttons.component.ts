@@ -27,7 +27,13 @@ import { ButtonType } from 'src/app/shared/button-type.enum';
 import { EntityType } from 'src/app/shared/entity-type.enum';
 import { StackedDropdownComponent } from 'src/app/components/stacked-dropdown/stacked-dropdown.component';
 import { DebugLogService } from 'src/app/services/debug-log.service';
-import { HostComponentProxy } from 'src/app/shared/host-component-proxy';
+import { HostComponentProxy, HostComponentProxyCycleInfo } from 'src/app/shared/host-component-proxy';
+import {
+  getPrimoHostRecordKey,
+  getPrimoHostShape,
+  getPrimoViewModelMeta,
+  resolvePrimoHostRecord,
+} from 'src/app/shared/primo-host-record.utils';
 import { TranslationService } from 'src/app/services/translation.service';
 
 @Component({
@@ -57,14 +63,8 @@ export class ThirdIronButtonsComponent {
   // - record$: emits when record-id changes
   // - viewModel$: emits latest PrimoViewModel; auto-rebinds if the host swaps the observable reference
   private readonly hostProxy = new HostComponentProxy<SearchEntity, PrimoViewModel>({
-    getRecord: host => (host?.searchResult as SearchEntity) ?? (host?.item as SearchEntity) ?? null,
-    getRecordId: record =>
-      record?.pnx?.control?.recordid?.[0] ??
-      record?.pnx?.addata?.doi?.[0] ??
-      record?.pnx?.addata?.issn?.[0] ??
-      record?.pnx?.addata?.eissn?.[0] ??
-      record?.pnx?.display?.title?.[0] ??
-      null,
+    getRecord: host => resolvePrimoHostRecord(host),
+    getRecordId: record => getPrimoHostRecordKey(record),
     getViewModel$: host => (host?.viewModel$ as Observable<PrimoViewModel>) ?? null,
   });
 
@@ -79,7 +79,12 @@ export class ThirdIronButtonsComponent {
   @Input()
   set hostComponent(value: any) {
     this._hostComponent = value;
-    this.hostProxy.setHostComponent(value);
+    const cycle = this.hostProxy.setHostComponent(value);
+    this.debugLog.debug('ThirdIronButtons.hostProxy.setHostComponent', {
+      cycle,
+      hostShape: getPrimoHostShape(value),
+      hostRecord: this.debugLog.safeSearchEntityMeta(resolvePrimoHostRecord(value)),
+    });
   }
   get hostComponent(): any {
     return this._hostComponent;
@@ -140,7 +145,8 @@ export class ThirdIronButtonsComponent {
   ngDoCheck() {
     // Some hosts mutate properties in-place rather than replacing the hostComponent object.
     // doCheck() detects those changes and keeps our proxy streams up to date.
-    this.hostProxy.doCheck();
+    const cycle = this.hostProxy.doCheck();
+    this.logHostProxyCycle('doCheck', cycle, this._hostComponent);
   }
 
   ngOnDestroy() {
@@ -150,10 +156,7 @@ export class ThirdIronButtonsComponent {
   ngOnInit() {
     const hostRecord$ = this.hostProxy.record$.pipe(
       filter((record): record is SearchEntity => !!record),
-      distinctUntilChanged(
-        (a, b) =>
-          (a?.pnx?.control?.recordid?.[0] ?? null) === (b?.pnx?.control?.recordid?.[0] ?? null)
-      )
+      distinctUntilChanged((a, b) => getPrimoHostRecordKey(a) === getPrimoHostRecordKey(b))
     );
 
     // Drive displayInfo$ from a single pipeline keyed on the current host record.
@@ -163,7 +166,10 @@ export class ThirdIronButtonsComponent {
       switchMap(record => {
         this.debugLog.debug(
           'ThirdIronButtons.ngOnInit.hostRecord',
-          this.debugLog.safeSearchEntityMeta(record)
+          {
+            recordKey: getPrimoHostRecordKey(record),
+            ...this.debugLog.safeSearchEntityMeta(record),
+          }
         );
 
         const shouldEnhanceButtons = this.searchEntityService.shouldEnhanceButtons(record);
@@ -196,6 +202,12 @@ export class ThirdIronButtonsComponent {
           map(([displayInfo, viewModel, primoLinkLabels]) => {
             // Read once per emission; config may change (e.g. multicampus translations become available).
             const viewOption = this.viewOption;
+            this.debugLog.debug('ThirdIronButtons.combineLatest.emit', {
+              recordKey: getPrimoHostRecordKey(record),
+              viewModel: getPrimoViewModelMeta(viewModel),
+              hasDisplayInfo: !!displayInfo,
+              viewOption,
+            });
 
             // If the TI API / waterfall yields no TI-specific button(s), we should leave the host Primo UI
             // untouched and render nothing from this component.
@@ -270,6 +282,17 @@ export class ThirdIronButtonsComponent {
     const hasThirdIronBrowzine = !!displayInfo.showBrowzineButton && !!displayInfo.browzineUrl;
 
     return hasThirdIronMainButton || hasThirdIronSecondaryButton || hasThirdIronBrowzine;
+  }
+
+  private logHostProxyCycle(source: string, cycle: HostComponentProxyCycleInfo, host: any): void {
+    // Keep logs focused on lifecycle moments that should affect rendered state.
+    if (!cycle.recordChanged && !cycle.viewModelRebound) return;
+    this.debugLog.debug('ThirdIronButtons.hostProxy.cycle', {
+      source,
+      cycle,
+      hostShape: getPrimoHostShape(host),
+      hostRecord: this.debugLog.safeSearchEntityMeta(resolvePrimoHostRecord(host)),
+    });
   }
 
   private resetEnhancementState(): void {

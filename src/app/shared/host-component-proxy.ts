@@ -15,6 +15,16 @@ export type HostComponentProxyOptions<TRecord, TViewModel> = {
   getViewModel$(host: any): Observable<TViewModel> | null;
 };
 
+export type HostComponentProxyCycleInfo = {
+  forced: boolean;
+  recordChanged: boolean;
+  previousRecordId: string | null;
+  currentRecordId: string | null;
+  hasRecord: boolean;
+  hasViewModelRef: boolean;
+  viewModelRebound: boolean;
+};
+
 /**
  * Converts a host component with mutable fields (often mutated in-place) into stable Observables:
  * - record$: emits when record id changes
@@ -40,15 +50,17 @@ export class HostComponentProxy<TRecord, TViewModel> {
 
   constructor(private readonly opts: HostComponentProxyOptions<TRecord, TViewModel>) {}
 
-  setHostComponent(host: any): void {
+  setHostComponent(host: any): HostComponentProxyCycleInfo {
     this.host = host;
-    this.pushRecordIfChanged(true);
-    this.bindHostViewModel();
+    const recordInfo = this.pushRecordIfChanged(true);
+    const viewModelRebound = this.bindHostViewModel();
+    return this.buildCycleInfo(recordInfo, true, viewModelRebound);
   }
 
-  doCheck(): void {
-    this.pushRecordIfChanged(false);
-    this.bindHostViewModel();
+  doCheck(): HostComponentProxyCycleInfo {
+    const recordInfo = this.pushRecordIfChanged(false);
+    const viewModelRebound = this.bindHostViewModel();
+    return this.buildCycleInfo(recordInfo, false, viewModelRebound);
   }
 
   destroy(): void {
@@ -57,18 +69,32 @@ export class HostComponentProxy<TRecord, TViewModel> {
     this.lastViewModelRef = null;
   }
 
-  private pushRecordIfChanged(force: boolean): void {
+  private pushRecordIfChanged(force: boolean): {
+    recordChanged: boolean;
+    previousRecordId: string | null;
+    currentRecordId: string | null;
+    hasRecord: boolean;
+  } {
     const record = this.opts.getRecord(this.host);
     const recordId = this.opts.getRecordId(record);
+    const previousRecordId = this.lastRecordId;
+    let recordChanged = false;
     if (force || recordId !== this.lastRecordId) {
+      recordChanged = true;
       this.lastRecordId = recordId;
       this.recordSubject.next(record);
     }
+    return {
+      recordChanged,
+      previousRecordId,
+      currentRecordId: recordId,
+      hasRecord: !!record,
+    };
   }
 
-  private bindHostViewModel(): void {
+  private bindHostViewModel(): boolean {
     const vmRef = this.opts.getViewModel$(this.host);
-    if (!vmRef || vmRef === this.lastViewModelRef) return;
+    if (!vmRef || vmRef === this.lastViewModelRef) return false;
 
     this.lastViewModelRef = vmRef;
     this.viewModelSub?.unsubscribe();
@@ -79,5 +105,27 @@ export class HostComponentProxy<TRecord, TViewModel> {
       // errors are intentionally swallowed; the component can choose to log via its own DebugLogService
       error: () => {},
     });
+    return true;
+  }
+
+  private buildCycleInfo(
+    recordInfo: {
+      recordChanged: boolean;
+      previousRecordId: string | null;
+      currentRecordId: string | null;
+      hasRecord: boolean;
+    },
+    forced: boolean,
+    viewModelRebound: boolean
+  ): HostComponentProxyCycleInfo {
+    return {
+      forced,
+      recordChanged: recordInfo.recordChanged,
+      previousRecordId: recordInfo.previousRecordId,
+      currentRecordId: recordInfo.currentRecordId,
+      hasRecord: recordInfo.hasRecord,
+      hasViewModelRef: !!this.opts.getViewModel$(this.host),
+      viewModelRebound,
+    };
   }
 }

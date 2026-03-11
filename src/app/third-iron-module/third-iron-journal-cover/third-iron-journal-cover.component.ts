@@ -4,7 +4,13 @@ import { Observable, filter, switchMap, tap, shareReplay } from 'rxjs';
 import { AsyncPipe } from '@angular/common';
 import { JournalCoverService } from '../../services/journal-cover.service';
 import { SearchEntityService } from '../../services/search-entity.service';
-import { HostComponentProxy } from 'src/app/shared/host-component-proxy';
+import { HostComponentProxy, HostComponentProxyCycleInfo } from 'src/app/shared/host-component-proxy';
+import {
+  getPrimoHostRecordKey,
+  getPrimoHostShape,
+  resolvePrimoHostRecord,
+} from 'src/app/shared/primo-host-record.utils';
+import { DebugLogService } from 'src/app/services/debug-log.service';
 
 @Component({
   selector: 'custom-third-iron-journal-cover',
@@ -21,14 +27,8 @@ export class ThirdIronJournalCoverComponent {
   // so new subscribers get the latest record and we can react on record-id changes.
   private readonly hostProxy = new HostComponentProxy<SearchEntity, never>({
     // look for changes in item (journal cover section) or searchResult (article detail section)
-    getRecord: host => (host?.item as SearchEntity) ?? (host?.searchResult as SearchEntity) ?? null,
-    getRecordId: record =>
-      record?.pnx?.control?.recordid?.[0] ??
-      record?.pnx?.addata?.doi?.[0] ??
-      record?.pnx?.addata?.issn?.[0] ??
-      record?.pnx?.addata?.eissn?.[0] ??
-      record?.pnx?.display?.title?.[0] ??
-      null,
+    getRecord: host => resolvePrimoHostRecord(host),
+    getRecordId: record => getPrimoHostRecordKey(record),
     // Journal cover doesn't need a view model stream; we only proxy the current record.
     getViewModel$: () => null,
   });
@@ -44,7 +44,12 @@ export class ThirdIronJournalCoverComponent {
   @Input()
   set hostComponent(value: any) {
     this._hostComponent = value;
-    this.hostProxy.setHostComponent(value);
+    const cycle = this.hostProxy.setHostComponent(value);
+    this.debugLog.debug('ThirdIronJournalCover.hostProxy.setHostComponent', {
+      cycle,
+      hostShape: getPrimoHostShape(value),
+      hostRecord: this.debugLog.safeSearchEntityMeta(resolvePrimoHostRecord(value)),
+    });
   }
   get hostComponent(): any {
     return this._hostComponent;
@@ -55,6 +60,7 @@ export class ThirdIronJournalCoverComponent {
 
   constructor(
     private journalCoverService: JournalCoverService,
+    private debugLog: DebugLogService,
     elementRef: ElementRef
   ) {
     this.elementRef = elementRef;
@@ -63,7 +69,8 @@ export class ThirdIronJournalCoverComponent {
   ngDoCheck() {
     // Some hosts mutate properties in-place rather than replacing the hostComponent object.
     // Keep our proxied record stream up to date even if the @Input setter doesn't re-run.
-    this.hostProxy.doCheck();
+    const cycle = this.hostProxy.doCheck();
+    this.logHostProxyCycle('doCheck', cycle, this._hostComponent);
   }
 
   ngOnDestroy() {
@@ -75,6 +82,12 @@ export class ThirdIronJournalCoverComponent {
     // performs side-effects (hide default images) without extra subscriptions.
     this.journalCoverUrl$ = this.hostProxy.record$.pipe(
       filter((record): record is SearchEntity => !!record),
+      tap(record => {
+        this.debugLog.debug('ThirdIronJournalCover.hostRecord', {
+          recordKey: getPrimoHostRecordKey(record),
+          ...this.debugLog.safeSearchEntityMeta(record),
+        });
+      }),
       // Delegate all eligibility/identifier checks to JournalCoverService.
       switchMap(record => this.journalCoverService.getJournalCoverUrl(record)),
       tap(journalCoverUrl => {
@@ -84,11 +97,19 @@ export class ThirdIronJournalCoverComponent {
 
         // hide default Primo image blocks if we find a Third Iron provided image
         if (journalCoverUrl !== '') {
+          this.debugLog.debug('ThirdIronJournalCover.cover.apply', {
+            hasCover: true,
+            coverUrlPresent: !!journalCoverUrl,
+          });
           this.hidePrimoRecordImages(imageBlockParent);
           return;
         }
 
         // No cover for this record: restore Primo images if we previously hid them.
+        this.debugLog.debug('ThirdIronJournalCover.cover.apply', {
+          hasCover: false,
+          coverUrlPresent: false,
+        });
         this.restorePrimoRecordImages(imageBlockParent);
       }),
       // Ensure a single shared subscription for the async pipe and any other consumers
@@ -121,6 +142,16 @@ export class ThirdIronJournalCoverComponent {
       elem.style.display = prevDisplay ?? '';
       delete elem.dataset['tiHiddenByThirdIron'];
       delete elem.dataset['tiPrevDisplay'];
+    });
+  }
+
+  private logHostProxyCycle(source: string, cycle: HostComponentProxyCycleInfo, host: any): void {
+    if (!cycle.recordChanged && !cycle.viewModelRebound) return;
+    this.debugLog.debug('ThirdIronJournalCover.hostProxy.cycle', {
+      source,
+      cycle,
+      hostShape: getPrimoHostShape(host),
+      hostRecord: this.debugLog.safeSearchEntityMeta(resolvePrimoHostRecord(host)),
     });
   }
 }
