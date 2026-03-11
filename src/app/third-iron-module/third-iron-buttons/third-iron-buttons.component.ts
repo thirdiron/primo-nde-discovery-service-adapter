@@ -57,8 +57,14 @@ export class ThirdIronButtonsComponent {
   // - record$: emits when record-id changes
   // - viewModel$: emits latest PrimoViewModel; auto-rebinds if the host swaps the observable reference
   private readonly hostProxy = new HostComponentProxy<SearchEntity, PrimoViewModel>({
-    getRecord: host => (host?.searchResult as SearchEntity) ?? null,
-    getRecordId: record => record?.pnx?.control?.recordid?.[0] ?? null,
+    getRecord: host => (host?.searchResult as SearchEntity) ?? (host?.item as SearchEntity) ?? null,
+    getRecordId: record =>
+      record?.pnx?.control?.recordid?.[0] ??
+      record?.pnx?.addata?.doi?.[0] ??
+      record?.pnx?.addata?.issn?.[0] ??
+      record?.pnx?.addata?.eissn?.[0] ??
+      record?.pnx?.display?.title?.[0] ??
+      null,
     getViewModel$: host => (host?.viewModel$ as Observable<PrimoViewModel>) ?? null,
   });
 
@@ -166,6 +172,14 @@ export class ThirdIronButtonsComponent {
             'ThirdIronButtons.enhance.skip',
             this.debugLog.safeSearchEntityMeta(record)
           );
+          this.resetEnhancementState();
+          const restoredCount = this.restorePrimoOnlineAvailability(
+            this.elementRef.nativeElement as HTMLElement
+          );
+          this.debugLog.debug('ThirdIronButtons.restorePrimoOnlineAvailability', {
+            reason: 'shouldEnhanceButtons=false',
+            restoredCount,
+          });
           return of(null);
         }
 
@@ -188,8 +202,14 @@ export class ThirdIronButtonsComponent {
             this.hasThirdIronSourceItems = this.hasThirdIronAdditions(displayInfo);
 
             if (!this.hasThirdIronSourceItems) {
-              this.combinedLinks = [];
-              this.primoLinks = [];
+              this.resetEnhancementState();
+              const restoredCount = this.restorePrimoOnlineAvailability(
+                this.elementRef.nativeElement as HTMLElement
+              );
+              this.debugLog.debug('ThirdIronButtons.restorePrimoOnlineAvailability', {
+                reason: 'hasThirdIronSourceItems=false',
+                restoredCount,
+              });
               return displayInfo;
             }
 
@@ -252,6 +272,12 @@ export class ThirdIronButtonsComponent {
     return hasThirdIronMainButton || hasThirdIronSecondaryButton || hasThirdIronBrowzine;
   }
 
+  private resetEnhancementState(): void {
+    this.hasThirdIronSourceItems = false;
+    this.combinedLinks = [];
+    this.primoLinks = [];
+  }
+
   removePrimoOnlineAvailability = (hostElement: HTMLElement): number => {
     // This component is injected *before* the host `nde-online-availability` block.
     // Depending on the host (and `ngComponentOutlet`), our host element may be an `<ng-component>`
@@ -266,6 +292,11 @@ export class ThirdIronButtonsComponent {
       if (onlineAvailabilityElems.length > 0) {
         const arr = Array.from(onlineAvailabilityElems);
         for (const elem of arr) {
+          if (elem.dataset['tiPrevDisplay'] === undefined) {
+            // if we need to restore this element later, we will set display back to the original value
+            elem.dataset['tiPrevDisplay'] = elem.style.display ?? '';
+          }
+          elem.dataset['tiHiddenByThirdIron'] = '1';
           elem.style.display = 'none';
         }
         return arr.length;
@@ -276,6 +307,33 @@ export class ThirdIronButtonsComponent {
     this.debugLog.debug('ThirdIronButtons.removePrimoOnlineAvailability.notFound', {
       maxDepth: 12,
     });
+    return 0;
+  };
+
+  // Traverse the DOM up to 12 levels (arbitrary depth) to find the `nde-online-availability` element and restore it to its original display value.
+  // We only restore elements we previously hid (tiHiddenByThirdIron dataset is set to '1')
+  // After restoring, we delete the tiHiddenByThirdIron and tiPrevDisplay dataset attributes (cleanup).
+  restorePrimoOnlineAvailability = (hostElement: HTMLElement): number => {
+    let current: HTMLElement | null = hostElement ?? null;
+    for (let depth = 0; current && depth < 12; depth++) {
+      const onlineAvailabilityElems = current.getElementsByTagName(
+        'nde-online-availability'
+      ) as HTMLCollectionOf<HTMLElement>;
+      if (onlineAvailabilityElems.length > 0) {
+        const arr = Array.from(onlineAvailabilityElems);
+        let restored = 0;
+        for (const elem of arr) {
+          if (elem.dataset['tiHiddenByThirdIron'] !== '1') continue;
+          const prevDisplay = elem.dataset['tiPrevDisplay'];
+          elem.style.display = prevDisplay ?? '';
+          delete elem.dataset['tiHiddenByThirdIron'];
+          delete elem.dataset['tiPrevDisplay'];
+          restored++;
+        }
+        return restored;
+      }
+      current = current.parentElement;
+    }
     return 0;
   };
 }
