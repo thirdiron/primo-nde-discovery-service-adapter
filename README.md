@@ -307,6 +307,16 @@ Release Notes Generator
 
 - `RENOGEN_GITHUB_OAUTH_TOKEN` : value stored in keepass
 
+### CircleCI deployment targets
+
+The CircleCI workflow in `.circleci/config.yml` deploys build artifacts to different S3 prefixes based on branch name:
+
+- `feature/*` branches run `deploy-to-dev-test` and sync to `s3://$AWS_BUCKET/primo-nde/dev-test`
+- `develop` runs `deploy-to-staging` and syncs to `s3://$AWS_BUCKET/primo-nde/staging`
+- `main` runs `deploy-to-production` and syncs to `s3://$AWS_BUCKET/primo-nde/production`
+
+For feature-branch testing, configure your Add-on URL to point at the `dev-test` path while validating branch changes.
+
 ## Primo LibKey Add-on Architecture Sequence Diagram
 
 ```mermaid
