@@ -1,11 +1,12 @@
 import { Injectable } from '@angular/core';
 import { SearchEntity } from '../types/searchEntity.types';
-import { map, Observable, of } from 'rxjs';
+import { catchError, map, Observable, of } from 'rxjs';
 import { SearchEntityService } from './search-entity.service';
 import { EntityType } from '../shared/entity-type.enum';
 import { HttpService } from './http.service';
 import { ApiResult, ArticleData, JournalData } from '../types/tiData.types';
 import { ConfigService } from './config.service';
+import { DebugLogService } from './debug-log.service';
 
 export const DEFAULT_JOURNAL_COVER_INFO = {
   ariaLabel: '',
@@ -28,7 +29,8 @@ export class JournalCoverService {
   constructor(
     private httpService: HttpService,
     private searchEntityService: SearchEntityService,
-    private configService: ConfigService
+    private configService: ConfigService,
+    private debugLog: DebugLogService
   ) {}
 
   getJournalCoverUrl(entity: SearchEntity): Observable<string> {
@@ -47,14 +49,32 @@ export class JournalCoverService {
     if (isArticle && doi) {
       return this.httpService
         .getArticle(doi)
-        .pipe(map(res => this.transformRes(res, EntityType.Article)));
+        .pipe(
+          map(res => this.transformRes(res, EntityType.Article)),
+          catchError(err => {
+            this.debugLog.warn('JournalCover.getJournalCoverUrl.article.error', {
+              doi,
+              err: this.debugLog.safeError(err),
+            });
+            return of('');
+          })
+        );
     }
 
     // Otherwise, if an ISSN is present (journals and ISSN-only articles), use the journal endpoint.
     if (issn) {
       return this.httpService
         .getJournal(issn)
-        .pipe(map(res => this.transformRes(res, EntityType.Journal)));
+        .pipe(
+          map(res => this.transformRes(res, EntityType.Journal)),
+          catchError(err => {
+            this.debugLog.warn('JournalCover.getJournalCoverUrl.journal.error', {
+              issn,
+              err: this.debugLog.safeError(err),
+            });
+            return of('');
+          })
+        );
     }
 
     return of('');
