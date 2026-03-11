@@ -55,11 +55,11 @@ The NDE Customization package is currently available exclusively to Primo custom
 
    ![Configure new view in Alma](./readme-files/alma-view-configuration.png)
 
-### Step 2: Update the default configuration file
+### Step 2: Update the configuration file
 
 Fill in your LibKey **Library ID** and **API Key**, along with your **Unpaywall Email Address**. Update the other boolean configuration values as needed.
 
-Default configuration JSON:
+Third Iron recommended configuration JSON:
 
 ```
   {
