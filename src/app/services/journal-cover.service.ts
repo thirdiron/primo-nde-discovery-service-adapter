@@ -6,7 +6,6 @@ import { EntityType } from '../shared/entity-type.enum';
 import { HttpService } from './http.service';
 import { ApiResult, ArticleData, JournalData } from '../types/tiData.types';
 import { ConfigService } from './config.service';
-import { DebugLogService } from './debug-log.service';
 
 export const DEFAULT_JOURNAL_COVER_INFO = {
   ariaLabel: '',
@@ -29,8 +28,7 @@ export class JournalCoverService {
   constructor(
     private httpService: HttpService,
     private searchEntityService: SearchEntityService,
-    private configService: ConfigService,
-    private debugLog: DebugLogService
+    private configService: ConfigService
   ) {}
 
   getJournalCoverUrl(entity: SearchEntity): Observable<string> {
@@ -51,13 +49,7 @@ export class JournalCoverService {
         .getArticle(doi)
         .pipe(
           map(res => this.transformRes(res, EntityType.Article)),
-          catchError(err => {
-            this.debugLog.warn('JournalCover.getJournalCoverUrl.article.error', {
-              doi,
-              err: this.debugLog.safeError(err),
-            });
-            return of('');
-          })
+          catchError(() => of(''))
         );
     }
 
@@ -67,13 +59,7 @@ export class JournalCoverService {
         .getJournal(issn)
         .pipe(
           map(res => this.transformRes(res, EntityType.Journal)),
-          catchError(err => {
-            this.debugLog.warn('JournalCover.getJournalCoverUrl.journal.error', {
-              issn,
-              err: this.debugLog.safeError(err),
-            });
-            return of('');
-          })
+          catchError(() => of(''))
         );
     }
 

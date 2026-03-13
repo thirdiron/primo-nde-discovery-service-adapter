@@ -4,7 +4,7 @@ import { Observable, filter, switchMap, tap, shareReplay } from 'rxjs';
 import { AsyncPipe } from '@angular/common';
 import { JournalCoverService } from '../../services/journal-cover.service';
 import { SearchEntityService } from '../../services/search-entity.service';
-import { HostComponentProxy, HostComponentProxyCycleInfo } from 'src/app/shared/host-component-proxy';
+import { HostComponentProxy } from 'src/app/shared/host-component-proxy';
 import {
   getPrimoHostRecordKey,
   getPrimoHostShape,
@@ -69,8 +69,7 @@ export class ThirdIronJournalCoverComponent {
   ngDoCheck() {
     // Some hosts mutate properties in-place rather than replacing the hostComponent object.
     // Keep our proxied record stream up to date even if the @Input setter doesn't re-run.
-    const cycle = this.hostProxy.doCheck();
-    this.logHostProxyCycle('doCheck', cycle, this._hostComponent);
+    this.hostProxy.doCheck();
   }
 
   ngOnDestroy() {
@@ -142,16 +141,6 @@ export class ThirdIronJournalCoverComponent {
       elem.style.display = prevDisplay ?? '';
       delete elem.dataset['tiHiddenByThirdIron'];
       delete elem.dataset['tiPrevDisplay'];
-    });
-  }
-
-  private logHostProxyCycle(source: string, cycle: HostComponentProxyCycleInfo, host: any): void {
-    if (!cycle.recordChanged && !cycle.viewModelRebound) return;
-    this.debugLog.debug('ThirdIronJournalCover.hostProxy.cycle', {
-      source,
-      cycle,
-      hostShape: getPrimoHostShape(host),
-      hostRecord: this.debugLog.safeSearchEntityMeta(resolvePrimoHostRecord(host)),
     });
   }
 }
