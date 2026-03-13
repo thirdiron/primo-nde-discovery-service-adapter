@@ -81,12 +81,6 @@ export class ThirdIronJournalCoverComponent {
     // performs side-effects (hide default images) without extra subscriptions.
     this.journalCoverUrl$ = this.hostProxy.record$.pipe(
       filter((record): record is SearchEntity => !!record),
-      tap(record => {
-        this.debugLog.debug('ThirdIronJournalCover.hostRecord', {
-          recordKey: getPrimoHostRecordKey(record),
-          ...this.debugLog.safeSearchEntityMeta(record),
-        });
-      }),
       // Delegate all eligibility/identifier checks to JournalCoverService.
       switchMap(record => this.journalCoverService.getJournalCoverUrl(record)),
       tap(journalCoverUrl => {
@@ -96,19 +90,11 @@ export class ThirdIronJournalCoverComponent {
 
         // hide default Primo image blocks if we find a Third Iron provided image
         if (journalCoverUrl !== '') {
-          this.debugLog.debug('ThirdIronJournalCover.cover.apply', {
-            hasCover: true,
-            coverUrlPresent: !!journalCoverUrl,
-          });
           this.hidePrimoRecordImages(imageBlockParent);
           return;
         }
 
         // No cover for this record: restore Primo images if we previously hid them.
-        this.debugLog.debug('ThirdIronJournalCover.cover.apply', {
-          hasCover: false,
-          coverUrlPresent: false,
-        });
         this.restorePrimoRecordImages(imageBlockParent);
       }),
       // Ensure a single shared subscription for the async pipe and any other consumers
