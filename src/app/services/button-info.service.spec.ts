@@ -8,9 +8,10 @@ import { EntityType } from '../shared/entity-type.enum';
 import { ApiResult, ArticleData, JournalData } from '../types/tiData.types';
 import { DisplayWaterfallResponse } from '../types/displayWaterfallResponse.types';
 import { SearchEntity } from '../types/searchEntity.types';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, of } from 'rxjs';
 import { ButtonType } from '../shared/button-type.enum';
 import { MOCK_MODULE_PARAMETERS } from './config.service.spec';
+import { UnpaywallService } from './unpaywall.service';
 
 const authToken = 'a9c7fb8f-9758-4ff9-9dc9-fcb4cbf32724';
 const baseUrl = 'https://public-api.thirdiron.com/public/v1/libraries/222';
@@ -227,6 +228,66 @@ describe('ButtonInfoService', () => {
 
       // Finally, we can assert that no other requests were made.
       httpTesting.verify();
+    });
+
+    it('routes article 404 responses through Unpaywall fallback and resolves display info', async () => {
+      const unpaywallService = TestBed.inject(UnpaywallService);
+      const makeUnpaywallCallSpy = spyOn(unpaywallService, 'makeUnpaywallCall').and.returnValue(
+        of({
+          entityType: EntityType.Article,
+          mainButtonType: ButtonType.None,
+          mainUrl: '',
+          secondaryUrl: '',
+          showSecondaryButton: false,
+          showBrowzineButton: false,
+          browzineUrl: '',
+        })
+      );
+
+      const resultPromise = firstValueFrom(service.getDisplayInfo(articleSearchEntity));
+
+      const req = httpTesting.expectOne(`${articlePath}`, 'Request to load the article');
+      req.flush(
+        { message: 'not found' },
+        {
+          status: 404,
+          statusText: 'Not Found',
+        }
+      );
+
+      const result = await resultPromise;
+
+      expect(makeUnpaywallCallSpy).toHaveBeenCalled();
+      expect(result.entityType).toBe(EntityType.Article);
+      expect(result.mainButtonType).toBe(ButtonType.None);
+    });
+
+    it('returns a safe default display info when article pipeline errors with non-404', async () => {
+      const unpaywallService = TestBed.inject(UnpaywallService);
+      const makeUnpaywallCallSpy = spyOn(unpaywallService, 'makeUnpaywallCall').and.callThrough();
+
+      const resultPromise = firstValueFrom(service.getDisplayInfo(articleSearchEntity));
+
+      const req = httpTesting.expectOne(`${articlePath}`, 'Request to load the article');
+      req.flush(
+        { message: 'server error' },
+        {
+          status: 500,
+          statusText: 'Server Error',
+        }
+      );
+
+      const result = await resultPromise;
+
+      expect(makeUnpaywallCallSpy).not.toHaveBeenCalled();
+      expect(result).toEqual({
+        entityType: EntityType.Article,
+        mainButtonType: ButtonType.None,
+        mainUrl: '',
+        secondaryUrl: '',
+        showSecondaryButton: false,
+        showBrowzineButton: false,
+      });
     });
 
     describe('shouldMakeUnpaywallCall checks', () => {

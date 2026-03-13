@@ -72,21 +72,25 @@ export class ButtonInfoService {
               err: this.debugLog.safeError(err),
             });
 
-            // If the TI API 404s, our HttpService turns that into an error stream before we can
-            // reach the normal `response.status === 404` fallback logic. In that specific case,
-            // route directly into the Unpaywall fallback instead of failing the entire pipeline.
+            // If the TI API 404s, HttpService surfaces it as an error stream before we can
+            // run the normal fallback decision path (`shouldMakeUnpaywallCall`).
+            // Convert that error into a synthetic 404 ApiResult so the existing waterfall +
+            // Unpaywall decision logic can run in one consistent pipeline.
             if (err?.status === 404 && doi) {
-              const displayInfo404: DisplayWaterfallResponse = {
-                ...DEFAULT_DISPLAY_WATERFALL_RESPONSE,
-                entityType: EntityType.Article,
-              };
-              const fake404Response: ApiResult = { status: 404, body: { data: {} } } as any;
+              // Keep the pipeline on the ApiResult shape so downstream displayWaterfall + fallback
+              // logic can run normally and the component stream does not terminate.
+              const fake404Response: ApiResult = {
+                status: 404,
+                ok: false,
+                url: '',
+                body: { data: { doi } as any },
+              } as any;
 
               this.debugLog.info('ButtonInfo.getDisplayInfo.article.404_force_unpaywall', {
                 doi,
               });
 
-              return this.unpaywallService.makeUnpaywallCall(fake404Response, displayInfo404, doi);
+              return of(fake404Response);
             }
 
             return throwError(() => err);
@@ -120,7 +124,17 @@ export class ButtonInfoService {
                   : // no fallback, just return displayInfo from display waterfall
                     of(displayInfo);
               })()
-          )
+          ),
+          catchError(err => {
+            this.debugLog.warn('ButtonInfo.getDisplayInfo.article.pipelineError', {
+              doi,
+              err: this.debugLog.safeError(err),
+            });
+            return of({
+              ...DEFAULT_DISPLAY_WATERFALL_RESPONSE,
+              entityType: EntityType.Article,
+            });
+          })
         );
       }
       if (entityType === EntityType.Journal) {

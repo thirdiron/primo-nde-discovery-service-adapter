@@ -5,6 +5,12 @@ import { AsyncPipe } from '@angular/common';
 import { JournalCoverService } from '../../services/journal-cover.service';
 import { SearchEntityService } from '../../services/search-entity.service';
 import { HostComponentProxy } from 'src/app/shared/host-component-proxy';
+import {
+  getPrimoHostRecordKey,
+  getPrimoHostShape,
+  resolvePrimoHostRecord,
+} from 'src/app/shared/primo-host-record.utils';
+import { DebugLogService } from 'src/app/services/debug-log.service';
 
 @Component({
   selector: 'custom-third-iron-journal-cover',
@@ -20,8 +26,9 @@ export class ThirdIronJournalCoverComponent {
   // HostComponentProxy turns that mutable input into a stable `record$` stream (ReplaySubject(1)),
   // so new subscribers get the latest record and we can react on record-id changes.
   private readonly hostProxy = new HostComponentProxy<SearchEntity, never>({
-    getRecord: host => (host?.item as SearchEntity) ?? null,
-    getRecordId: record => record?.pnx?.control?.recordid?.[0] ?? null,
+    // look for changes in item (journal cover section) or searchResult (article detail section)
+    getRecord: host => resolvePrimoHostRecord(host),
+    getRecordId: record => getPrimoHostRecordKey(record),
     // Journal cover doesn't need a view model stream; we only proxy the current record.
     getViewModel$: () => null,
   });
@@ -37,7 +44,12 @@ export class ThirdIronJournalCoverComponent {
   @Input()
   set hostComponent(value: any) {
     this._hostComponent = value;
-    this.hostProxy.setHostComponent(value);
+    const cycle = this.hostProxy.setHostComponent(value);
+    this.debugLog.debug('ThirdIronJournalCover.hostProxy.setHostComponent', {
+      cycle,
+      hostShape: getPrimoHostShape(value),
+      hostRecord: this.debugLog.safeSearchEntityMeta(resolvePrimoHostRecord(value)),
+    });
   }
   get hostComponent(): any {
     return this._hostComponent;
@@ -48,6 +60,7 @@ export class ThirdIronJournalCoverComponent {
 
   constructor(
     private journalCoverService: JournalCoverService,
+    private debugLog: DebugLogService,
     elementRef: ElementRef
   ) {
     this.elementRef = elementRef;
@@ -71,24 +84,49 @@ export class ThirdIronJournalCoverComponent {
       // Delegate all eligibility/identifier checks to JournalCoverService.
       switchMap(record => this.journalCoverService.getJournalCoverUrl(record)),
       tap(journalCoverUrl => {
+        const hostElem = this.elementRef.nativeElement as HTMLElement; // this component's template element
+        // jump up to parent of <nde-record-image />
+        const imageBlockParent = hostElem.parentNode?.parentNode as HTMLElement | null;
+
         // hide default Primo image blocks if we find a Third Iron provided image
         if (journalCoverUrl !== '') {
-          const hostElem = this.elementRef.nativeElement; // this component's template element
-          const imageBlockParent = hostElem.parentNode?.parentNode; // jump up to parent of <nde-record-image />
-          const imageElements = imageBlockParent?.getElementsByTagName('nde-record-image') as
-            | HTMLCollectionOf<HTMLElement>
-            | undefined;
-          if (imageElements && imageElements.length > 0) {
-            Array.from(imageElements as HTMLCollectionOf<HTMLElement>).forEach(
-              (elem: HTMLElement) => {
-                elem.style.display = 'none';
-              }
-            );
-          }
+          this.hidePrimoRecordImages(imageBlockParent);
+          return;
         }
+
+        // No cover for this record: restore Primo images if we previously hid them.
+        this.restorePrimoRecordImages(imageBlockParent);
       }),
       // Ensure a single shared subscription for the async pipe and any other consumers
       shareReplay({ bufferSize: 1, refCount: true })
     );
+  }
+
+  private hidePrimoRecordImages(imageBlockParent: HTMLElement | null): void {
+    const imageElements = imageBlockParent?.getElementsByTagName('nde-record-image') as
+      | HTMLCollectionOf<HTMLElement>
+      | undefined;
+    if (!imageElements || imageElements.length === 0) return;
+    Array.from(imageElements as HTMLCollectionOf<HTMLElement>).forEach((elem: HTMLElement) => {
+      if (elem.dataset['tiPrevDisplay'] === undefined) {
+        elem.dataset['tiPrevDisplay'] = elem.style.display ?? '';
+      }
+      elem.dataset['tiHiddenByThirdIron'] = '1';
+      elem.style.display = 'none';
+    });
+  }
+
+  private restorePrimoRecordImages(imageBlockParent: HTMLElement | null): void {
+    const imageElements = imageBlockParent?.getElementsByTagName('nde-record-image') as
+      | HTMLCollectionOf<HTMLElement>
+      | undefined;
+    if (!imageElements || imageElements.length === 0) return;
+    Array.from(imageElements as HTMLCollectionOf<HTMLElement>).forEach((elem: HTMLElement) => {
+      if (elem.dataset['tiHiddenByThirdIron'] !== '1') return;
+      const prevDisplay = elem.dataset['tiPrevDisplay'];
+      elem.style.display = prevDisplay ?? '';
+      delete elem.dataset['tiHiddenByThirdIron'];
+      delete elem.dataset['tiPrevDisplay'];
+    });
   }
 }
