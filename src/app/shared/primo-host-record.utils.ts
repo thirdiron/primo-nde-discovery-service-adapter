@@ -10,15 +10,12 @@
  * host-record logic and avoids duplicating PNX field fallback rules.
  */
 import { SearchEntity } from '../types/searchEntity.types';
-import { PrimoViewModel } from '../types/primoViewModel.types';
 
 export const resolvePrimoHostRecord = (host: any): SearchEntity | null => {
   return (host?.searchResult as SearchEntity) ?? (host?.item as SearchEntity) ?? null;
 };
 
-export const getPrimoHostRecordKey = (
-  record: SearchEntity | null | undefined
-): string | null => {
+export const getPrimoHostRecordKey = (record: SearchEntity | null | undefined): string | null => {
   return (
     record?.pnx?.control?.recordid?.[0] ??
     record?.pnx?.addata?.doi?.[0] ??
@@ -34,15 +31,5 @@ export const getPrimoHostShape = (host: any): Record<string, unknown> => {
     hasSearchResult: !!host?.searchResult,
     hasItem: !!host?.item,
     hasViewModel$: !!host?.viewModel$,
-  };
-};
-
-export const getPrimoViewModelMeta = (
-  viewModel: PrimoViewModel | null | undefined
-): Record<string, unknown> => {
-  return {
-    directLink: viewModel?.directLink ?? null,
-    onlineLinksCount: Array.isArray(viewModel?.onlineLinks) ? viewModel.onlineLinks.length : 0,
-    hasConsolidatedCoverage: !!viewModel?.consolidatedCoverage,
   };
 };
