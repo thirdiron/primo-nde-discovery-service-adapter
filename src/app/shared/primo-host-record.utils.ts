@@ -37,6 +37,15 @@ export const getPrimoHostShape = (host: any): Record<string, unknown> => {
   };
 };
 
+/**
+ * Returns safe debug metadata for a Primo view model (directLink, onlineLinks count, etc.).
+ * For debugging: call this inside a tap or subscription where you have view model values.
+ * Example in third-iron-buttons.component.ts:
+ *   hostProxy.viewModel$.pipe(
+ *     tap(vm => this.debugLog.debug('ThirdIronButtons.viewModel', getPrimoViewModelMeta(vm)))
+ *   ).subscribe();
+ * Or pass a snapshot: this.debugLog.debug('viewModel', getPrimoViewModelMeta(currentVm));
+ */
 export const getPrimoViewModelMeta = (
   viewModel: PrimoViewModel | null | undefined
 ): Record<string, unknown> => {

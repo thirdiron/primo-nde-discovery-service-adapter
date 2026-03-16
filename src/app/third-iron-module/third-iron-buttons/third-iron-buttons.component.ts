@@ -31,7 +31,6 @@ import { HostComponentProxy } from 'src/app/shared/host-component-proxy';
 import {
   getPrimoHostRecordKey,
   getPrimoHostShape,
-  getPrimoViewModelMeta,
   resolvePrimoHostRecord,
 } from 'src/app/shared/primo-host-record.utils';
 import { TranslationService } from 'src/app/services/translation.service';
