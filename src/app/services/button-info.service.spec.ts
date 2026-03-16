@@ -230,7 +230,7 @@ describe('ButtonInfoService', () => {
       httpTesting.verify();
     });
 
-    it('routes article 404 responses through Unpaywall fallback and resolves display info', async () => {
+    it('routes Third Iron API article 404 responses through Unpaywall fallback and resolves display info', async () => {
       const unpaywallService = TestBed.inject(UnpaywallService);
       const makeUnpaywallCallSpy = spyOn(unpaywallService, 'makeUnpaywallCall').and.returnValue(
         of({
@@ -262,7 +262,7 @@ describe('ButtonInfoService', () => {
       expect(result.mainButtonType).toBe(ButtonType.None);
     });
 
-    it('returns a safe default display info when article pipeline errors with non-404', async () => {
+    it('returns a consistent display info object shape when article pipeline errors with non-404', async () => {
       const unpaywallService = TestBed.inject(UnpaywallService);
       const makeUnpaywallCallSpy = spyOn(unpaywallService, 'makeUnpaywallCall').and.callThrough();
 
