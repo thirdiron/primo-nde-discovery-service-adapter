@@ -116,12 +116,12 @@
 }
 
 /* Override nde-overrides (host) outline on our stacked-dropdown panel.
-   Host applies outline: 1px to .mat-mdc-option:focus and .mat-mdc-option-active.
-   We need higher specificity; when inside .nde-overrides, the .nde-overrides prefix wins. */
-.cdk-overlay-container .ti-stacked-dropdown-panel .mat-mdc-option.mat-mdc-option-active.mdc-list-item,
-.cdk-overlay-container .ti-stacked-dropdown-panel .mat-mdc-option:focus.mdc-list-item,
-.nde-overrides .cdk-overlay-container .ti-stacked-dropdown-panel .mat-mdc-option.mat-mdc-option-active.mdc-list-item,
-.nde-overrides .cdk-overlay-container .ti-stacked-dropdown-panel .mat-mdc-option:focus.mdc-list-item {
+   Only when NOT in keyboard mode (:not(.ti-select-keyboard-nav)) so we don't override
+   the keyboard focus outline. */
+.cdk-overlay-container .ti-stacked-dropdown-panel:not(.ti-select-keyboard-nav) .mat-mdc-option.mat-mdc-option-active.mdc-list-item,
+.cdk-overlay-container .ti-stacked-dropdown-panel:not(.ti-select-keyboard-nav) .mat-mdc-option:focus.mdc-list-item,
+.nde-overrides .cdk-overlay-container .ti-stacked-dropdown-panel:not(.ti-select-keyboard-nav) .mat-mdc-option.mat-mdc-option-active.mdc-list-item,
+.nde-overrides .cdk-overlay-container .ti-stacked-dropdown-panel:not(.ti-select-keyboard-nav) .mat-mdc-option:focus.mdc-list-item {
   outline: none !important;
 }
 
@@ -227,10 +227,9 @@
       background-color: inherit;
     }
 
-    /* Override nde-overrides (or similar host styles) that apply outline to .mat-mdc-option-active.
-       Our panel uses .ti-stacked-dropdown-panel; when opened via mouse we suppress the outline. */
-    .ti-stacked-dropdown-panel .mat-mdc-option.mat-mdc-option-active.mdc-list-item,
-    &.ti-stacked-dropdown-panel .mat-mdc-option.mat-mdc-option-active.mdc-list-item {
+    /* Override nde-overrides when NOT in keyboard mode; avoid overriding the keyboard outline. */
+    .ti-stacked-dropdown-panel:not(.ti-select-keyboard-nav) .mat-mdc-option.mat-mdc-option-active.mdc-list-item,
+    &.ti-stacked-dropdown-panel:not(.ti-select-keyboard-nav) .mat-mdc-option.mat-mdc-option-active.mdc-list-item {
       outline: none !important;
     }
 
@@ -274,10 +273,8 @@
     }
   }
 
-  /* Stacked dropdown overrides: nde-overrides applies outline to .mat-mdc-option-active.
-     These rules run at overlay-container level so they match whether panelClass is on the
-     pane or the panel. We suppress outline for mouse, add 2px for keyboard. */
-  .ti-stacked-dropdown-panel .mat-mdc-option.mat-mdc-option-active.mdc-list-item {
+  /* Stacked dropdown: suppress nde-overrides outline only when NOT in keyboard mode. */
+  .ti-stacked-dropdown-panel:not(.ti-select-keyboard-nav) .mat-mdc-option.mat-mdc-option-active.mdc-list-item {
     outline: none !important;
   }
   .ti-stacked-dropdown-panel.ti-select-keyboard-nav .mat-mdc-option.mat-mdc-option-active.mdc-list-item {
