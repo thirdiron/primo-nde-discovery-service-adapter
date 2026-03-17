@@ -115,6 +115,27 @@
   }
 }
 
+/* Override nde-overrides (host) outline on our stacked-dropdown panel.
+   Host applies outline: 1px to .mat-mdc-option:focus and .mat-mdc-option-active.
+   We need higher specificity; when inside .nde-overrides, the .nde-overrides prefix wins. */
+.cdk-overlay-container .ti-stacked-dropdown-panel .mat-mdc-option.mat-mdc-option-active.mdc-list-item,
+.cdk-overlay-container .ti-stacked-dropdown-panel .mat-mdc-option:focus.mdc-list-item,
+.nde-overrides .cdk-overlay-container .ti-stacked-dropdown-panel .mat-mdc-option.mat-mdc-option-active.mdc-list-item,
+.nde-overrides .cdk-overlay-container .ti-stacked-dropdown-panel .mat-mdc-option:focus.mdc-list-item {
+  outline: none !important;
+}
+
+.cdk-overlay-container .ti-stacked-dropdown-panel.ti-select-keyboard-nav .mat-mdc-option.mat-mdc-option-active.mdc-list-item,
+.cdk-overlay-container .ti-stacked-dropdown-panel.ti-select-keyboard-nav .mat-mdc-option:focus.mdc-list-item,
+.nde-overrides .cdk-overlay-container .ti-stacked-dropdown-panel.ti-select-keyboard-nav .mat-mdc-option.mat-mdc-option-active.mdc-list-item,
+.nde-overrides .cdk-overlay-container .ti-stacked-dropdown-panel.ti-select-keyboard-nav .mat-mdc-option:focus.mdc-list-item {
+  outline: 2px solid black !important;
+  background-color: var(
+    --mat-menu-item-hover-state-layer-color,
+    rgba(0, 0, 0, 0.04)
+  ) !important;
+}
+
 .cdk-overlay-container {
   div.mat-mdc-select-panel {
     min-width: 112px;
@@ -206,10 +227,18 @@
       background-color: inherit;
     }
 
-    /* Keyboard only: outline + background on active option. When opened via mouse,
-       .ti-select-keyboard-nav is not applied, so we avoid the odd "first item always
-       active" look. Mouse users get shading via :hover only. */
-    .ti-select-keyboard-nav .mat-mdc-option.mat-mdc-option-active.mdc-list-item {
+    /* Override nde-overrides (or similar host styles) that apply outline to .mat-mdc-option-active.
+       Our panel uses .ti-stacked-dropdown-panel; when opened via mouse we suppress the outline. */
+    .ti-stacked-dropdown-panel .mat-mdc-option.mat-mdc-option-active.mdc-list-item,
+    &.ti-stacked-dropdown-panel .mat-mdc-option.mat-mdc-option-active.mdc-list-item {
+      outline: none !important;
+    }
+
+    /* Keyboard only: add border + background when panel has .ti-select-keyboard-nav.
+       When opened via mouse, that class is not applied, so we avoid the odd "first item
+       always active" look. Mouse users get shading via :hover only. */
+    .ti-stacked-dropdown-panel.ti-select-keyboard-nav .mat-mdc-option.mat-mdc-option-active.mdc-list-item,
+    &.ti-stacked-dropdown-panel.ti-select-keyboard-nav .mat-mdc-option.mat-mdc-option-active.mdc-list-item {
       background-color: var(
         --mat-menu-item-hover-state-layer-color,
         rgba(0, 0, 0, 0.04)
@@ -243,5 +272,19 @@
         rgba(0, 0, 0, 0.04)
       ) !important;
     }
+  }
+
+  /* Stacked dropdown overrides: nde-overrides applies outline to .mat-mdc-option-active.
+     These rules run at overlay-container level so they match whether panelClass is on the
+     pane or the panel. We suppress outline for mouse, add 2px for keyboard. */
+  .ti-stacked-dropdown-panel .mat-mdc-option.mat-mdc-option-active.mdc-list-item {
+    outline: none !important;
+  }
+  .ti-stacked-dropdown-panel.ti-select-keyboard-nav .mat-mdc-option.mat-mdc-option-active.mdc-list-item {
+    outline: 2px solid black !important;
+    background-color: var(
+      --mat-menu-item-hover-state-layer-color,
+      rgba(0, 0, 0, 0.04)
+    ) !important;
   }
 }
