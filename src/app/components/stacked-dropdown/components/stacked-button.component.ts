@@ -28,7 +28,9 @@ export class StackedButtonComponent {
   constructor(private navigationService: NavigationService) {}
 
   openLink() {
-    if (this.link() && this.link().url) {
+    // When in dropdown, the parent stacked-dropdown handles navigation via selectionChange
+    // (both click and Enter key) to avoid double navigation.
+    if (this.stackType() === 'main' && this.link()?.url) {
       this.navigationService.openUrl(this.link().url);
     }
   }

@@ -206,8 +206,15 @@
       background-color: inherit;
     }
 
+    /* Keyboard navigation: mat-select uses aria-activedescendant, so options don't get
+       DOM focus. The active option gets .mat-mdc-option-active. Style it so keyboard
+       users see which option is focused. */
     .mat-mdc-option.mat-mdc-option-active.mdc-list-item {
-      outline: none;
+      background-color: var(
+        --mat-menu-item-hover-state-layer-color,
+        rgba(0, 0, 0, 0.04)
+      ) !important;
+      outline: 2px solid black !important;
     }
 
     .mat-mdc-option:focus-visible {

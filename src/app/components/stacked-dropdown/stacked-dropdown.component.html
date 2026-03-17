@@ -31,7 +31,12 @@
 
   @if (links().length > 1) {
     <span class="ti-dropdown">
-      <mat-select hideSingleSelectionIndicator panelWidth="'auto'" class="ti-dropdown-toggle">
+      <mat-select
+        hideSingleSelectionIndicator
+        panelWidth="'auto'"
+        class="ti-dropdown-toggle"
+        (selectionChange)="onOptionSelected($event)"
+      >
         <mat-select-trigger class="mat-mdc-select-trigger">
           <span class="mat-mdc-select-min-line"></span>
         </mat-select-trigger>
