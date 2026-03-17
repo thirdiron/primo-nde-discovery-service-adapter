@@ -32,6 +32,17 @@ export class StackedDropdownComponent {
 
   constructor(private navigationService: NavigationService) {}
 
+  onPanelOpened(opened: boolean): void {
+    if (!opened) return;
+    // queueMicrotask schedules a callback to run after the current task, before the next paint.
+    // We use it so the panel is in the DOM and focus state is settled before we check them.
+    queueMicrotask(() => {
+      const isKeyboard = document.activeElement?.matches?.(':focus-visible') ?? false;
+      const panel = document.querySelector('.ti-stacked-dropdown-panel');
+      panel?.classList.toggle('ti-select-keyboard-nav', isKeyboard);
+    });
+  }
+
   onOptionSelected(event: MatSelectChange): void {
     const link = event.value as StackLink;
     if (link?.url) {

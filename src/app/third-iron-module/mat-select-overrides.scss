@@ -206,10 +206,10 @@
       background-color: inherit;
     }
 
-    /* Keyboard navigation: mat-select uses aria-activedescendant, so options don't get
-       DOM focus. The active option gets .mat-mdc-option-active. Style it so keyboard
-       users see which option is focused. */
-    .mat-mdc-option.mat-mdc-option-active.mdc-list-item {
+    /* Keyboard only: outline + background on active option. When opened via mouse,
+       .ti-select-keyboard-nav is not applied, so we avoid the odd "first item always
+       active" look. Mouse users get shading via :hover only. */
+    .ti-select-keyboard-nav .mat-mdc-option.mat-mdc-option-active.mdc-list-item {
       background-color: var(
         --mat-menu-item-hover-state-layer-color,
         rgba(0, 0, 0, 0.04)

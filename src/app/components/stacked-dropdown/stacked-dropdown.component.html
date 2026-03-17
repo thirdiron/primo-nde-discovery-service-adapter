@@ -34,7 +34,9 @@
       <mat-select
         hideSingleSelectionIndicator
         panelWidth="'auto'"
+        panelClass="ti-stacked-dropdown-panel"
         class="ti-dropdown-toggle"
+        (openedChange)="onPanelOpened($event)"
         (selectionChange)="onOptionSelected($event)"
       >
         <mat-select-trigger class="mat-mdc-select-trigger">
