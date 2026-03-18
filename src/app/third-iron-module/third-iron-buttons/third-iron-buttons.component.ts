@@ -21,7 +21,6 @@ import { ArticleLinkButtonComponent } from 'src/app/components/article-link-butt
 import { MainButtonComponent } from 'src/app/components/main-button/main-button.component';
 import { StackLink, PrimoViewModel } from 'src/app/types/primoViewModel.types';
 import { MatIconModule } from '@angular/material/icon';
-import { MatSelectModule } from '@angular/material/select';
 import { ViewOptionType } from 'src/app/shared/view-option.enum';
 import { ButtonType } from 'src/app/shared/button-type.enum';
 import { EntityType } from 'src/app/shared/entity-type.enum';
@@ -45,13 +44,9 @@ import { TranslationService } from 'src/app/services/translation.service';
     AsyncPipe,
     StackedDropdownComponent,
     MatIconModule,
-    MatSelectModule,
   ],
   templateUrl: './third-iron-buttons.component.html',
-  styleUrls: [
-    './third-iron-buttons.component.scss',
-    '../../components/stacked-dropdown/stacked-dropdown.component.scss',
-  ],
+  styleUrls: ['./third-iron-buttons.component.scss'],
   providers: [SearchEntityService],
   encapsulation: ViewEncapsulation.None,
 })

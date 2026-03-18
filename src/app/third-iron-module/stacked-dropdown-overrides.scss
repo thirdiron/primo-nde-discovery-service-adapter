@@ -116,7 +116,7 @@
   }
 }
 
-/* Mat-menu version of stacked dropdown options. Keep it visually aligned with the old mat-select list.
+/* Mat-menu stacked dropdown options. Consistent spacing and focus styling for list items.
    Use selectors that don't rely on .cdk-overlay-container or .ti-stacked-dropdown-panel so they work
    when the menu is portaled into a different document/container (e.g. NDE host). */
 .mat-mdc-menu-panel .mat-mdc-menu-panel.ti-stacked-dropdown-panel {
@@ -129,35 +129,8 @@
   }
 }
 
-// .mat-mdc-menu-item.ti-dropdown-option-button {
-//   display: flex;
-//   align-items: center;
-//   width: 100%;
-//   min-height: 48px;
-//   padding-inline-start: var(--mat-menu-item-leading-spacing, 12px);
-//   padding-inline-end: var(--mat-menu-item-trailing-spacing, 12px);
-//   color: var(--sys-primary);
-//   font-size: 14px;
-//   font-weight: 500;
-
-//   .mdc-button__label {
-//     display: flex;
-//     align-items: center;
-//     justify-content: flex-start;
-//     gap: 8px;
-//   }
-// }
-
 /* Nested buttons (stacked-button, etc.) render in overlay; override Material primary theme. */
 .mat-mdc-menu-item.ti-dropdown-option-button .mat-mdc-unelevated-button.ti-dropdown-option-button {
-  // margin: 0;
-  // padding: 0;
-  // min-height: 0;
-  // border: none;
-  // box-shadow: none;
-  // justify-content: flex-start;
-  // background-color: transparent !important;
-
   display: flex;
   align-items: center;
   justify-content: flex-start;
@@ -177,11 +150,3 @@
     gap: 8px;
   }
 }
-
-// .mat-mdc-menu-item.ti-dropdown-option-button:hover,
-// .mat-mdc-menu-item.ti-dropdown-option-button.cdk-focused,
-// .mat-mdc-menu-item.ti-dropdown-option-button.cdk-program-focused {
-//   outline: 2px solid black;
-//   outline-offset: -2px;
-//   background-color: var(--mat-menu-item-hover-state-layer-color, rgba(0, 0, 0, 0.04));
-// }
