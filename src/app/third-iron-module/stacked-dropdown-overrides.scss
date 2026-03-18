@@ -160,6 +160,7 @@
 
   display: flex;
   align-items: center;
+  justify-content: flex-start;
   width: 100%;
   min-height: 48px;
   padding-inline-start: var(--mat-menu-item-leading-spacing, 12px);
@@ -167,6 +168,7 @@
   color: var(--sys-primary);
   font-size: 14px;
   font-weight: 500;
+  background-color: transparent;
 
   .mdc-button__label {
     display: flex;
