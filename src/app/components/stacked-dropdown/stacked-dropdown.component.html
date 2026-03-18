@@ -54,6 +54,7 @@
             class="ti-dropdown-option-button"
             [attr.aria-label]="link.ariaLabel || link.label || ''"
             (click)="onMenuItemClick(link)"
+            (keydown)="onMenuItemKeydown($event, link)"
           >
             @if (link.source === 'thirdIron') {
               @if (link.showSecondaryButton && link.url) {

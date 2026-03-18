@@ -16,8 +16,8 @@ import { NavigationService } from '../../../services/navigation.service';
     SvgIconComponent,
   ],
   templateUrl: './stacked-button.component.html',
-  styleUrls: ['../../../third-iron-module/mat-select-overrides.scss'],
-  encapsulation: ViewEncapsulation.None, // override styles are loaded globally from third-iron-module/mat-select-overrides.scss
+  styleUrls: ['../../../third-iron-module/stacked-dropdown-overrides.scss'],
+  encapsulation: ViewEncapsulation.None, // override styles are loaded globally from third-iron-module/stacked-dropdown-overrides.scss
 })
 export class StackedButtonComponent {
   link = input.required<StackLink>();
@@ -26,8 +26,8 @@ export class StackedButtonComponent {
   constructor(private navigationService: NavigationService) {}
 
   openLink() {
-    // When in dropdown, the parent stacked-dropdown handles navigation via selectionChange
-    // (both click and Enter key) to avoid double navigation.
+    // When in dropdown, parent stacked-dropdown handles navigation from menu item click/keyboard
+    // to avoid double navigation from nested buttons.
     if (this.stackType() === 'main' && this.link()?.url) {
       this.navigationService.openUrl(this.link().url);
     }

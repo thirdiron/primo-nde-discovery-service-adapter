@@ -22,8 +22,8 @@ import { BrowzineButtonComponent } from '../browzine-button/browzine-button.comp
     BrowzineButtonComponent,
   ],
   templateUrl: './stacked-dropdown.component.html',
-  styleUrls: ['../../third-iron-module/mat-select-overrides.scss'],
-  encapsulation: ViewEncapsulation.None, // override styles are loaded globally from third-iron-module/mat-select-overrides.scss
+  styleUrls: ['../../third-iron-module/stacked-dropdown-overrides.scss'],
+  encapsulation: ViewEncapsulation.None, // override styles are loaded globally from third-iron-module/stacked-dropdown-overrides.scss
 })
 export class StackedDropdownComponent {
   ButtonType = ButtonType;
@@ -35,6 +35,13 @@ export class StackedDropdownComponent {
   onMenuItemClick(link: StackLink): void {
     if (link?.url) {
       this.navigationService.openUrl(link.url);
+    }
+  }
+
+  onMenuItemKeydown(event: KeyboardEvent, link: StackLink): void {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      this.onMenuItemClick(link);
     }
   }
 

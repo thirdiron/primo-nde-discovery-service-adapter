@@ -4,7 +4,7 @@ import { MatIconModule } from '@angular/material/icon';
 /**
  * This icon is used to recreate Primo's 'stack' dropdown buttons
  * The styles for this icon are a combination of the default mat-icon styles
- * and custom overrides held in the global mat-select-overrides.scss file
+ * and custom overrides held in the global stacked-dropdown-overrides.scss file
  */
 @Component({
   selector: 'primo-pdf-icon',
