@@ -83,15 +83,20 @@
       border: 1px solid var(--sys-primary);
       background: #fff;
       color: var(--sys-primary);
-      padding: 0 13em;
+      min-width: 32px;
+      width: 32px;
+      padding: 0;
       /* Use logical properties so this works in both LTR and RTL */
       border-start-start-radius: 0;
       border-end-start-radius: 0;
       border-start-end-radius: 6px;
       border-end-end-radius: 6px;
       cursor: pointer;
-      font-size: 1px;
+      font-size: 12px;
       height: 32px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
 
       .mat-mdc-select-arrow {
         color: var(--sys-primary);
@@ -99,9 +104,6 @@
         transform: scale(0.95);
       }
 
-      .dropdown-toggle-icon {
-        --mdc-icon-button-icon-size: 0.75rem;
-      }
     }
 
     .ti-dropdown-toggle:focus-visible {
@@ -113,6 +115,22 @@
       background-color: var(--mat-menu-item-hover-state-layer-color, rgba(0, 0, 0, 0.04));
     }
   }
+}
+
+.cdk-overlay-container .ti-stacked-dropdown-panel .mat-mdc-menu-item.ti-dropdown-option-button {
+  color: var(--sys-primary);
+  font-size: 14px;
+  font-weight: 500;
+  min-height: 48px;
+}
+
+.cdk-overlay-container .ti-stacked-dropdown-panel .mat-mdc-menu-item.ti-dropdown-option-button.cdk-focused,
+.cdk-overlay-container
+  .ti-stacked-dropdown-panel
+  .mat-mdc-menu-item.ti-dropdown-option-button.cdk-program-focused {
+  outline: 2px solid black;
+  outline-offset: -2px;
+  background-color: var(--mat-menu-item-hover-state-layer-color, rgba(0, 0, 0, 0.04));
 }
 
 .cdk-overlay-container {

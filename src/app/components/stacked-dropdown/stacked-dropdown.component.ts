@@ -1,6 +1,6 @@
 import { Component, input, ViewEncapsulation } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
-import { MatSelectChange, MatSelectModule } from '@angular/material/select';
+import { MatMenuModule } from '@angular/material/menu';
 import { StackLink } from 'src/app/types/primoViewModel.types';
 import { NavigationService } from '../../services/navigation.service';
 import { EntityType } from 'src/app/shared/entity-type.enum';
@@ -15,7 +15,7 @@ import { BrowzineButtonComponent } from '../browzine-button/browzine-button.comp
   standalone: true,
   imports: [
     MatButtonModule,
-    MatSelectModule,
+    MatMenuModule,
     StackedButtonComponent,
     MainButtonComponent,
     ArticleLinkButtonComponent,
@@ -32,19 +32,7 @@ export class StackedDropdownComponent {
 
   constructor(private navigationService: NavigationService) {}
 
-  onPanelOpened(opened: boolean): void {
-    if (!opened) return;
-    // queueMicrotask schedules a callback to run after the current task, before the next paint.
-    // We use it so the panel is in the DOM and focus state is settled before we check them.
-    queueMicrotask(() => {
-      const isKeyboard = document.activeElement?.matches?.(':focus-visible') ?? false;
-      const panel = document.querySelector('.ti-stacked-dropdown-panel');
-      panel?.classList.toggle('ti-select-keyboard-nav', isKeyboard);
-    });
-  }
-
-  onOptionSelected(event: MatSelectChange): void {
-    const link = event.value as StackLink;
+  onMenuItemClick(link: StackLink): void {
     if (link?.url) {
       this.navigationService.openUrl(link.url);
     }

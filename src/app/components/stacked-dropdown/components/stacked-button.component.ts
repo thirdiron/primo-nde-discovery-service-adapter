@@ -1,6 +1,5 @@
 import { Component, input, ViewEncapsulation } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
-import { MatSelectModule } from '@angular/material/select';
 import { StackLink } from 'src/app/types/primoViewModel.types';
 import { PrimoPdfIconComponent } from '../../icons/primo-pdf-icon.component';
 import { PrimoHtmlIconComponent } from '../../icons/primo-html-icon.component';
@@ -12,7 +11,6 @@ import { NavigationService } from '../../../services/navigation.service';
   standalone: true,
   imports: [
     MatButtonModule,
-    MatSelectModule,
     PrimoPdfIconComponent,
     PrimoHtmlIconComponent,
     SvgIconComponent,

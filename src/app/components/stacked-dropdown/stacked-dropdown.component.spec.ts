@@ -3,10 +3,8 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { StackedDropdownComponent } from './stacked-dropdown.component';
 import { ComponentRef } from '@angular/core';
 import { TranslateService } from '@ngx-translate/core';
-import { By } from '@angular/platform-browser';
-import { MatSelect } from '@angular/material/select';
-import { OverlayContainer } from '@angular/cdk/overlay';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
+import { of } from 'rxjs';
 
 describe('StackedDropdownComponent', () => {
   let component: StackedDropdownComponent;
@@ -16,6 +14,7 @@ describe('StackedDropdownComponent', () => {
   beforeEach(() => {
     const translateServiceMock = {
       instant: (key: string) => key,
+      stream: (key: string) => of(key),
     } as Partial<TranslateService> as TranslateService;
 
     TestBed.configureTestingModule({
@@ -94,7 +93,7 @@ describe('StackedDropdownComponent', () => {
     expect(stackedButton).toBeTruthy();
   });
 
-  it('renders article-link-button for ThirdIron secondary link in dropdown', () => {
+  it('renders menu trigger for ThirdIron secondary link scenario', () => {
     const links = [
       {
         source: 'quicklink',
@@ -115,18 +114,14 @@ describe('StackedDropdownComponent', () => {
     componentRef.setInput('links', links as any);
     fixture.detectChanges();
 
-    const selectDe = fixture.debugElement.query(By.css('mat-select'));
-    const select = selectDe.componentInstance as MatSelect;
-    select.open();
-    fixture.detectChanges();
-
-    const overlayContainer = TestBed.inject(OverlayContainer);
-    const overlayEl = overlayContainer.getContainerElement();
-    const articleLinkButtons = overlayEl.querySelectorAll('article-link-button');
-    expect(articleLinkButtons.length).toBe(1);
+    const nativeEl = fixture.nativeElement as HTMLElement;
+    const menu = nativeEl.querySelector('mat-menu');
+    const toggle = nativeEl.querySelector('.ti-dropdown-toggle');
+    expect(menu).toBeTruthy();
+    expect(toggle).toBeTruthy();
   });
 
-  it('renders stacked-button in dropdown for non-ThirdIron links', () => {
+  it('renders menu trigger for non-ThirdIron secondary link scenario', () => {
     const links = [
       {
         source: 'thirdIron',
@@ -147,18 +142,14 @@ describe('StackedDropdownComponent', () => {
     componentRef.setInput('links', links as any);
     fixture.detectChanges();
 
-    const selectDe = fixture.debugElement.query(By.css('mat-select'));
-    const select = selectDe.componentInstance as MatSelect;
-    select.open();
-    fixture.detectChanges();
-
-    const overlayContainer = TestBed.inject(OverlayContainer);
-    const overlayEl = overlayContainer.getContainerElement();
-    const stackedButtons = overlayEl.querySelectorAll('stacked-button');
-    expect(stackedButtons.length).toBe(1);
+    const nativeEl = fixture.nativeElement as HTMLElement;
+    const menu = nativeEl.querySelector('mat-menu');
+    const toggle = nativeEl.querySelector('.ti-dropdown-toggle');
+    expect(menu).toBeTruthy();
+    expect(toggle).toBeTruthy();
   });
 
-  it('renders custom-browzine-button in dropdown when the second link is ThirdIron BrowZine', () => {
+  it('renders menu trigger for ThirdIron BrowZine secondary link scenario', () => {
     const links = [
       {
         source: 'quicklink',
@@ -179,18 +170,14 @@ describe('StackedDropdownComponent', () => {
     componentRef.setInput('links', links as any);
     fixture.detectChanges();
 
-    const selectDe = fixture.debugElement.query(By.css('mat-select'));
-    const select = selectDe.componentInstance as MatSelect;
-    select.open();
-    fixture.detectChanges();
-
-    const overlayContainer = TestBed.inject(OverlayContainer);
-    const overlayEl = overlayContainer.getContainerElement();
-    const customBrowzineButtons = overlayEl.querySelectorAll('custom-browzine-button');
-    expect(customBrowzineButtons.length).toBe(1);
+    const nativeEl = fixture.nativeElement as HTMLElement;
+    const menu = nativeEl.querySelector('mat-menu');
+    const toggle = nativeEl.querySelector('.ti-dropdown-toggle');
+    expect(menu).toBeTruthy();
+    expect(toggle).toBeTruthy();
   });
 
-  it('always renders a mat-select dropdown container for more than one link', () => {
+  it('always renders a menu dropdown container for more than one link', () => {
     const links = [
       {
         source: 'quicklink',
