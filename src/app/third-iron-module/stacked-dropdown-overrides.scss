@@ -116,61 +116,52 @@
   }
 }
 
-/* Mat-menu version of stacked dropdown options. Keep it visually aligned with the old mat-select list. */
-.cdk-overlay-container .mat-mdc-menu-panel.ti-stacked-dropdown-panel {
+/* Mat-menu version of stacked dropdown options. Keep it visually aligned with the old mat-select list.
+   Use selectors that don't rely on .cdk-overlay-container or .ti-stacked-dropdown-panel so they work
+   when the menu is portaled into a different document/container (e.g. NDE host). */
+.mat-mdc-menu-panel.ti-stacked-dropdown-panel {
   min-width: 112px;
   max-width: 280px;
-}
 
-.cdk-overlay-container .ti-stacked-dropdown-panel .mat-mdc-menu-content {
-  padding-top: 0;
-  padding-bottom: 0;
-}
+  .mat-mdc-menu-content {
+    padding-top: 0;
+    padding-bottom: 0;
+  }
 
-.cdk-overlay-container .ti-stacked-dropdown-panel .mat-mdc-menu-item.ti-dropdown-option-button {
-  display: flex;
-  align-items: center;
-  width: 100%;
-  min-height: 48px;
-  padding-inline-start: var(--mat-menu-item-leading-spacing, 12px);
-  padding-inline-end: var(--mat-menu-item-trailing-spacing, 12px);
-  color: var(--sys-primary);
-  font-size: 14px;
-  font-weight: 500;
-}
+  .mat-mdc-menu-item.ti-dropdown-option-button {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    min-height: 48px;
+    padding-inline-start: var(--mat-menu-item-leading-spacing, 12px);
+    padding-inline-end: var(--mat-menu-item-trailing-spacing, 12px);
+    color: var(--sys-primary);
+    font-size: 14px;
+    font-weight: 500;
+  }
 
-/* Child stack button components render their own button; flatten them so the menu row owns spacing/background.
-   These buttons render in the overlay (outside .dropdown-group), so we must explicitly override Material's
-   .mat-mdc-unelevated-button primary theme styles here. */
-.cdk-overlay-container
-  .ti-stacked-dropdown-panel
-  .mat-mdc-menu-item.ti-dropdown-option-button
-  .mat-mdc-unelevated-button.ti-dropdown-option-button {
-  width: 100%;
-  margin: 0;
-  padding: 0;
-  min-height: 0;
-  border: none;
-  background-color: transparent !important;
-  box-shadow: none;
-  justify-content: flex-start;
-  color: var(--sys-primary) !important;
-}
+  /* Nested buttons (stacked-button, etc.) render in overlay; override Material primary theme. */
+  .mat-mdc-menu-item.ti-dropdown-option-button .mat-mdc-unelevated-button.ti-dropdown-option-button {
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    min-height: 0;
+    border: none;
+    background-color: transparent !important;
+    box-shadow: none;
+    justify-content: flex-start;
+    color: var(--sys-primary) !important;
 
-.cdk-overlay-container
-  .ti-stacked-dropdown-panel
-  .mat-mdc-menu-item.ti-dropdown-option-button
-  .ti-dropdown-option-button
-  .mdc-button__label {
-  justify-content: flex-start;
-}
+    .mdc-button__label {
+      justify-content: flex-start;
+    }
+  }
 
-.cdk-overlay-container .ti-stacked-dropdown-panel .mat-mdc-menu-item.ti-dropdown-option-button:hover,
-.cdk-overlay-container .ti-stacked-dropdown-panel .mat-mdc-menu-item.ti-dropdown-option-button.cdk-focused,
-.cdk-overlay-container
-  .ti-stacked-dropdown-panel
+  .mat-mdc-menu-item.ti-dropdown-option-button:hover,
+  .mat-mdc-menu-item.ti-dropdown-option-button.cdk-focused,
   .mat-mdc-menu-item.ti-dropdown-option-button.cdk-program-focused {
-  outline: 2px solid black;
-  outline-offset: -2px;
-  background-color: var(--mat-menu-item-hover-state-layer-color, rgba(0, 0, 0, 0.04));
+    outline: 2px solid black;
+    outline-offset: -2px;
+    background-color: var(--mat-menu-item-hover-state-layer-color, rgba(0, 0, 0, 0.04));
+  }
 }
