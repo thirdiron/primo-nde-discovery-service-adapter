@@ -127,41 +127,41 @@
     padding-top: 0;
     padding-bottom: 0;
   }
+}
 
-  .mat-mdc-menu-item.ti-dropdown-option-button {
-    display: flex;
-    align-items: center;
-    width: 100%;
-    min-height: 48px;
-    padding-inline-start: var(--mat-menu-item-leading-spacing, 12px);
-    padding-inline-end: var(--mat-menu-item-trailing-spacing, 12px);
-    color: var(--sys-primary);
-    font-size: 14px;
-    font-weight: 500;
-  }
+.mat-mdc-menu-item.ti-dropdown-option-button {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 48px;
+  padding-inline-start: var(--mat-menu-item-leading-spacing, 12px);
+  padding-inline-end: var(--mat-menu-item-trailing-spacing, 12px);
+  color: var(--sys-primary);
+  font-size: 14px;
+  font-weight: 500;
+}
 
-  /* Nested buttons (stacked-button, etc.) render in overlay; override Material primary theme. */
-  .mat-mdc-menu-item.ti-dropdown-option-button .mat-mdc-unelevated-button.ti-dropdown-option-button {
-    width: 100%;
-    margin: 0;
-    padding: 0;
-    min-height: 0;
-    border: none;
-    background-color: transparent !important;
-    box-shadow: none;
+/* Nested buttons (stacked-button, etc.) render in overlay; override Material primary theme. */
+.mat-mdc-menu-item.ti-dropdown-option-button .mat-mdc-unelevated-button.ti-dropdown-option-button {
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  min-height: 0;
+  border: none;
+  background-color: transparent !important;
+  box-shadow: none;
+  justify-content: flex-start;
+  color: var(--sys-primary) !important;
+
+  .mdc-button__label {
     justify-content: flex-start;
-    color: var(--sys-primary) !important;
-
-    .mdc-button__label {
-      justify-content: flex-start;
-    }
   }
+}
 
-  .mat-mdc-menu-item.ti-dropdown-option-button:hover,
-  .mat-mdc-menu-item.ti-dropdown-option-button.cdk-focused,
-  .mat-mdc-menu-item.ti-dropdown-option-button.cdk-program-focused {
-    outline: 2px solid black;
-    outline-offset: -2px;
-    background-color: var(--mat-menu-item-hover-state-layer-color, rgba(0, 0, 0, 0.04));
-  }
+.mat-mdc-menu-item.ti-dropdown-option-button:hover,
+.mat-mdc-menu-item.ti-dropdown-option-button.cdk-focused,
+.mat-mdc-menu-item.ti-dropdown-option-button.cdk-program-focused {
+  outline: 2px solid black;
+  outline-offset: -2px;
+  background-color: var(--mat-menu-item-hover-state-layer-color, rgba(0, 0, 0, 0.04));
 }
