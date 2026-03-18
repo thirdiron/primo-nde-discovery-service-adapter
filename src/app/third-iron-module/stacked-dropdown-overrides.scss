@@ -139,19 +139,22 @@
   font-weight: 500;
 }
 
-/* Child stack button components render their own button; flatten them so the menu row owns spacing/background. */
+/* Child stack button components render their own button; flatten them so the menu row owns spacing/background.
+   These buttons render in the overlay (outside .dropdown-group), so we must explicitly override Material's
+   .mat-mdc-unelevated-button primary theme styles here. */
 .cdk-overlay-container
   .ti-stacked-dropdown-panel
   .mat-mdc-menu-item.ti-dropdown-option-button
-  .ti-dropdown-option-button {
+  .mat-mdc-unelevated-button.ti-dropdown-option-button {
   width: 100%;
   margin: 0;
   padding: 0;
   min-height: 0;
   border: none;
-  background: none;
+  background-color: transparent !important;
   box-shadow: none;
   justify-content: flex-start;
+  color: var(--sys-primary) !important;
 }
 
 .cdk-overlay-container
