@@ -252,98 +252,102 @@ describe('StackedDropdownComponent', () => {
     expect(dropdown).toBeFalsy();
   });
 
-  it('opens link when url is present for onMenuItemClick', () => {
-    const link = {
-      source: 'quicklink',
-      entityType: 'PDF',
-      url: 'https://example.com/pdf',
-      ariaLabel: 'Get PDF',
-      label: 'Get PDF',
-    };
-    const openUrlSpy = spyOn(component['navigationService'], 'openUrl');
+  describe('onMenuItemClick', () => {
+    it('opens link when url is present', () => {
+      const link = {
+        source: 'quicklink',
+        entityType: 'PDF',
+        url: 'https://example.com/pdf',
+        ariaLabel: 'Get PDF',
+        label: 'Get PDF',
+      };
+      const openUrlSpy = spyOn(component['navigationService'], 'openUrl');
 
-    component.onMenuItemClick(link as any);
+      component.onMenuItemClick(link as any);
 
-    expect(openUrlSpy).toHaveBeenCalledWith('https://example.com/pdf');
+      expect(openUrlSpy).toHaveBeenCalledWith('https://example.com/pdf');
+    });
+
+    it('does not open when url is missing', () => {
+      const link = {
+        source: 'quicklink',
+        entityType: 'HTML',
+        ariaLabel: 'Read',
+        label: 'Read',
+      } as any;
+      const openUrlSpy = spyOn(component['navigationService'], 'openUrl');
+
+      component.onMenuItemClick(link);
+
+      expect(openUrlSpy).not.toHaveBeenCalled();
+    });
+
+    it('opens link when Enter is pressed on a menu item', () => {
+      const link = {
+        source: 'thirdIron',
+        entityType: 'HTML',
+        url: 'https://example.com/article',
+        showSecondaryButton: true,
+        ariaLabel: 'Article',
+        label: 'Read Article',
+      };
+      const openUrlSpy = spyOn(component['navigationService'], 'openUrl');
+      const event = new KeyboardEvent('keydown', { key: 'Enter' });
+      spyOn(event, 'preventDefault');
+
+      component.onMenuItemKeydown(event, link as any);
+
+      expect(event.preventDefault).toHaveBeenCalled();
+      expect(openUrlSpy).toHaveBeenCalledWith('https://example.com/article');
+    });
+
+    it('opens link when Space is pressed on a menu item', () => {
+      const link = {
+        source: 'quicklink',
+        entityType: 'HTML',
+        url: 'https://example.com/online',
+        ariaLabel: 'Read Online',
+        label: 'Read Online',
+      };
+      const openUrlSpy = spyOn(component['navigationService'], 'openUrl');
+      const event = new KeyboardEvent('keydown', { key: ' ' });
+      spyOn(event, 'preventDefault');
+
+      component.onMenuItemKeydown(event, link as any);
+
+      expect(event.preventDefault).toHaveBeenCalled();
+      expect(openUrlSpy).toHaveBeenCalledWith('https://example.com/online');
+    });
+
+    it('ignores non-Enter/Space keys for onMenuItemKeydown', () => {
+      const link = {
+        source: 'quicklink',
+        url: 'https://example.com/pdf',
+        entityType: 'PDF',
+      } as any;
+      const openUrlSpy = spyOn(component['navigationService'], 'openUrl');
+      const event = new KeyboardEvent('keydown', { key: 'a' });
+
+      component.onMenuItemKeydown(event, link);
+
+      expect(openUrlSpy).not.toHaveBeenCalled();
+    });
   });
 
-  it('does not open when url is missing for onMenuItemClick', () => {
-    const link = {
-      source: 'quicklink',
-      entityType: 'HTML',
-      ariaLabel: 'Read',
-      label: 'Read',
-    } as any;
-    const openUrlSpy = spyOn(component['navigationService'], 'openUrl');
+  describe('toEntityType', () => {
+    it('returns Article for Article enum or string', () => {
+      expect(component.toEntityType('Article')).toBe(component.EntityType.Article);
+      expect(component.toEntityType(component.EntityType.Article)).toBe(component.EntityType.Article);
+    });
 
-    component.onMenuItemClick(link);
+    it('returns Journal for Journal enum or string', () => {
+      expect(component.toEntityType('Journal')).toBe(component.EntityType.Journal);
+      expect(component.toEntityType(component.EntityType.Journal)).toBe(component.EntityType.Journal);
+    });
 
-    expect(openUrlSpy).not.toHaveBeenCalled();
-  });
-
-  it('opens link when Enter is pressed on a menu item', () => {
-    const link = {
-      source: 'thirdIron',
-      entityType: 'HTML',
-      url: 'https://example.com/article',
-      showSecondaryButton: true,
-      ariaLabel: 'Article',
-      label: 'Read Article',
-    };
-    const openUrlSpy = spyOn(component['navigationService'], 'openUrl');
-    const event = new KeyboardEvent('keydown', { key: 'Enter' });
-    spyOn(event, 'preventDefault');
-
-    component.onMenuItemKeydown(event, link as any);
-
-    expect(event.preventDefault).toHaveBeenCalled();
-    expect(openUrlSpy).toHaveBeenCalledWith('https://example.com/article');
-  });
-
-  it('opens link when Space is pressed on a menu item', () => {
-    const link = {
-      source: 'quicklink',
-      entityType: 'HTML',
-      url: 'https://example.com/online',
-      ariaLabel: 'Read Online',
-      label: 'Read Online',
-    };
-    const openUrlSpy = spyOn(component['navigationService'], 'openUrl');
-    const event = new KeyboardEvent('keydown', { key: ' ' });
-    spyOn(event, 'preventDefault');
-
-    component.onMenuItemKeydown(event, link as any);
-
-    expect(event.preventDefault).toHaveBeenCalled();
-    expect(openUrlSpy).toHaveBeenCalledWith('https://example.com/online');
-  });
-
-  it('ignores non-Enter/Space keys for onMenuItemKeydown', () => {
-    const link = {
-      source: 'quicklink',
-      url: 'https://example.com/pdf',
-      entityType: 'PDF',
-    } as any;
-    const openUrlSpy = spyOn(component['navigationService'], 'openUrl');
-    const event = new KeyboardEvent('keydown', { key: 'a' });
-
-    component.onMenuItemKeydown(event, link);
-
-    expect(openUrlSpy).not.toHaveBeenCalled();
-  });
-
-  it('returns Article for Article enum or string for toEntityType conversion', () => {
-    expect(component.toEntityType('Article')).toBe(component.EntityType.Article);
-    expect(component.toEntityType(component.EntityType.Article)).toBe(component.EntityType.Article);
-  });
-
-  it('returns Journal for Journal enum or string for toEntityType conversion', () => {
-    expect(component.toEntityType('Journal')).toBe(component.EntityType.Journal);
-    expect(component.toEntityType(component.EntityType.Journal)).toBe(component.EntityType.Journal);
-  });
-
-  it('defaults to Article for unknown values for toEntityType conversion', () => {
-    expect(component.toEntityType('Unknown')).toBe(component.EntityType.Article);
-    expect(component.toEntityType(null)).toBe(component.EntityType.Article);
+    it('defaults to Article for unknown values', () => {
+      expect(component.toEntityType('Unknown')).toBe(component.EntityType.Article);
+      expect(component.toEntityType(null)).toBe(component.EntityType.Article);
+    });
   });
 });
