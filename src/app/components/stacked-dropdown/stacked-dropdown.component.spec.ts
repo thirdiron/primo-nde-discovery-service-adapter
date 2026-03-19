@@ -1,10 +1,13 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 
 import { StackedDropdownComponent } from './stacked-dropdown.component';
 import { ComponentRef } from '@angular/core';
 import { TranslateService } from '@ngx-translate/core';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { of } from 'rxjs';
+import { MatMenuTrigger } from '@angular/material/menu';
+import { OverlayContainer } from '@angular/cdk/overlay';
 
 describe('StackedDropdownComponent', () => {
   let component: StackedDropdownComponent;
@@ -93,7 +96,7 @@ describe('StackedDropdownComponent', () => {
     expect(stackedButton).toBeTruthy();
   });
 
-  it('renders menu trigger for ThirdIron secondary link scenario', () => {
+  it('renders menu trigger and article-link-button in menu for ThirdIron secondary link scenario', () => {
     const links = [
       {
         source: 'quicklink',
@@ -119,9 +122,18 @@ describe('StackedDropdownComponent', () => {
     const toggle = nativeEl.querySelector('.ti-dropdown-toggle');
     expect(menu).toBeTruthy();
     expect(toggle).toBeTruthy();
+
+    const triggerDe = fixture.debugElement.query(By.directive(MatMenuTrigger));
+    const menuTrigger = triggerDe.injector.get(MatMenuTrigger);
+    menuTrigger.openMenu();
+    fixture.detectChanges();
+
+    const overlayEl = TestBed.inject(OverlayContainer).getContainerElement();
+    const articleLinkButtons = overlayEl.querySelectorAll('article-link-button');
+    expect(articleLinkButtons.length).toBe(1);
   });
 
-  it('renders menu trigger for non-ThirdIron secondary link scenario', () => {
+  it('renders menu trigger and stacked-button in menu for non-ThirdIron secondary link scenario', () => {
     const links = [
       {
         source: 'thirdIron',
@@ -147,9 +159,18 @@ describe('StackedDropdownComponent', () => {
     const toggle = nativeEl.querySelector('.ti-dropdown-toggle');
     expect(menu).toBeTruthy();
     expect(toggle).toBeTruthy();
+
+    const triggerDe = fixture.debugElement.query(By.directive(MatMenuTrigger));
+    const menuTrigger = triggerDe.injector.get(MatMenuTrigger);
+    menuTrigger.openMenu();
+    fixture.detectChanges();
+
+    const overlayEl = TestBed.inject(OverlayContainer).getContainerElement();
+    const stackedButtons = overlayEl.querySelectorAll('stacked-button');
+    expect(stackedButtons.length).toBe(1);
   });
 
-  it('renders menu trigger for ThirdIron BrowZine secondary link scenario', () => {
+  it('renders menu trigger and custom-browzine-button in menu for ThirdIron BrowZine secondary link scenario', () => {
     const links = [
       {
         source: 'quicklink',
@@ -175,6 +196,15 @@ describe('StackedDropdownComponent', () => {
     const toggle = nativeEl.querySelector('.ti-dropdown-toggle');
     expect(menu).toBeTruthy();
     expect(toggle).toBeTruthy();
+
+    const triggerDe = fixture.debugElement.query(By.directive(MatMenuTrigger));
+    const menuTrigger = triggerDe.injector.get(MatMenuTrigger);
+    menuTrigger.openMenu();
+    fixture.detectChanges();
+
+    const overlayEl = TestBed.inject(OverlayContainer).getContainerElement();
+    const customBrowzineButtons = overlayEl.querySelectorAll('custom-browzine-button');
+    expect(customBrowzineButtons.length).toBe(1);
   });
 
   it('always renders a menu dropdown container for more than one link', () => {
