@@ -31,12 +31,31 @@
 
   @if (links().length > 1) {
     <span class="ti-dropdown">
-      <mat-select hideSingleSelectionIndicator panelWidth="'auto'" class="ti-dropdown-toggle">
-        <mat-select-trigger class="mat-mdc-select-trigger">
-          <span class="mat-mdc-select-min-line"></span>
-        </mat-select-trigger>
-        @for (link of links().slice(1); track link.source) {
-          <mat-option [value]="link" class="ti-dropdown-option">
+      <button
+        type="button"
+        class="ti-dropdown-toggle"
+        mat-button
+        [matMenuTriggerFor]="stackedDropdownMenu"
+        aria-label="Open additional links menu"
+      >
+        <span class="mat-mdc-select-arrow-wrapper" aria-hidden="true">
+          <span class="mat-mdc-select-arrow">
+            <svg viewBox="0 0 24 24" width="24" height="24" focusable="false" aria-hidden="true">
+              <path d="M7 10l5 5 5-5z"></path>
+            </svg>
+          </span>
+        </span>
+      </button>
+
+      <mat-menu #stackedDropdownMenu="matMenu" panelClass="ti-stacked-dropdown-panel">
+        @for (link of links().slice(1); track $index) {
+          <div
+            mat-menu-item
+            class="ti-dropdown-option-button"
+            [attr.aria-label]="link.ariaLabel || link.label || ''"
+            (click)="onMenuItemClick(link)"
+            (keydown)="onMenuItemKeydown($event, link)"
+          >
             @if (link.source === 'thirdIron') {
               @if (link.showSecondaryButton && link.url) {
                 <article-link-button
@@ -57,9 +76,9 @@
             } @else {
               <stacked-button [link]="link" [stackType]="'dropdown'"></stacked-button>
             }
-          </mat-option>
+          </div>
         }
-      </mat-select>
+      </mat-menu>
     </span>
   }
 </div>
