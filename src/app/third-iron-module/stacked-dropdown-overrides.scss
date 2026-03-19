@@ -119,7 +119,7 @@
 /* Mat-menu stacked dropdown options. Consistent spacing and focus styling for list items.
    Use selectors that don't rely on .cdk-overlay-container or .ti-stacked-dropdown-panel so they work
    when the menu is portaled into a different document/container (e.g. NDE host). */
-.mat-mdc-menu-panel .mat-mdc-menu-panel.ti-stacked-dropdown-panel {
+.mat-mdc-menu-panel.ti-stacked-dropdown-panel {
   min-width: 112px;
   max-width: 280px;
 
