@@ -21,13 +21,17 @@ import { ArticleLinkButtonComponent } from 'src/app/components/article-link-butt
 import { MainButtonComponent } from 'src/app/components/main-button/main-button.component';
 import { StackLink, PrimoViewModel } from 'src/app/types/primoViewModel.types';
 import { MatIconModule } from '@angular/material/icon';
-import { MatSelectModule } from '@angular/material/select';
 import { ViewOptionType } from 'src/app/shared/view-option.enum';
 import { ButtonType } from 'src/app/shared/button-type.enum';
 import { EntityType } from 'src/app/shared/entity-type.enum';
 import { StackedDropdownComponent } from 'src/app/components/stacked-dropdown/stacked-dropdown.component';
 import { DebugLogService } from 'src/app/services/debug-log.service';
 import { HostComponentProxy } from 'src/app/shared/host-component-proxy';
+import {
+  getPrimoHostRecordKey,
+  getPrimoHostShape,
+  resolvePrimoHostRecord,
+} from 'src/app/shared/primo-host-record.utils';
 import { TranslationService } from 'src/app/services/translation.service';
 
 @Component({
@@ -40,13 +44,9 @@ import { TranslationService } from 'src/app/services/translation.service';
     AsyncPipe,
     StackedDropdownComponent,
     MatIconModule,
-    MatSelectModule,
   ],
   templateUrl: './third-iron-buttons.component.html',
-  styleUrls: [
-    './third-iron-buttons.component.scss',
-    '../../components/stacked-dropdown/stacked-dropdown.component.scss',
-  ],
+  styleUrls: ['./third-iron-buttons.component.scss'],
   providers: [SearchEntityService],
   encapsulation: ViewEncapsulation.None,
 })
@@ -57,8 +57,8 @@ export class ThirdIronButtonsComponent {
   // - record$: emits when record-id changes
   // - viewModel$: emits latest PrimoViewModel; auto-rebinds if the host swaps the observable reference
   private readonly hostProxy = new HostComponentProxy<SearchEntity, PrimoViewModel>({
-    getRecord: host => (host?.searchResult as SearchEntity) ?? null,
-    getRecordId: record => record?.pnx?.control?.recordid?.[0] ?? null,
+    getRecord: host => resolvePrimoHostRecord(host),
+    getRecordId: record => getPrimoHostRecordKey(record),
     getViewModel$: host => (host?.viewModel$ as Observable<PrimoViewModel>) ?? null,
   });
 
@@ -73,7 +73,12 @@ export class ThirdIronButtonsComponent {
   @Input()
   set hostComponent(value: any) {
     this._hostComponent = value;
-    this.hostProxy.setHostComponent(value);
+    const cycle = this.hostProxy.setHostComponent(value);
+    this.debugLog.debug('ThirdIronButtons.hostProxy.setHostComponent', {
+      cycle,
+      hostShape: getPrimoHostShape(value),
+      hostRecord: this.debugLog.safeSearchEntityMeta(resolvePrimoHostRecord(value)),
+    });
   }
   get hostComponent(): any {
     return this._hostComponent;
@@ -144,10 +149,7 @@ export class ThirdIronButtonsComponent {
   ngOnInit() {
     const hostRecord$ = this.hostProxy.record$.pipe(
       filter((record): record is SearchEntity => !!record),
-      distinctUntilChanged(
-        (a, b) =>
-          (a?.pnx?.control?.recordid?.[0] ?? null) === (b?.pnx?.control?.recordid?.[0] ?? null)
-      )
+      distinctUntilChanged((a, b) => getPrimoHostRecordKey(a) === getPrimoHostRecordKey(b))
     );
 
     // Drive displayInfo$ from a single pipeline keyed on the current host record.
@@ -155,10 +157,10 @@ export class ThirdIronButtonsComponent {
     // preventing "stale record + new viewModel" emissions that can overwrite our link state.
     this.displayInfo$ = hostRecord$.pipe(
       switchMap(record => {
-        this.debugLog.debug(
-          'ThirdIronButtons.ngOnInit.hostRecord',
-          this.debugLog.safeSearchEntityMeta(record)
-        );
+        this.debugLog.debug('ThirdIronButtons.ngOnInit.hostRecord', {
+          recordKey: getPrimoHostRecordKey(record),
+          ...this.debugLog.safeSearchEntityMeta(record),
+        });
 
         const shouldEnhanceButtons = this.searchEntityService.shouldEnhanceButtons(record);
         if (!shouldEnhanceButtons) {
@@ -166,6 +168,14 @@ export class ThirdIronButtonsComponent {
             'ThirdIronButtons.enhance.skip',
             this.debugLog.safeSearchEntityMeta(record)
           );
+          this.resetEnhancementState();
+          const restoredCount = this.restorePrimoOnlineAvailability(
+            this.elementRef.nativeElement as HTMLElement
+          );
+          this.debugLog.debug('ThirdIronButtons.restorePrimoOnlineAvailability', {
+            reason: 'shouldEnhanceButtons=false',
+            restoredCount,
+          });
           return of(null);
         }
 
@@ -188,8 +198,14 @@ export class ThirdIronButtonsComponent {
             this.hasThirdIronSourceItems = this.hasThirdIronAdditions(displayInfo);
 
             if (!this.hasThirdIronSourceItems) {
-              this.combinedLinks = [];
-              this.primoLinks = [];
+              this.resetEnhancementState();
+              const restoredCount = this.restorePrimoOnlineAvailability(
+                this.elementRef.nativeElement as HTMLElement
+              );
+              this.debugLog.debug('ThirdIronButtons.restorePrimoOnlineAvailability', {
+                reason: 'hasThirdIronSourceItems=false',
+                restoredCount,
+              });
               return displayInfo;
             }
 
@@ -252,6 +268,12 @@ export class ThirdIronButtonsComponent {
     return hasThirdIronMainButton || hasThirdIronSecondaryButton || hasThirdIronBrowzine;
   }
 
+  private resetEnhancementState(): void {
+    this.hasThirdIronSourceItems = false;
+    this.combinedLinks = [];
+    this.primoLinks = [];
+  }
+
   removePrimoOnlineAvailability = (hostElement: HTMLElement): number => {
     // This component is injected *before* the host `nde-online-availability` block.
     // Depending on the host (and `ngComponentOutlet`), our host element may be an `<ng-component>`
@@ -266,6 +288,11 @@ export class ThirdIronButtonsComponent {
       if (onlineAvailabilityElems.length > 0) {
         const arr = Array.from(onlineAvailabilityElems);
         for (const elem of arr) {
+          if (elem.dataset['tiPrevDisplay'] === undefined) {
+            // if we need to restore this element later, we will set display back to the original value
+            elem.dataset['tiPrevDisplay'] = elem.style.display ?? '';
+          }
+          elem.dataset['tiHiddenByThirdIron'] = '1';
           elem.style.display = 'none';
         }
         return arr.length;
@@ -276,6 +303,33 @@ export class ThirdIronButtonsComponent {
     this.debugLog.debug('ThirdIronButtons.removePrimoOnlineAvailability.notFound', {
       maxDepth: 12,
     });
+    return 0;
+  };
+
+  // Traverse the DOM up to 12 levels (arbitrary depth) to find the `nde-online-availability` element and restore it to its original display value.
+  // We only restore elements we previously hid (tiHiddenByThirdIron dataset is set to '1')
+  // After restoring, we delete the tiHiddenByThirdIron and tiPrevDisplay dataset attributes (cleanup).
+  restorePrimoOnlineAvailability = (hostElement: HTMLElement): number => {
+    let current: HTMLElement | null = hostElement ?? null;
+    for (let depth = 0; current && depth < 12; depth++) {
+      const onlineAvailabilityElems = current.getElementsByTagName(
+        'nde-online-availability'
+      ) as HTMLCollectionOf<HTMLElement>;
+      if (onlineAvailabilityElems.length > 0) {
+        const arr = Array.from(onlineAvailabilityElems);
+        let restored = 0;
+        for (const elem of arr) {
+          if (elem.dataset['tiHiddenByThirdIron'] !== '1') continue;
+          const prevDisplay = elem.dataset['tiPrevDisplay'];
+          elem.style.display = prevDisplay ?? '';
+          delete elem.dataset['tiHiddenByThirdIron'];
+          delete elem.dataset['tiPrevDisplay'];
+          restored++;
+        }
+        return restored;
+      }
+      current = current.parentElement;
+    }
     return 0;
   };
 }

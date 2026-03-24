@@ -70,4 +70,20 @@ describe('StackedButtonComponent', () => {
     component.openLink();
     expect(openSpy).not.toHaveBeenCalled();
   });
+
+  it('openLink does not navigate when stackType is dropdown', () => {
+    const link: StackLink = {
+      entityType: 'PDF',
+      url: 'https://example.com/pdf',
+      source: 'quicklink',
+    };
+
+    componentRef.setInput('link', link);
+    componentRef.setInput('stackType', 'dropdown');
+    fixture.detectChanges();
+
+    const openSpy = spyOn(window, 'open');
+    component.openLink();
+    expect(openSpy).not.toHaveBeenCalled();
+  });
 });
