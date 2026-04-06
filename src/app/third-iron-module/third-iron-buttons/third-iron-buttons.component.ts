@@ -30,6 +30,7 @@ import { HostComponentProxy } from 'src/app/shared/host-component-proxy';
 import {
   getPrimoHostRecordKey,
   getPrimoHostShape,
+  getPrimoViewModelMeta,
   resolvePrimoHostRecord,
 } from 'src/app/shared/primo-host-record.utils';
 import { TranslationService } from 'src/app/services/translation.service';
@@ -202,6 +203,11 @@ export class ThirdIronButtonsComponent {
           this.primoLinkLabels$,
         ]).pipe(
           map(([displayInfo, viewModel, primoLinkLabels]) => {
+            this.debugLog.debug('ThirdIronButtons.viewModel', {
+              ...getPrimoViewModelMeta(viewModel),
+              ariaLabel: viewModel?.ariaLabel ?? null,
+            });
+
             // Read once per emission; config may change (e.g. multicampus translations become available).
             const viewOption = this.viewOption;
 
