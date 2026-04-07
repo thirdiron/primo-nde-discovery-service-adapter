@@ -526,12 +526,13 @@ export class ButtonInfoService {
       }
     }
 
+    const linkButtonLabel = hasOtherLinks ? labels.otherOptions : labels.availableOnline;
     return {
       entityType: 'directLink',
       url: this.normalizePrimoDirectLink(effectiveDirectLink),
-      ariaLabel: labels.directLinkAriaLabel || viewModel.ariaLabel || '',
+      ariaLabel: [linkButtonLabel, labels.directLinkAriaLabel].filter(Boolean).join(' '),
       source: 'directLink',
-      label: hasOtherLinks ? labels.otherOptions : labels.availableOnline,
+      label: linkButtonLabel,
     };
   }
 
