@@ -2,6 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MainButtonComponent } from './main-button.component';
 import { ComponentRef } from '@angular/core';
 import { ButtonType } from 'src/app/shared/button-type.enum';
+import { EntityType } from 'src/app/shared/entity-type.enum';
 import { BaseButtonComponent } from '../base-button/base-button.component';
 import { IconType } from 'src/app/shared/icon-type.enum';
 import { TranslationService } from '../../services/translation.service';
@@ -454,6 +455,33 @@ describe('MainButtonComponent', () => {
 
         const button = fixture.nativeElement.querySelector('button');
         expect(button.getAttribute('aria-label')).toContain(expectedAria);
+      }
+    });
+
+    it('should expose translated text as aria-label on inner stacked button when stack is true', async () => {
+      const stackCases = [
+        { type: ButtonType.DirectToPDF, expectedAria: 'Download PDF' },
+        { type: ButtonType.ArticleLink, expectedAria: 'Read Article' },
+      ];
+
+      for (const { type, expectedAria } of stackCases) {
+        componentRef.setInput('url', 'https://example.com');
+        componentRef.setInput('buttonType', type);
+        componentRef.setInput('stack', true);
+        componentRef.setInput('link', {
+          entityType: EntityType.Article,
+          url: 'https://example.com',
+          label: '',
+          source: 'thirdIron',
+        } as any);
+
+        fixture.autoDetectChanges();
+        await fixture.whenStable();
+
+        const stacked = fixture.nativeElement.querySelector('stacked-button');
+        expect(stacked).toBeTruthy();
+        const innerButton = stacked?.querySelector('button');
+        expect(innerButton?.getAttribute('aria-label')).toContain(expectedAria);
       }
     });
 

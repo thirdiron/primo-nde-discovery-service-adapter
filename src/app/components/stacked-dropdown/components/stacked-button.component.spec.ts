@@ -71,6 +71,23 @@ describe('StackedButtonComponent', () => {
     expect(openSpy).not.toHaveBeenCalled();
   });
 
+  it('uses visible label as aria-label when ariaLabel is empty', () => {
+    const link: StackLink = {
+      entityType: 'HTML',
+      url: 'https://example.com/html',
+      source: 'quicklink',
+      label: 'Read Online',
+      ariaLabel: '',
+    };
+
+    componentRef.setInput('link', link);
+    componentRef.setInput('stackType', 'main');
+    fixture.detectChanges();
+
+    const button = fixture.nativeElement.querySelector('button');
+    expect(button?.getAttribute('aria-label')).toBe('Read Online');
+  });
+
   it('openLink does not navigate when stackType is dropdown', () => {
     const link: StackLink = {
       entityType: 'PDF',
