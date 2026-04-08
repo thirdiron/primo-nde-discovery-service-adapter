@@ -30,6 +30,7 @@ import { HostComponentProxy } from 'src/app/shared/host-component-proxy';
 import {
   getPrimoHostRecordKey,
   getPrimoHostShape,
+  getPrimoViewModelMeta,
   resolvePrimoHostRecord,
 } from 'src/app/shared/primo-host-record.utils';
 import { TranslationService } from 'src/app/services/translation.service';
@@ -103,7 +104,17 @@ export class ThirdIronButtonsComponent {
   // the host swaps the observable instance or mutates without re-setting the @Input.
   viewModel$: Observable<PrimoViewModel> = this.hostProxy.viewModel$;
 
-  // Emits the translated Primo label strings used when building Primo links (HTML/PDF + direct-link labels).
+  private readonly directLinkAriaLabel$ = this.viewModel$.pipe(
+    map(viewModel => (viewModel?.ariaLabel ?? '').trim()),
+    distinctUntilChanged(),
+    switchMap(ariaLabel =>
+      ariaLabel ? this.translationService.getTranslatedText$(ariaLabel, ariaLabel) : of('')
+    ),
+    shareReplay({ bufferSize: 1, refCount: true })
+  );
+
+  // Emits the translated Primo label strings used when building Primo links
+  // (HTML/PDF + direct-link labels + direct-link aria-label).
   // Because it uses `translate.stream(...)` under the hood, it re-emits on language changes; `shareReplay(1)`
   // ensures the latest values are reused across subscribers without redoing the translation work.
   private readonly primoLinkLabels$ = combineLatest([
@@ -114,12 +125,14 @@ export class ThirdIronButtonsComponent {
       'Other online options'
     ),
     this.translationService.getTranslatedText$('delivery.code.fulltext', 'Available Online'),
+    this.directLinkAriaLabel$,
   ]).pipe(
-    map(([htmlText, pdfText, otherOptions, availableOnline]) => ({
+    map(([htmlText, pdfText, otherOptions, availableOnline, directLinkAriaLabel]) => ({
       htmlText,
       pdfText,
       otherOptions,
       availableOnline,
+      directLinkAriaLabel,
     })),
     shareReplay({ bufferSize: 1, refCount: true })
   );
@@ -190,6 +203,11 @@ export class ThirdIronButtonsComponent {
           this.primoLinkLabels$,
         ]).pipe(
           map(([displayInfo, viewModel, primoLinkLabels]) => {
+            this.debugLog.debug('ThirdIronButtons.viewModel', {
+              ...getPrimoViewModelMeta(viewModel),
+              ariaLabel: viewModel?.ariaLabel ?? null,
+            });
+
             // Read once per emission; config may change (e.g. multicampus translations become available).
             const viewOption = this.viewOption;
 

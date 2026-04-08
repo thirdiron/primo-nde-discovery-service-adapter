@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 
-import { ButtonInfoService } from './button-info.service';
+import { ButtonInfoService, DEFAULT_PRIMO_LINK_LABELS } from './button-info.service';
 import { HttpService } from './http.service';
 import { EntityType } from '../shared/entity-type.enum';
 import { ApiResult, ArticleData, JournalData } from '../types/tiData.types';
@@ -1400,16 +1400,50 @@ describe('ButtonInfoService', () => {
         ariaLabel: 'Direct link aria label',
       };
 
-      const result = testService.buildCombinedLinks(displayInfo, viewModel);
+      const result = testService.buildCombinedLinks(displayInfo, viewModel, {
+        ...DEFAULT_PRIMO_LINK_LABELS,
+        directLinkAriaLabel: 'Open in new tab',
+      });
 
       expect(result).toHaveSize(2); // 1 Third Iron + 1 direct link
       expect(result[1]).toEqual({
         source: 'directLink',
         entityType: 'directLink',
         url: 'https://example.com/nde/fulldisplay/some/direct/link#nui.getit.service_viewit',
-        ariaLabel: 'Direct link aria label',
+        ariaLabel: 'Other online options Open in new tab',
         label: 'Other online options', // From mock translation service, option when more than one item in the stack
       });
+    });
+
+    it('should prefer translated direct-link aria-label from labels bundle when provided', async () => {
+      const mockConfig = { ...MOCK_MODULE_PARAMETERS };
+      mockConfig.showLinkResolverLink = true;
+
+      const testBed = await createTestModule(mockConfig);
+      const testService = testBed.inject(ButtonInfoService);
+
+      const displayInfo: DisplayWaterfallResponse = {
+        entityType: EntityType.Article,
+        mainButtonType: ButtonType.DirectToPDF,
+        mainUrl: 'https://example.com/pdf',
+        secondaryUrl: '',
+        showSecondaryButton: false,
+        showBrowzineButton: false,
+        browzineUrl: '',
+      };
+
+      const viewModel: any = {
+        onlineLinks: [],
+        directLink: 'https://example.com/nde/fulldisplay/some/direct/link',
+        ariaLabel: 'primo.directLink.aria',
+      };
+
+      const result = testService.buildCombinedLinks(displayInfo, viewModel, {
+        ...DEFAULT_PRIMO_LINK_LABELS,
+        directLinkAriaLabel: 'Translated Open in new tab',
+      });
+
+      expect(result[1].ariaLabel).toBe('Other online options Translated Open in new tab');
     });
 
     it('should label direct link as Available Online when it is the only option', async () => {
@@ -1435,14 +1469,17 @@ describe('ButtonInfoService', () => {
         ariaLabel: 'Direct link aria label',
       };
 
-      const result = testService.buildCombinedLinks(displayInfo, viewModel);
+      const result = testService.buildCombinedLinks(displayInfo, viewModel, {
+        ...DEFAULT_PRIMO_LINK_LABELS,
+        directLinkAriaLabel: 'Open in new tab',
+      });
 
       expect(result).toHaveSize(1);
       expect(result[0]).toEqual({
         source: 'directLink',
         entityType: 'directLink',
         url: 'https://example.com/nde/fulldisplay/some/direct/link#nui.getit.service_viewit',
-        ariaLabel: 'Direct link aria label',
+        ariaLabel: 'Available Online Open in new tab',
         label: 'Available Online', // From mock translation service when only one option
       });
     });

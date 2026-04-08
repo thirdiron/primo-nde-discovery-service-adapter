@@ -195,6 +195,9 @@ describe('BrowzineButtonComponent', () => {
       const textEl = stacked.querySelector('.quicklink-button-text');
       expect(textEl?.textContent || '').toContain('View Issue Contents');
 
+      const innerButton = stacked.querySelector('button');
+      expect(innerButton?.getAttribute('aria-label')).toContain('View Issue Contents');
+
       const svgIcon = stacked.querySelector('custom-svg-icon[data-testid="ti-svg-icon"]');
       expect(svgIcon).toBeTruthy();
 
@@ -225,6 +228,9 @@ describe('BrowzineButtonComponent', () => {
 
       const textEl = stacked.querySelector('.quicklink-button-text');
       expect(textEl?.textContent || '').toContain('View Journal Contents');
+
+      const innerButton = stacked.querySelector('button');
+      expect(innerButton?.getAttribute('aria-label')).toContain('View Journal Contents');
 
       const reflectType = stacked.getAttribute('ng-reflect-stack-type');
       if (reflectType !== null) {

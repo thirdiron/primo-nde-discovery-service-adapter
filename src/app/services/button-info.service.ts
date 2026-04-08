@@ -20,6 +20,7 @@ export type PrimoLinkTextBundle = {
   pdfText: string;
   otherOptions: string;
   availableOnline: string;
+  directLinkAriaLabel: string;
 };
 
 export const DEFAULT_PRIMO_LINK_LABELS: PrimoLinkTextBundle = {
@@ -27,6 +28,7 @@ export const DEFAULT_PRIMO_LINK_LABELS: PrimoLinkTextBundle = {
   pdfText: 'Get PDF',
   otherOptions: 'Other online options',
   availableOnline: 'Available Online',
+  directLinkAriaLabel: '',
 };
 
 /**
@@ -524,12 +526,13 @@ export class ButtonInfoService {
       }
     }
 
+    const linkButtonLabel = hasOtherLinks ? labels.otherOptions : labels.availableOnline;
     return {
       entityType: 'directLink',
       url: this.normalizePrimoDirectLink(effectiveDirectLink),
-      ariaLabel: viewModel.ariaLabel || '',
+      ariaLabel: [linkButtonLabel, labels.directLinkAriaLabel].filter(Boolean).join(' '),
       source: 'directLink',
-      label: hasOtherLinks ? labels.otherOptions : labels.availableOnline,
+      label: linkButtonLabel,
     };
   }
 
