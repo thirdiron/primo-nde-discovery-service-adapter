@@ -139,6 +139,10 @@ export class ConfigService {
     return this.getBooleanParam('articleRetractionWatchEnabled');
   }
 
+  showProblematicJournal(): boolean {
+    return this.getBooleanParam('problematicJournalEnabled');
+  }
+
   showExpressionOfConcern(): boolean {
     return this.getBooleanParam('articleExpressionOfConcernEnabled');
   }

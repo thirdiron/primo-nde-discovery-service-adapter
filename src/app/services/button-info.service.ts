@@ -237,7 +237,11 @@ export class ButtonInfoService {
     ) {
       buttonType = ButtonType.ExpressionOfConcern;
       linkUrl = articleEocNoticeUrl;
-    } else if (problematicJournalArticleNoticeUrl && type === EntityType.Article) {
+    } else if (
+      problematicJournalArticleNoticeUrl &&
+      type === EntityType.Article &&
+      this.configService.showProblematicJournal()
+    ) {
       buttonType = ButtonType.ProblematicJournalArticle;
       linkUrl = problematicJournalArticleNoticeUrl;
     }
