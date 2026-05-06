@@ -336,6 +336,29 @@ describe('MainButtonComponent', () => {
       expect(buttonTextSpan.textContent).toContain('Read Article');
     });
 
+    it('should display custom text for Problematic Journal button', async () => {
+      const customMockTranslationService = {
+        getTranslatedText$: (key: string, fallback: string) => {
+          const customTranslations: { [key: string]: string } = {
+            'LibKey.problematicJournalText': 'Custom Problematic Journal Notice',
+          };
+          return of(customTranslations[key] || fallback);
+        },
+      };
+      const testBed = await createTestModule(customMockTranslationService);
+      const customFixture = testBed.createComponent(MainButtonComponent);
+      const customComponentRef = customFixture.componentRef;
+
+      customComponentRef.setInput('url', 'www.test.com');
+      customComponentRef.setInput('buttonType', ButtonType.ProblematicJournalArticle);
+      customFixture.autoDetectChanges();
+      await customFixture.whenStable();
+
+      const customButtonElement = customFixture.nativeElement;
+      const buttonTextSpan = customButtonElement.querySelector('[data-testid="ti-button-text"]')!;
+      expect(buttonTextSpan.textContent).toContain('Custom Problematic Journal Notice');
+    });
+
     it('should display custom text for Retraction button', async () => {
       const customMockTranslationService = {
         getTranslatedText$: (key: string, fallback: string) => {
