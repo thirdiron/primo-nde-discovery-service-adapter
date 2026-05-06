@@ -78,6 +78,7 @@ Third Iron recommended configuration JSON:
     "enableLinkOptimizer": "true",
     "articleRetractionWatchEnabled": "true",
     "articleExpressionOfConcernEnabled": "true",
+    "problematicJournalEnabled": "true",
     "documentDeliveryFulfillmentEnabled": "true",
     "articlePDFDownloadViaUnpaywallEnabled": "true",
     "articleLinkViaUnpaywallEnabled": "true",
@@ -157,6 +158,7 @@ Button label text can be customized and translated by setting up label codes in 
 3. The available label codes are as follows:
    - LibKey.articleRetractionWatchText
    - LibKey.articleExpressionOfConcernText
+   - LibKey.problematicJournalText
    - LibKey.articlePDFDownloadLinkText
    - LibKey.articleLinkText
    - LibKey.documentDeliveryFulfillmentText

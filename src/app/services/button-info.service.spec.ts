@@ -932,6 +932,31 @@ describe('ButtonInfoService', () => {
 
         validateButton(buttonInfo, expectedValues);
       });
+      it('should not return Problematic Journal when problematicJournalEnabled is false', async () => {
+        const mockConfig = { ...MOCK_MODULE_PARAMETERS };
+        mockConfig.problematicJournalEnabled = false;
+        const testBed = await createTestModule(mockConfig);
+        const testService = testBed.inject(ButtonInfoService);
+
+        const mockedArticleData: ArticleData = {
+          ...articleData,
+          retractionNoticeUrl: '',
+          expressionOfConcernNoticeUrl: '',
+        };
+        const mockedApiResult: ApiResult = { ...responseMetaData };
+        mockedApiResult.body.data = mockedArticleData;
+        mockedApiResult.body.included = undefined;
+
+        const { displayInfo: buttonInfo } = testService.displayWaterfall(
+          mockedApiResult,
+          EntityType.Article
+        );
+
+        expect(buttonInfo.mainButtonType).toBe(ButtonType.DirectToPDF);
+        expect(buttonInfo.mainUrl).toBe(
+          'https://develop.browzine.com/libraries/XXX/articles/55134408/full-text-file'
+        );
+      });
       it('should return a Direct PDF link type button with corresponding link and image', () => {
         const mockedArticleData: ArticleData = {
           ...articleData,
@@ -1135,6 +1160,7 @@ describe('ButtonInfoService', () => {
       mockConfig.articleLinkEnabled = false;
       mockConfig.articleRetractionWatchEnabled = false;
       mockConfig.articleExpressionOfConcernEnabled = false;
+      mockConfig.problematicJournalEnabled = false;
       mockConfig.documentDeliveryFulfillmentEnabled = false;
       mockConfig.articlePDFDownloadViaUnpaywallEnabled = false;
       mockConfig.articleLinkViaUnpaywallEnabled = false;

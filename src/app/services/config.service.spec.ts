@@ -8,10 +8,10 @@ export const MOCK_MODULE_PARAMETERS = {
   apiKey: 'a9c7fb8f-9758-4ff9-9dc9-fcb4cbf32724',
   libraryId: '222',
   articlePDFDownloadLinkEnabled: true,
-  primoArticlePDFDownloadLinkEnabled: true,
   articleLinkEnabled: true,
   showFormatChoice: true,
   articleRetractionWatchEnabled: true,
+  problematicJournalEnabled: true,
   articleExpressionOfConcernEnabled: true,
   journalBrowZineWebLinkTextEnabled: true,
   journalCoverImagesEnabled: true,
@@ -186,6 +186,24 @@ describe('ConfigService', () => {
       const testService = testBed.inject(ConfigService);
 
       expect(testService.showRetractionWatch()).toBeFalse();
+    });
+  });
+
+  describe('showProblematicJournal', () => {
+    it('should return true when problematicJournalEnabled is true', () => {
+      expect(service.showProblematicJournal()).toBeTrue();
+    });
+
+    it('should return false when problematicJournalEnabled is false', async () => {
+      const disabledConfig = {
+        ...MOCK_MODULE_PARAMETERS,
+        problematicJournalEnabled: false,
+      };
+
+      const testBed = await createTestModule(disabledConfig);
+      const testService = testBed.inject(ConfigService);
+
+      expect(testService.showProblematicJournal()).toBeFalse();
     });
   });
 
