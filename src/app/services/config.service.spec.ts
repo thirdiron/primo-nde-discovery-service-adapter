@@ -8,7 +8,6 @@ export const MOCK_MODULE_PARAMETERS = {
   apiKey: 'a9c7fb8f-9758-4ff9-9dc9-fcb4cbf32724',
   libraryId: '222',
   articlePDFDownloadLinkEnabled: true,
-  primoArticlePDFDownloadLinkEnabled: true,
   articleLinkEnabled: true,
   showFormatChoice: true,
   articleRetractionWatchEnabled: true,
