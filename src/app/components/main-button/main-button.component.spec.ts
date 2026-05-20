@@ -2,6 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MainButtonComponent } from './main-button.component';
 import { ComponentRef } from '@angular/core';
 import { ButtonType } from 'src/app/shared/button-type.enum';
+import { EntityType } from 'src/app/shared/entity-type.enum';
 import { BaseButtonComponent } from '../base-button/base-button.component';
 import { IconType } from 'src/app/shared/icon-type.enum';
 import { TranslationService } from '../../services/translation.service';
@@ -335,6 +336,29 @@ describe('MainButtonComponent', () => {
       expect(buttonTextSpan.textContent).toContain('Read Article');
     });
 
+    it('should display custom text for Problematic Journal button', async () => {
+      const customMockTranslationService = {
+        getTranslatedText$: (key: string, fallback: string) => {
+          const customTranslations: { [key: string]: string } = {
+            'LibKey.problematicJournalText': 'Custom Problematic Journal Notice',
+          };
+          return of(customTranslations[key] || fallback);
+        },
+      };
+      const testBed = await createTestModule(customMockTranslationService);
+      const customFixture = testBed.createComponent(MainButtonComponent);
+      const customComponentRef = customFixture.componentRef;
+
+      customComponentRef.setInput('url', 'www.test.com');
+      customComponentRef.setInput('buttonType', ButtonType.ProblematicJournalArticle);
+      customFixture.autoDetectChanges();
+      await customFixture.whenStable();
+
+      const customButtonElement = customFixture.nativeElement;
+      const buttonTextSpan = customButtonElement.querySelector('[data-testid="ti-button-text"]')!;
+      expect(buttonTextSpan.textContent).toContain('Custom Problematic Journal Notice');
+    });
+
     it('should display custom text for Retraction button', async () => {
       const customMockTranslationService = {
         getTranslatedText$: (key: string, fallback: string) => {
@@ -454,6 +478,33 @@ describe('MainButtonComponent', () => {
 
         const button = fixture.nativeElement.querySelector('button');
         expect(button.getAttribute('aria-label')).toContain(expectedAria);
+      }
+    });
+
+    it('should expose translated text as aria-label on inner stacked button when stack is true', async () => {
+      const stackCases = [
+        { type: ButtonType.DirectToPDF, expectedAria: 'Download PDF' },
+        { type: ButtonType.ArticleLink, expectedAria: 'Read Article' },
+      ];
+
+      for (const { type, expectedAria } of stackCases) {
+        componentRef.setInput('url', 'https://example.com');
+        componentRef.setInput('buttonType', type);
+        componentRef.setInput('stack', true);
+        componentRef.setInput('link', {
+          entityType: EntityType.Article,
+          url: 'https://example.com',
+          label: '',
+          source: 'thirdIron',
+        } as any);
+
+        fixture.autoDetectChanges();
+        await fixture.whenStable();
+
+        const stacked = fixture.nativeElement.querySelector('stacked-button');
+        expect(stacked).toBeTruthy();
+        const innerButton = stacked?.querySelector('button');
+        expect(innerButton?.getAttribute('aria-label')).toContain(expectedAria);
       }
     });
 

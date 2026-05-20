@@ -5,7 +5,7 @@
   color="primary"
   [class.ti-dropdown-button]="stackType() === 'main'"
   [class.ti-dropdown-option-button]="stackType() === 'dropdown'"
-  [attr.aria-label]="link().ariaLabel || ''"
+  [attr.aria-label]="link().ariaLabel || link().label || ''"
   (click)="openLink()"
 >
   <span class="quicklink-button-text">

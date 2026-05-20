@@ -1,0 +1,141 @@
+// used in stacked-dropdown components to override Angular Material menu/button styles
+.dropdown-group {
+  display: inline-flex;
+  position: relative;
+
+  .mat-mdc-unelevated-button:not(:disabled) {
+    background-color: #fff;
+    color: var(--sys-primary);
+  }
+
+  /* instead of using left/right oriented attributes, we use inline-start/inline-end
+  so this works in both Left-to-Right and Right-to-Left languages */
+  .ti-dropdown-button {
+    white-space: nowrap;
+    border-radius: 0.3125rem;
+    background-color: #fff;
+    border: 1px solid var(--sys-primary);
+    color: var(--sys-primary);
+    padding-inline-start: 1rem;
+    padding-inline-end: 1rem;
+    height: 32px;
+    line-height: 32px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+
+    .primo-pdf-icon,
+    .primo-html-icon {
+      height: 20px;
+      width: 20px;
+      /*
+       * Angular Material wraps button content in `.mdc-button__label`.
+       * We use `gap: 8px` on that wrapper, so icon margins would double the spacing.
+       */
+      margin-inline-start: 0;
+      margin-inline-end: 0;
+      display: flex !important;
+      font-size: 1.125rem;
+    }
+
+    .mdc-button__label {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      white-space: nowrap !important;
+      .quicklink-button-text {
+        font-size: 14px;
+      }
+    }
+  }
+
+  /* When the first button is adjacent to a dropdown, we hide its right border to visually join them */
+  stacked-button.with-dropdown .ti-dropdown-button,
+  main-button.with-dropdown .ti-dropdown-button,
+  custom-browzine-button.with-dropdown .ti-dropdown-button {
+    /* Use logical properties so this works in both Left-to-Right and Right-to-Left languages */
+    border-inline-end: none;
+    border-start-start-radius: 0.3125rem;
+    border-end-start-radius: 0.3125rem;
+    border-start-end-radius: 0;
+    border-end-end-radius: 0;
+
+    &:focus-visible {
+      border-inline-end: 2px solid black;
+    }
+  }
+
+  .ti-dropdown-button:focus-visible {
+    outline: 2px solid black;
+    border-inline-end: 2px solid black;
+    background-color: var(--mat-standard-button-toggle-selected-state-background-color);
+  }
+
+  .ti-dropdown-button:hover {
+    background-color: var(--mat-standard-button-toggle-selected-state-background-color);
+  }
+
+  .ti-dropdown {
+    position: relative;
+
+    .ti-dropdown-toggle {
+      border: 1px solid var(--sys-primary);
+      background: #fff;
+      color: var(--sys-primary);
+      min-width: 32px;
+      width: 32px;
+      padding: 0;
+      /* Use logical properties so this works in both LTR and RTL */
+      border-start-start-radius: 0;
+      border-end-start-radius: 0;
+      border-start-end-radius: 6px;
+      border-end-end-radius: 6px;
+      cursor: pointer;
+      font-size: 12px;
+      height: 32px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+
+      .mat-mdc-select-arrow {
+        color: var(--sys-primary);
+        transition: color 0.2s ease;
+        transform: scale(0.95);
+      }
+    }
+
+    .ti-dropdown-toggle:focus-visible {
+      outline: 2px solid black;
+      background-color: var(--mat-menu-item-hover-state-layer-color, rgba(0, 0, 0, 0.04));
+    }
+
+    .ti-dropdown-toggle:hover {
+      background-color: var(--mat-menu-item-hover-state-layer-color, rgba(0, 0, 0, 0.04));
+    }
+  }
+}
+
+/* Mat-menu stacked dropdown options. Consistent spacing and focus styling for list items.
+   Use selectors that don't rely on .cdk-overlay-container or .ti-stacked-dropdown-panel so they work
+   when the menu is portaled into a different document/container (e.g. NDE host). */
+.mat-mdc-menu-item.ti-dropdown-option-button .mat-mdc-unelevated-button.ti-dropdown-option-button {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  width: 100%;
+  min-height: 48px;
+  padding-inline-start: var(--mat-menu-item-leading-spacing, 12px);
+  padding-inline-end: var(--mat-menu-item-trailing-spacing, 12px);
+  color: var(--sys-primary);
+  font-size: 14px;
+  font-weight: 500;
+  background-color: transparent;
+
+  .mdc-button__label {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 8px;
+  }
+}

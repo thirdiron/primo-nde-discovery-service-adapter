@@ -95,9 +95,7 @@ describe('ThirdIronJournalCoverComponent', () => {
         })
         .overrideComponent(ThirdIronJournalCoverComponent, {
           set: {
-            providers: [
-              { provide: JournalCoverService, useValue: mockJournalCoverService },
-            ],
+            providers: [{ provide: JournalCoverService, useValue: mockJournalCoverService }],
           },
         })
         .compileComponents();
@@ -128,6 +126,77 @@ describe('ThirdIronJournalCoverComponent', () => {
       });
 
       expect(mockJournalCoverService.getJournalCoverUrl).toHaveBeenCalledWith(mockSearchEntity);
+    });
+  });
+
+  // This describe holds cases where a user navigates through fulldisplay records with the forward/backward buttons.
+  // Here we simulate this navigation by swapping the searchResult object on the hostComponent.
+  describe('navigation through fulldisplay records', () => {
+    it('triggers hiding original Primo cover block and then restore of Primo cover block across host navigation when cover-present -> no-cover transition', async () => {
+      const recordWithCover = {
+        pnx: {
+          control: { recordid: ['rec-with-cover'] },
+          display: { type: ['journal'] },
+          addata: { issn: ['1234-5678'] },
+        },
+      } as unknown as SearchEntity;
+
+      const recordWithoutCover = {
+        pnx: {
+          control: { recordid: ['rec-without-cover'] },
+          display: { type: ['journal'] },
+          addata: { issn: ['9876-5432'] },
+        },
+      } as unknown as SearchEntity;
+
+      const mockJournalCoverService = {
+        getJournalCoverUrl: jasmine
+          .createSpy('getJournalCoverUrl')
+          .and.callFake((record: SearchEntity) => {
+            const id = record?.pnx?.control?.recordid?.[0];
+            return of(id === 'rec-with-cover' ? 'https://example.com/cover.jpg' : '');
+          }),
+      };
+
+      await TestBed.resetTestingModule()
+        .configureTestingModule({
+          imports: [ThirdIronJournalCoverComponent],
+          providers: [
+            provideHttpClient(),
+            provideHttpClientTesting(),
+            { provide: 'MODULE_PARAMETERS', useValue: MOCK_MODULE_PARAMETERS },
+            { provide: Store, useValue: mockStore },
+          ],
+        })
+        .overrideComponent(ThirdIronJournalCoverComponent, {
+          set: {
+            providers: [{ provide: JournalCoverService, useValue: mockJournalCoverService }],
+          },
+        })
+        .compileComponents();
+
+      httpTesting = TestBed.inject(HttpTestingController);
+
+      fixture = TestBed.createComponent(ThirdIronJournalCoverComponent);
+      component = fixture.componentInstance;
+      component.hostComponent = { item: recordWithCover };
+
+      const hideSpy = spyOn<any>(component, 'hidePrimoRecordImages').and.callThrough();
+      const restoreSpy = spyOn<any>(component, 'restorePrimoRecordImages').and.callThrough();
+
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(hideSpy).toHaveBeenCalled();
+      expect(mockJournalCoverService.getJournalCoverUrl).toHaveBeenCalledWith(recordWithCover);
+
+      component.hostComponent.item = recordWithoutCover;
+      component.ngDoCheck();
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(mockJournalCoverService.getJournalCoverUrl).toHaveBeenCalledWith(recordWithoutCover);
+      expect(restoreSpy).toHaveBeenCalled();
     });
   });
 });

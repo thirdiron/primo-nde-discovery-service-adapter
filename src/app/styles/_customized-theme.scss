@@ -8,5 +8,5 @@
 //  @include mat.system-level-colors(m3-theme.$light-theme);
 //}
 
-/* Include select overrides in the custom.css bundle so the host page loads them */
-@import "../third-iron-module/mat-select-overrides.scss";
+/* Include stacked dropdown overrides in the custom.css bundle so the host page loads them */
+@import "../third-iron-module/stacked-dropdown-overrides.scss";

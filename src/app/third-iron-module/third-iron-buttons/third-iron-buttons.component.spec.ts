@@ -429,7 +429,9 @@ describe('ThirdIronButtonsComponent', () => {
 
         const container = el.querySelector('.ti-no-stack-container');
         expect(container).withContext(el.innerHTML).not.toBeNull();
-        expect(container?.querySelector('custom-browzine-button')).withContext(el.innerHTML).not.toBeNull();
+        expect(container?.querySelector('custom-browzine-button'))
+          .withContext(el.innerHTML)
+          .not.toBeNull();
 
         const cov = container?.querySelector('.ti-consolidated-coverage');
         expect(cov).withContext(el.innerHTML).not.toBeNull();
@@ -699,11 +701,168 @@ describe('ThirdIronButtonsComponent', () => {
     });
   });
 
+  // This describe holds cases where a user navigates through fulldisplay records with the forward/backward buttons.
+  // Here we simulate this navigation by swapping the searchResult object on the hostComponent.
+  describe('navigation through fulldisplay records', () => {
+    const enhancedArticleRecord = {
+      pnx: {
+        control: { recordid: ['rec-enhanced'] },
+        display: { type: ['article'] },
+        addata: { doi: ['10.1000/enhanced'] },
+      },
+    };
+
+    const nonEnhancedArticleRecord = {
+      pnx: {
+        control: { recordid: ['rec-non-enhanced'] },
+        display: { type: ['article'] },
+        addata: { issn: ['1234-5678'] },
+      },
+    };
+
+    const enhancedDisplayInfo = {
+      entityType: EntityType.Article,
+      mainButtonType: ButtonType.DirectToPDF,
+      mainUrl: 'https://example.com/pdf',
+      showSecondaryButton: false,
+      secondaryUrl: '',
+      showBrowzineButton: false,
+      browzineUrl: '',
+    };
+
+    const setupNavigationFixture = async () => {
+      const viewModel$ = new BehaviorSubject<any>({
+        onlineLinks: [],
+        directLink: '/fulldisplay?docid=rec-enhanced',
+        ariaLabel: '',
+      });
+
+      const getDisplayInfoSpy = jasmine
+        .createSpy('getDisplayInfo')
+        .and.returnValue(of(enhancedDisplayInfo));
+      const buildCombinedLinksSpy = jasmine
+        .createSpy('buildCombinedLinks')
+        .and.returnValue([{ source: 'thirdIron', url: 'https://example.com/pdf' }]);
+
+      await TestBed.resetTestingModule()
+        .configureTestingModule({
+          imports: [ThirdIronButtonsComponent],
+          providers: [
+            ConfigService,
+            { provide: Store, useValue: mockStore },
+            { provide: 'MODULE_PARAMETERS', useValue: MOCK_MODULE_PARAMETERS },
+            { provide: TranslateService, useValue: { stream: (key: string) => of(key) } },
+            {
+              provide: SearchEntityService,
+              useValue: {
+                shouldEnhanceButtons: (record: any) => !!record?.pnx?.addata?.doi?.[0],
+              },
+            },
+            {
+              provide: ButtonInfoService,
+              useValue: {
+                getDisplayInfo: getDisplayInfoSpy,
+                buildCombinedLinks: buildCombinedLinksSpy,
+                buildPrimoLinks: () => [],
+              },
+            },
+            {
+              provide: DebugLogService,
+              useValue: { debug: () => {}, safeSearchEntityMeta: () => ({}) },
+            },
+          ],
+        })
+        .overrideComponent(ThirdIronButtonsComponent, {
+          set: {
+            imports: [
+              AsyncPipe,
+              StackedDropdownStubComponent,
+              MainButtonStubComponent,
+              ArticleLinkButtonStubComponent,
+              BrowzineButtonStubComponent,
+            ],
+          },
+        })
+        .compileComponents();
+
+      const fixture = TestBed.createComponent(ThirdIronButtonsComponent);
+      const component = fixture.componentInstance;
+      const configService = TestBed.inject(ConfigService);
+      spyOn(configService, 'getViewOption').and.returnValue(ViewOptionType.StackPlusBrowzine);
+
+      component.hostComponent = {
+        searchResult: enhancedArticleRecord,
+        viewModel$: viewModel$.asObservable(),
+      };
+
+      return { fixture, component, getDisplayInfoSpy, buildCombinedLinksSpy };
+    };
+
+    // The scenario here is when stepping through fulldisplay records and moving from a record enhanced by Third Iron to a record that is not enhanced by Third Iron.
+    // When moving to a non-enhanced record, we should redraw the original Primo UI (restores Primo availability) and reset the enhancement state.
+    it('resets enhancement state and restores Primo availability when transitioning from enhanced -> non-enhanced record', async () => {
+      const { fixture, component, getDisplayInfoSpy } = await setupNavigationFixture();
+      const removeSpy = spyOn(component, 'removePrimoOnlineAvailability').and.returnValue(1);
+      const restoreSpy = spyOn(component, 'restorePrimoOnlineAvailability').and.returnValue(1);
+
+      fixture.detectChanges();
+      const sub = component.displayInfo$?.subscribe();
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      expect(removeSpy).toHaveBeenCalled();
+      expect(component.hasThirdIronSourceItems).toBeTrue();
+
+      component.hostComponent.searchResult = nonEnhancedArticleRecord;
+      component.ngDoCheck();
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      expect(getDisplayInfoSpy).toHaveBeenCalled();
+      expect(restoreSpy).toHaveBeenCalled();
+      expect(component.hasThirdIronSourceItems).toBeFalse();
+      expect(component.combinedLinks).toEqual([]);
+      expect(component.primoLinks).toEqual([]);
+
+      sub?.unsubscribe();
+    });
+
+    it('enhances and removes Primo availability when navigating from a non-enhanced -> enhanced record', async () => {
+      const { fixture, component, getDisplayInfoSpy, buildCombinedLinksSpy } =
+        await setupNavigationFixture();
+      const removeSpy = spyOn(component, 'removePrimoOnlineAvailability').and.returnValue(1);
+      const restoreSpy = spyOn(component, 'restorePrimoOnlineAvailability').and.returnValue(1);
+
+      component.hostComponent.searchResult = nonEnhancedArticleRecord;
+
+      fixture.detectChanges();
+      const sub = component.displayInfo$?.subscribe();
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      expect(restoreSpy).toHaveBeenCalled(); // first record not enhanced
+      expect(component.hasThirdIronSourceItems).toBeFalse();
+
+      component.hostComponent.searchResult = enhancedArticleRecord;
+      component.ngDoCheck();
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      expect(getDisplayInfoSpy).toHaveBeenCalled();
+      expect(buildCombinedLinksSpy).toHaveBeenCalled();
+      expect(removeSpy).toHaveBeenCalled();
+      expect(component.hasThirdIronSourceItems).toBeTrue();
+
+      sub?.unsubscribe();
+    });
+  });
+
   it('passes translated Primo labels into buildPrimoLinks and updates when translation streams emit', async () => {
     const html$ = new BehaviorSubject('Read Online');
     const pdf$ = new BehaviorSubject('Get PDF');
     const other$ = new BehaviorSubject('Other online options');
     const avail$ = new BehaviorSubject('Available Online');
+    const directAria$ = new BehaviorSubject('Open more options');
 
     const translateMock = {
       stream: (key: string) => {
@@ -716,6 +875,8 @@ describe('ThirdIronButtonsComponent', () => {
             return other$.asObservable();
           case 'delivery.code.fulltext':
             return avail$.asObservable();
+          case 'primo.directLink.aria':
+            return directAria$.asObservable();
           default:
             return of(key);
         }
@@ -725,7 +886,7 @@ describe('ThirdIronButtonsComponent', () => {
     const viewModel$ = new BehaviorSubject<any>({
       onlineLinks: [{ type: 'PDF', url: 'https://example.com/pdf', source: 'primo' }],
       directLink: '/fulldisplay?docid=123',
-      ariaLabel: '',
+      ariaLabel: 'primo.directLink.aria',
     });
 
     const buildPrimoLinksSpy = jasmine.createSpy('buildPrimoLinks').and.returnValue([]);
@@ -786,10 +947,12 @@ describe('ThirdIronButtonsComponent', () => {
       pdfText: 'Get PDF',
       otherOptions: 'Other online options',
       availableOnline: 'Available Online',
+      directLinkAriaLabel: 'Open more options',
     });
 
     // Simulate language change by emitting new translated text
     pdf$.next('PDF (FR)');
+    directAria$.next('Open more options (FR)');
     await fixture.whenStable();
 
     expect(buildPrimoLinksSpy.calls.count()).toBeGreaterThan(1);
@@ -799,7 +962,71 @@ describe('ThirdIronButtonsComponent', () => {
       pdfText: 'PDF (FR)',
       otherOptions: 'Other online options',
       availableOnline: 'Available Online',
+      directLinkAriaLabel: 'Open more options (FR)',
     });
+
+    sub?.unsubscribe();
+  });
+
+  it('passes through literal (not translation key, but actual text) direct-link aria labels unchanged', async () => {
+    const buildPrimoLinksSpy = jasmine.createSpy('buildPrimoLinks').and.returnValue([]);
+    const buttonInfoMock = {
+      getDisplayInfo: () =>
+        of({
+          entityType: EntityType.Article,
+          mainButtonType: ButtonType.ArticleLink,
+          mainUrl: 'https://example.com/article',
+          showSecondaryButton: false,
+          secondaryUrl: '',
+          showBrowzineButton: false,
+          browzineUrl: '',
+        }),
+      buildCombinedLinks: () => [],
+      buildPrimoLinks: buildPrimoLinksSpy,
+    };
+
+    await TestBed.resetTestingModule()
+      .configureTestingModule({
+        imports: [ThirdIronButtonsComponent],
+        providers: [
+          ConfigService,
+          { provide: Store, useValue: mockStore },
+          { provide: 'MODULE_PARAMETERS', useValue: MOCK_MODULE_PARAMETERS },
+          {
+            provide: TranslateService,
+            useValue: {
+              stream: (key: string) => of(key),
+            },
+          },
+        ],
+      })
+      .overrideProvider(SearchEntityService, {
+        useValue: {
+          shouldEnhanceButtons: () => true,
+        },
+      })
+      .overrideProvider(ButtonInfoService, { useValue: buttonInfoMock })
+      .compileComponents();
+
+    const fixture = TestBed.createComponent(ThirdIronButtonsComponent);
+    const component = fixture.componentInstance;
+
+    component.hostComponent = {
+      searchResult: { pnx: { control: { recordid: ['rec-2'] } } },
+      viewModel$: of({
+        onlineLinks: [{ type: 'PDF', url: 'https://example.com/pdf', source: 'primo' }],
+        directLink: '/fulldisplay?docid=456',
+        ariaLabel: 'Literal direct link aria label',
+      }),
+    };
+
+    fixture.detectChanges();
+    const sub = component.displayInfo$?.subscribe();
+    await fixture.whenStable();
+
+    expect(buildPrimoLinksSpy).toHaveBeenCalled();
+    const args = buildPrimoLinksSpy.calls.mostRecent().args;
+    expect(args[1].directLinkAriaLabel).toBe('Literal direct link aria label');
 
     sub?.unsubscribe();
   });

@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { SearchEntity } from '../types/searchEntity.types';
-import { map, Observable, of } from 'rxjs';
+import { catchError, map, Observable, of } from 'rxjs';
 import { SearchEntityService } from './search-entity.service';
 import { EntityType } from '../shared/entity-type.enum';
 import { HttpService } from './http.service';
@@ -47,14 +47,20 @@ export class JournalCoverService {
     if (isArticle && doi) {
       return this.httpService
         .getArticle(doi)
-        .pipe(map(res => this.transformRes(res, EntityType.Article)));
+        .pipe(
+          map(res => this.transformRes(res, EntityType.Article)),
+          catchError(() => of(''))
+        );
     }
 
     // Otherwise, if an ISSN is present (journals and ISSN-only articles), use the journal endpoint.
     if (issn) {
       return this.httpService
         .getJournal(issn)
-        .pipe(map(res => this.transformRes(res, EntityType.Journal)));
+        .pipe(
+          map(res => this.transformRes(res, EntityType.Journal)),
+          catchError(() => of(''))
+        );
     }
 
     return of('');

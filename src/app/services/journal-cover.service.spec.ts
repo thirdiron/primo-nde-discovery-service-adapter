@@ -118,4 +118,58 @@ describe('JournalCoverService', () => {
     httpTesting.expectNone(() => true);
     expect(actual).toBe('');
   });
+
+  it('returns empty string when article cover lookup errors', () => {
+    const entity = {
+      pnx: {
+        display: { type: ['article'] },
+        addata: { doi: ['10.1234/abc'] },
+      },
+    } as unknown as SearchEntity;
+
+    let actual = 'UNSET';
+    service.getJournalCoverUrl(entity).subscribe(url => {
+      actual = url;
+    });
+
+    const req = httpTesting.expectOne(
+      r => r.url.includes('/articles/doi/') && r.url.includes('10.1234%2Fabc')
+    );
+    req.flush(
+      { message: 'not found' },
+      {
+        status: 404,
+        statusText: 'Not Found',
+      }
+    );
+
+    expect(actual).toBe('');
+  });
+
+  it('returns empty string when journal cover lookup errors', () => {
+    const entity = {
+      pnx: {
+        display: { type: ['journal'] },
+        addata: { issn: ['1234-5678'] },
+      },
+    } as unknown as SearchEntity;
+
+    let actual = 'UNSET';
+    service.getJournalCoverUrl(entity).subscribe(url => {
+      actual = url;
+    });
+
+    const req = httpTesting.expectOne(
+      r => r.url.includes('/search') && r.url.includes('issns=12345678')
+    );
+    req.flush(
+      { message: 'server error' },
+      {
+        status: 500,
+        statusText: 'Server Error',
+      }
+    );
+
+    expect(actual).toBe('');
+  });
 });

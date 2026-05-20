@@ -1,6 +1,5 @@
 import { Component, input, ViewEncapsulation } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
-import { MatSelectModule } from '@angular/material/select';
 import { StackLink } from 'src/app/types/primoViewModel.types';
 import { PrimoPdfIconComponent } from '../../icons/primo-pdf-icon.component';
 import { PrimoHtmlIconComponent } from '../../icons/primo-html-icon.component';
@@ -12,14 +11,13 @@ import { NavigationService } from '../../../services/navigation.service';
   standalone: true,
   imports: [
     MatButtonModule,
-    MatSelectModule,
     PrimoPdfIconComponent,
     PrimoHtmlIconComponent,
     SvgIconComponent,
   ],
   templateUrl: './stacked-button.component.html',
-  styleUrls: ['../../../third-iron-module/mat-select-overrides.scss'],
-  encapsulation: ViewEncapsulation.None, // override styles are loaded globally from third-iron-module/mat-select-overrides.scss
+  styleUrls: ['../../../third-iron-module/stacked-dropdown-overrides.scss'],
+  encapsulation: ViewEncapsulation.None, // override styles are loaded globally from third-iron-module/stacked-dropdown-overrides.scss
 })
 export class StackedButtonComponent {
   link = input.required<StackLink>();
@@ -28,7 +26,9 @@ export class StackedButtonComponent {
   constructor(private navigationService: NavigationService) {}
 
   openLink() {
-    if (this.link() && this.link().url) {
+    // When in dropdown, parent stacked-dropdown handles navigation from menu item click/keyboard
+    // to avoid double navigation from nested buttons.
+    if (this.stackType() === 'main' && this.link()?.url) {
       this.navigationService.openUrl(this.link().url);
     }
   }

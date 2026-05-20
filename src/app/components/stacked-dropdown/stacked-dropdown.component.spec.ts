@@ -1,12 +1,13 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 
 import { StackedDropdownComponent } from './stacked-dropdown.component';
 import { ComponentRef } from '@angular/core';
 import { TranslateService } from '@ngx-translate/core';
-import { By } from '@angular/platform-browser';
-import { MatSelect } from '@angular/material/select';
-import { OverlayContainer } from '@angular/cdk/overlay';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
+import { of } from 'rxjs';
+import { MatMenuTrigger } from '@angular/material/menu';
+import { OverlayContainer } from '@angular/cdk/overlay';
 
 describe('StackedDropdownComponent', () => {
   let component: StackedDropdownComponent;
@@ -16,6 +17,7 @@ describe('StackedDropdownComponent', () => {
   beforeEach(() => {
     const translateServiceMock = {
       instant: (key: string) => key,
+      stream: (key: string) => of(key),
     } as Partial<TranslateService> as TranslateService;
 
     TestBed.configureTestingModule({
@@ -94,7 +96,7 @@ describe('StackedDropdownComponent', () => {
     expect(stackedButton).toBeTruthy();
   });
 
-  it('renders article-link-button for ThirdIron secondary link in dropdown', () => {
+  it('renders menu trigger and article-link-button in menu for ThirdIron secondary link scenario', () => {
     const links = [
       {
         source: 'quicklink',
@@ -115,18 +117,23 @@ describe('StackedDropdownComponent', () => {
     componentRef.setInput('links', links as any);
     fixture.detectChanges();
 
-    const selectDe = fixture.debugElement.query(By.css('mat-select'));
-    const select = selectDe.componentInstance as MatSelect;
-    select.open();
+    const nativeEl = fixture.nativeElement as HTMLElement;
+    const menu = nativeEl.querySelector('mat-menu');
+    const toggle = nativeEl.querySelector('.ti-dropdown-toggle');
+    expect(menu).toBeTruthy();
+    expect(toggle).toBeTruthy();
+
+    const triggerDe = fixture.debugElement.query(By.directive(MatMenuTrigger));
+    const menuTrigger = triggerDe.injector.get(MatMenuTrigger);
+    menuTrigger.openMenu();
     fixture.detectChanges();
 
-    const overlayContainer = TestBed.inject(OverlayContainer);
-    const overlayEl = overlayContainer.getContainerElement();
+    const overlayEl = TestBed.inject(OverlayContainer).getContainerElement();
     const articleLinkButtons = overlayEl.querySelectorAll('article-link-button');
     expect(articleLinkButtons.length).toBe(1);
   });
 
-  it('renders stacked-button in dropdown for non-ThirdIron links', () => {
+  it('renders menu trigger and stacked-button in menu for non-ThirdIron secondary link scenario', () => {
     const links = [
       {
         source: 'thirdIron',
@@ -147,18 +154,23 @@ describe('StackedDropdownComponent', () => {
     componentRef.setInput('links', links as any);
     fixture.detectChanges();
 
-    const selectDe = fixture.debugElement.query(By.css('mat-select'));
-    const select = selectDe.componentInstance as MatSelect;
-    select.open();
+    const nativeEl = fixture.nativeElement as HTMLElement;
+    const menu = nativeEl.querySelector('mat-menu');
+    const toggle = nativeEl.querySelector('.ti-dropdown-toggle');
+    expect(menu).toBeTruthy();
+    expect(toggle).toBeTruthy();
+
+    const triggerDe = fixture.debugElement.query(By.directive(MatMenuTrigger));
+    const menuTrigger = triggerDe.injector.get(MatMenuTrigger);
+    menuTrigger.openMenu();
     fixture.detectChanges();
 
-    const overlayContainer = TestBed.inject(OverlayContainer);
-    const overlayEl = overlayContainer.getContainerElement();
+    const overlayEl = TestBed.inject(OverlayContainer).getContainerElement();
     const stackedButtons = overlayEl.querySelectorAll('stacked-button');
     expect(stackedButtons.length).toBe(1);
   });
 
-  it('renders custom-browzine-button in dropdown when the second link is ThirdIron BrowZine', () => {
+  it('renders menu trigger and custom-browzine-button in menu for ThirdIron BrowZine secondary link scenario', () => {
     const links = [
       {
         source: 'quicklink',
@@ -179,18 +191,23 @@ describe('StackedDropdownComponent', () => {
     componentRef.setInput('links', links as any);
     fixture.detectChanges();
 
-    const selectDe = fixture.debugElement.query(By.css('mat-select'));
-    const select = selectDe.componentInstance as MatSelect;
-    select.open();
+    const nativeEl = fixture.nativeElement as HTMLElement;
+    const menu = nativeEl.querySelector('mat-menu');
+    const toggle = nativeEl.querySelector('.ti-dropdown-toggle');
+    expect(menu).toBeTruthy();
+    expect(toggle).toBeTruthy();
+
+    const triggerDe = fixture.debugElement.query(By.directive(MatMenuTrigger));
+    const menuTrigger = triggerDe.injector.get(MatMenuTrigger);
+    menuTrigger.openMenu();
     fixture.detectChanges();
 
-    const overlayContainer = TestBed.inject(OverlayContainer);
-    const overlayEl = overlayContainer.getContainerElement();
+    const overlayEl = TestBed.inject(OverlayContainer).getContainerElement();
     const customBrowzineButtons = overlayEl.querySelectorAll('custom-browzine-button');
     expect(customBrowzineButtons.length).toBe(1);
   });
 
-  it('always renders a mat-select dropdown container for more than one link', () => {
+  it('always renders a menu dropdown container for more than one link', () => {
     const links = [
       {
         source: 'quicklink',
@@ -233,5 +250,104 @@ describe('StackedDropdownComponent', () => {
     const nativeEl = fixture.nativeElement as HTMLElement;
     const dropdown = nativeEl.querySelector('.ti-dropdown');
     expect(dropdown).toBeFalsy();
+  });
+
+  describe('onMenuItemClick', () => {
+    it('opens link when url is present', () => {
+      const link = {
+        source: 'quicklink',
+        entityType: 'PDF',
+        url: 'https://example.com/pdf',
+        ariaLabel: 'Get PDF',
+        label: 'Get PDF',
+      };
+      const openUrlSpy = spyOn(component['navigationService'], 'openUrl');
+
+      component.onMenuItemClick(link as any);
+
+      expect(openUrlSpy).toHaveBeenCalledWith('https://example.com/pdf');
+    });
+
+    it('does not open when url is missing', () => {
+      const link = {
+        source: 'quicklink',
+        entityType: 'HTML',
+        ariaLabel: 'Read',
+        label: 'Read',
+      } as any;
+      const openUrlSpy = spyOn(component['navigationService'], 'openUrl');
+
+      component.onMenuItemClick(link);
+
+      expect(openUrlSpy).not.toHaveBeenCalled();
+    });
+
+    it('opens link when Enter is pressed on a menu item', () => {
+      const link = {
+        source: 'thirdIron',
+        entityType: 'HTML',
+        url: 'https://example.com/article',
+        showSecondaryButton: true,
+        ariaLabel: 'Article',
+        label: 'Read Article',
+      };
+      const openUrlSpy = spyOn(component['navigationService'], 'openUrl');
+      const event = new KeyboardEvent('keydown', { key: 'Enter' });
+      spyOn(event, 'preventDefault');
+
+      component.onMenuItemKeydown(event, link as any);
+
+      expect(event.preventDefault).toHaveBeenCalled();
+      expect(openUrlSpy).toHaveBeenCalledWith('https://example.com/article');
+    });
+
+    it('opens link when Space is pressed on a menu item', () => {
+      const link = {
+        source: 'quicklink',
+        entityType: 'HTML',
+        url: 'https://example.com/online',
+        ariaLabel: 'Read Online',
+        label: 'Read Online',
+      };
+      const openUrlSpy = spyOn(component['navigationService'], 'openUrl');
+      const event = new KeyboardEvent('keydown', { key: ' ' });
+      spyOn(event, 'preventDefault');
+
+      component.onMenuItemKeydown(event, link as any);
+
+      expect(event.preventDefault).toHaveBeenCalled();
+      expect(openUrlSpy).toHaveBeenCalledWith('https://example.com/online');
+    });
+
+    it('ignores non-Enter/Space keys for onMenuItemKeydown', () => {
+      const link = {
+        source: 'quicklink',
+        url: 'https://example.com/pdf',
+        entityType: 'PDF',
+      } as any;
+      const openUrlSpy = spyOn(component['navigationService'], 'openUrl');
+      const event = new KeyboardEvent('keydown', { key: 'a' });
+
+      component.onMenuItemKeydown(event, link);
+
+      expect(openUrlSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('toEntityType', () => {
+    it('returns Article for Article enum or string', () => {
+      expect(component.toEntityType('Article')).toBe(component.EntityType.Article);
+      expect(component.toEntityType(component.EntityType.Article)).toBe(component.EntityType.Article);
+    });
+
+    it('returns Journal for Journal enum or string', () => {
+      expect(component.toEntityType('Journal')).toBe(component.EntityType.Journal);
+      expect(component.toEntityType(component.EntityType.Journal)).toBe(component.EntityType.Journal);
+    });
+
+    it('defaults to Article for unknown values', () => {
+      expect(component.toEntityType('Unknown')).toBe(component.EntityType.Article);
+      expect(component.toEntityType(null)).toBe(component.EntityType.Article);
+    });
   });
 });
