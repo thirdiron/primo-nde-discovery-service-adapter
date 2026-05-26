@@ -306,11 +306,11 @@ export class ThirdIronButtonsComponent {
       if (onlineAvailabilityElems.length > 0) {
         const arr = Array.from(onlineAvailabilityElems);
         for (const elem of arr) {
-          if (elem.dataset['tiPrevDisplay'] === undefined) {
+          if (elem.dataset['tiOnlineAvailabilityPrevDisplay'] === undefined) {
             // if we need to restore this element later, we will set display back to the original value
-            elem.dataset['tiPrevDisplay'] = elem.style.display ?? '';
+            elem.dataset['tiOnlineAvailabilityPrevDisplay'] = elem.style.display ?? '';
           }
-          elem.dataset['tiHiddenByThirdIron'] = '1';
+          elem.dataset['tiOnlineAvailabilityHiddenByThirdIron'] = '1';
           elem.style.display = 'none';
         }
         return arr.length;
@@ -325,8 +325,8 @@ export class ThirdIronButtonsComponent {
   };
 
   // Traverse the DOM up to 12 levels (arbitrary depth) to find the `nde-online-availability` element and restore it to its original display value.
-  // We only restore elements we previously hid (tiHiddenByThirdIron dataset is set to '1')
-  // After restoring, we delete the tiHiddenByThirdIron and tiPrevDisplay dataset attributes (cleanup).
+  // We only restore elements we previously hid (tiOnlineAvailabilityHiddenByThirdIron dataset is set to '1')
+  // After restoring, we delete the tiOnlineAvailabilityHiddenByThirdIron and tiOnlineAvailabilityPrevDisplay dataset attributes (cleanup).
   restorePrimoOnlineAvailability = (hostElement: HTMLElement): number => {
     let current: HTMLElement | null = hostElement ?? null;
     for (let depth = 0; current && depth < 12; depth++) {
@@ -337,11 +337,11 @@ export class ThirdIronButtonsComponent {
         const arr = Array.from(onlineAvailabilityElems);
         let restored = 0;
         for (const elem of arr) {
-          if (elem.dataset['tiHiddenByThirdIron'] !== '1') continue;
-          const prevDisplay = elem.dataset['tiPrevDisplay'];
+          if (elem.dataset['tiOnlineAvailabilityHiddenByThirdIron'] !== '1') continue;
+          const prevDisplay = elem.dataset['tiOnlineAvailabilityPrevDisplay'];
           elem.style.display = prevDisplay ?? '';
-          delete elem.dataset['tiHiddenByThirdIron'];
-          delete elem.dataset['tiPrevDisplay'];
+          delete elem.dataset['tiOnlineAvailabilityHiddenByThirdIron'];
+          delete elem.dataset['tiOnlineAvailabilityPrevDisplay'];
           restored++;
         }
         return restored;
