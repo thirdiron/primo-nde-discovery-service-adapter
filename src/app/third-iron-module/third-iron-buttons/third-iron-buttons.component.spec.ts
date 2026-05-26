@@ -283,6 +283,9 @@ describe('ThirdIronButtonsComponent', () => {
 
         // Spy on side-effect method to ensure enhancement pipeline didn't run.
         spyOn(component, 'removePrimoOnlineAvailability').and.callThrough();
+        // Spy on host-wrapper toggling so tests can assert we collapse the wrapping
+        // `<ng-component>` to avoid the host flex container's `gap` rule applying.
+        spyOn(component, 'hideHostWrapper').and.callThrough();
 
         fixture.detectChanges(); // runs ngOnInit
         // Ensure the Rx pipeline runs by subscribing (in the real app the template async pipe does this).
@@ -312,6 +315,17 @@ describe('ThirdIronButtonsComponent', () => {
         expect(component.removePrimoOnlineAvailability).not.toHaveBeenCalled();
         expect(el.querySelector('.ti-stack-options-container')).toBeNull();
         expect(el.querySelector('.ti-no-stack-container')).toBeNull();
+        sub?.unsubscribe();
+      });
+
+      // When we render nothing, the wrapping `<ng-component>` (a direct child of the host's
+      // `.responsive-availability-layout` flex container) still counts as a flex item, so the
+      // container's `gap: .5rem` rule adds unwanted space to the left of `<nde-online-availability>`.
+      // We hide the wrapper to avoid that gap.
+      it('hides the wrapping ng-component so the host flex container gap does not apply', async () => {
+        const { component, sub } = await setupSkipEnhancement();
+
+        expect(component.hideHostWrapper).toHaveBeenCalled();
         sub?.unsubscribe();
       });
     });
@@ -804,6 +818,10 @@ describe('ThirdIronButtonsComponent', () => {
       const { fixture, component, getDisplayInfoSpy } = await setupNavigationFixture();
       const removeSpy = spyOn(component, 'removePrimoOnlineAvailability').and.returnValue(1);
       const restoreSpy = spyOn(component, 'restorePrimoOnlineAvailability').and.returnValue(1);
+      // Track host-wrapper toggling: enhanced render should restore the wrapper, transitioning
+      // to a non-enhanced (empty render) record should collapse it again.
+      const hideWrapperSpy = spyOn(component, 'hideHostWrapper').and.returnValue(true);
+      const restoreWrapperSpy = spyOn(component, 'restoreHostWrapper').and.returnValue(true);
 
       fixture.detectChanges();
       const sub = component.displayInfo$?.subscribe();
@@ -811,6 +829,7 @@ describe('ThirdIronButtonsComponent', () => {
       fixture.detectChanges();
 
       expect(removeSpy).toHaveBeenCalled();
+      expect(restoreWrapperSpy).toHaveBeenCalled();
       expect(component.hasThirdIronSourceItems).toBeTrue();
 
       component.hostComponent.searchResult = nonEnhancedArticleRecord;
@@ -820,6 +839,7 @@ describe('ThirdIronButtonsComponent', () => {
 
       expect(getDisplayInfoSpy).toHaveBeenCalled();
       expect(restoreSpy).toHaveBeenCalled();
+      expect(hideWrapperSpy).toHaveBeenCalled();
       expect(component.hasThirdIronSourceItems).toBeFalse();
       expect(component.combinedLinks).toEqual([]);
       expect(component.primoLinks).toEqual([]);
@@ -832,6 +852,10 @@ describe('ThirdIronButtonsComponent', () => {
         await setupNavigationFixture();
       const removeSpy = spyOn(component, 'removePrimoOnlineAvailability').and.returnValue(1);
       const restoreSpy = spyOn(component, 'restorePrimoOnlineAvailability').and.returnValue(1);
+      // Track host-wrapper toggling: non-enhanced render should hide the wrapper,
+      // transitioning to an enhanced record should restore it.
+      const hideWrapperSpy = spyOn(component, 'hideHostWrapper').and.returnValue(true);
+      const restoreWrapperSpy = spyOn(component, 'restoreHostWrapper').and.returnValue(true);
 
       component.hostComponent.searchResult = nonEnhancedArticleRecord;
 
@@ -841,6 +865,7 @@ describe('ThirdIronButtonsComponent', () => {
       fixture.detectChanges();
 
       expect(restoreSpy).toHaveBeenCalled(); // first record not enhanced
+      expect(hideWrapperSpy).toHaveBeenCalled();
       expect(component.hasThirdIronSourceItems).toBeFalse();
 
       component.hostComponent.searchResult = enhancedArticleRecord;
@@ -851,6 +876,7 @@ describe('ThirdIronButtonsComponent', () => {
       expect(getDisplayInfoSpy).toHaveBeenCalled();
       expect(buildCombinedLinksSpy).toHaveBeenCalled();
       expect(removeSpy).toHaveBeenCalled();
+      expect(restoreWrapperSpy).toHaveBeenCalled();
       expect(component.hasThirdIronSourceItems).toBeTrue();
 
       sub?.unsubscribe();

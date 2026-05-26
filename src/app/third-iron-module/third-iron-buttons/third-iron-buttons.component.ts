@@ -182,12 +182,18 @@ export class ThirdIronButtonsComponent {
             this.debugLog.safeSearchEntityMeta(record)
           );
           this.resetEnhancementState();
-          const restoredCount = this.restorePrimoOnlineAvailability(
-            this.elementRef.nativeElement as HTMLElement
-          );
+          const hostElem = this.elementRef.nativeElement as HTMLElement;
+          const restoredCount = this.restorePrimoOnlineAvailability(hostElem);
           this.debugLog.debug('ThirdIronButtons.restorePrimoOnlineAvailability', {
             reason: 'shouldEnhanceButtons=false',
             restoredCount,
+          });
+          // We render nothing in this case; collapse our wrapper so the host flex container's
+          // gap doesn't apply between us and the sibling `nde-online-availability`.
+          const wrapperHidden = this.hideHostWrapper(hostElem);
+          this.debugLog.debug('ThirdIronButtons.hideHostWrapper', {
+            reason: 'shouldEnhanceButtons=false',
+            wrapperHidden,
           });
           return of(null);
         }
@@ -217,12 +223,18 @@ export class ThirdIronButtonsComponent {
 
             if (!this.hasThirdIronSourceItems) {
               this.resetEnhancementState();
-              const restoredCount = this.restorePrimoOnlineAvailability(
-                this.elementRef.nativeElement as HTMLElement
-              );
+              const hostElem = this.elementRef.nativeElement as HTMLElement;
+              const restoredCount = this.restorePrimoOnlineAvailability(hostElem);
               this.debugLog.debug('ThirdIronButtons.restorePrimoOnlineAvailability', {
                 reason: 'hasThirdIronSourceItems=false',
                 restoredCount,
+              });
+              // We render nothing in this case; collapse our wrapper so the host flex container's
+              // gap doesn't apply between us and the sibling `nde-online-availability`.
+              const wrapperHidden = this.hideHostWrapper(hostElem);
+              this.debugLog.debug('ThirdIronButtons.hideHostWrapper', {
+                reason: 'hasThirdIronSourceItems=false',
+                wrapperHidden,
               });
               return displayInfo;
             }
@@ -236,6 +248,13 @@ export class ThirdIronButtonsComponent {
               this.debugLog.debug('ThirdIronButtons.removePrimoOnlineAvailability', {
                 reason: 'hasThirdIronSourceItems',
                 removedCount,
+              });
+              // If a previous emission (for this or another record) had hidden our wrapper because
+              // we were empty, make sure it's visible again now that we have content to render.
+              const wrapperRestored = this.restoreHostWrapper(hostElem);
+              this.debugLog.debug('ThirdIronButtons.restoreHostWrapper', {
+                reason: 'hasThirdIronSourceItems',
+                wrapperRestored,
               });
             }
 
@@ -350,4 +369,51 @@ export class ThirdIronButtonsComponent {
     }
     return 0;
   };
+
+  // The host (Primo NDE) renders this component via `*ngComponentOutlet`, which wraps our
+  // custom element in an `<ng-component>` element. That `<ng-component>` is a direct child
+  // of the host's `.responsive-availability-layout` flex container (which currently sets `gap: .5rem`).
+  //
+  // When this component has nothing to render (no TI buttons), our own host element is empty
+  // (just Angular `<!---->` placeholders), but `<ng-component>` is still a flex item — so the
+  // container's gap is still applied between it and the sibling `<nde-online-availability>`,
+  // leaving an unwanted blank space to the left of the Primo "Available Online" button.
+  //
+  // Hiding our own host element doesn't fix this (the flex item is the wrapper, not us), so
+  // we walk up to the wrapping `<ng-component>` and hide it instead. We mark our mutation
+  // with dataset flags so `restoreHostWrapper` only undoes changes we made.
+  hideHostWrapper = (hostElement: HTMLElement): boolean => {
+    const wrapper = this.findHostWrapper(hostElement);
+    if (!wrapper) return false;
+    if (wrapper.dataset['tiWrapperPrevDisplay'] === undefined) {
+      wrapper.dataset['tiWrapperPrevDisplay'] = wrapper.style.display ?? '';
+    }
+    wrapper.dataset['tiWrapperHiddenByThirdIron'] = '1';
+    wrapper.style.display = 'none';
+    return true;
+  };
+
+  // Restore the wrapping `<ng-component>`'s display if (and only if) we previously hid it.
+  restoreHostWrapper = (hostElement: HTMLElement): boolean => {
+    const wrapper = this.findHostWrapper(hostElement);
+    if (!wrapper) return false;
+    if (wrapper.dataset['tiWrapperHiddenByThirdIron'] !== '1') return false;
+    const prevDisplay = wrapper.dataset['tiWrapperPrevDisplay'];
+    wrapper.style.display = prevDisplay ?? '';
+    delete wrapper.dataset['tiWrapperHiddenByThirdIron'];
+    delete wrapper.dataset['tiWrapperPrevDisplay'];
+    return true;
+  };
+
+  // Walk up a small fixed number of levels from our host element looking for the
+  // `<ng-component>` wrapper. Depth is normally 1, but we allow a few hops in case
+  // a future host inserts an extra wrapper.
+  private findHostWrapper(hostElement: HTMLElement | null): HTMLElement | null {
+    let current: HTMLElement | null = hostElement?.parentElement ?? null;
+    for (let depth = 0; current && depth < 4; depth++) {
+      if (current.tagName.toLowerCase() === 'ng-component') return current;
+      current = current.parentElement;
+    }
+    return null;
+  }
 }
