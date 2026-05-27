@@ -818,8 +818,8 @@ describe('ThirdIronButtonsComponent', () => {
       const { fixture, component, getDisplayInfoSpy } = await setupNavigationFixture();
       const removeSpy = spyOn(component, 'removePrimoOnlineAvailability').and.returnValue(1);
       const restoreSpy = spyOn(component, 'restorePrimoOnlineAvailability').and.returnValue(1);
-      // Track host-wrapper toggling: enhanced render should restore the wrapper, transitioning
-      // to a non-enhanced (empty render) record should collapse it again.
+      // Track host-wrapper toggling: when processing an enhanced record, we should restore the wrapper, transitioning
+      // to a non-enhanced (empty render) record should then hide it again.
       const hideWrapperSpy = spyOn(component, 'hideHostWrapper').and.returnValue(true);
       const restoreWrapperSpy = spyOn(component, 'restoreHostWrapper').and.returnValue(true);
 
