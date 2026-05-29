@@ -1,7 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 
 import { ConfigService } from './config.service';
-import { TranslateService } from '@ngx-translate/core';
 
 // Mock module parameters that can be reused across test files
 export const MOCK_MODULE_PARAMETERS = {
@@ -29,27 +28,11 @@ export const MOCK_MODULE_PARAMETERS = {
   //TODO: add all the other module parameters
 };
 
-const createTranslateMock = (instantValue?: string): Partial<TranslateService> => {
-  return {
-    instant: (key: string) => {
-      if (key === 'LibKey.institutionName') return instantValue ?? 'MockInstitution';
-      return key;
-    },
-    stream: (key: string) => {
-      // This test file doesn't rely on streaming translation behavior; return key-as-value.
-      return {
-        pipe: () => ({ subscribe: () => {} }),
-      } as any;
-    },
-  };
-};
-
-const createTestModule = async (config: any, translateInstantValue?: string) => {
+const createTestModule = async (config: any) => {
   TestBed.resetTestingModule();
   TestBed.configureTestingModule({
     providers: [
       ConfigService,
-      { provide: TranslateService, useValue: createTranslateMock(translateInstantValue) },
       {
         provide: 'MODULE_PARAMETERS',
         useValue: config,
@@ -67,7 +50,6 @@ describe('ConfigService', () => {
     TestBed.configureTestingModule({
       providers: [
         ConfigService,
-        { provide: TranslateService, useValue: createTranslateMock() },
         {
           provide: 'MODULE_PARAMETERS',
           useValue: MOCK_MODULE_PARAMETERS,
@@ -568,66 +550,55 @@ describe('ConfigService', () => {
   });
 
   describe('multicampus mode', () => {
-    it('uses prefixed keys (case-insensitive) when mode is multicampus', async () => {
+    describe('isMulticampus()', () => {
+      it('returns true when mode is multicampus', async () => {
+        const config = { ...MOCK_MODULE_PARAMETERS, mode: 'multicampus' };
+
+        const testBed = await createTestModule(config);
+        const testService = testBed.inject(ConfigService);
+
+        expect(testService.isMulticampus()).toBeTrue();
+      });
+
+      it('is case-insensitive on the mode value and returns true', async () => {
+        const config = { ...MOCK_MODULE_PARAMETERS, mode: 'MultiCampus' };
+
+        const testBed = await createTestModule(config);
+        const testService = testBed.inject(ConfigService);
+
+        expect(testService.isMulticampus()).toBeTrue();
+      });
+
+      it('returns false when mode is absent', () => {
+        expect(service.isMulticampus()).toBeFalse();
+      });
+
+      it('returns false for a non-multicampus mode value', async () => {
+        const config = { ...MOCK_MODULE_PARAMETERS, mode: 'something-else' };
+
+        const testBed = await createTestModule(config);
+        const testService = testBed.inject(ConfigService);
+
+        expect(testService.isMulticampus()).toBeFalse();
+      });
+    });
+
+    it('reads config values directly (unprefixed) in multicampus mode', async () => {
       const config = {
+        ...MOCK_MODULE_PARAMETERS,
         mode: 'multicampus',
-        // intentionally mixed case for the prefix and some keys
-        'mOcKiNsTiTuTiOn.apiKey': 'multi-api-key',
-        'MockInstitution.LibraryId': '999',
+        apiKey: 'multi-api-key',
+        libraryId: '999',
       };
 
-      const testBed = await createTestModule(config, 'MockInstitution');
+      const testBed = await createTestModule(config);
       const testService = testBed.inject(ConfigService);
 
       expect(testService.getApiKey()).toBe('multi-api-key');
       expect(testService.getApiUrl()).toBe(
         'https://public-api.thirdiron.com/public/v1/libraries/999'
       );
-    });
-
-    it('treats missing prefixed booleans as unset (false)', async () => {
-      const config = {
-        mode: 'multicampus',
-        'MockInstitution.apiKey': 'multi-api-key',
-        'MockInstitution.libraryId': '999',
-        // note: no 'MockInstitution.journalCoverImagesEnabled' key
-      };
-
-      const testBed = await createTestModule(config, 'MockInstitution');
-      const testService = testBed.inject(ConfigService);
-
-      expect(testService.showJournalCoverImages()).toBeFalse();
-    });
-
-    it('treats missing prefixed viewOption as unset (defaults to stack-plus-browzine)', async () => {
-      const config = {
-        mode: 'multicampus',
-        'MockInstitution.apiKey': 'multi-api-key',
-        'MockInstitution.libraryId': '999',
-        // note: no 'MockInstitution.viewOption'
-      };
-
-      const testBed = await createTestModule(config, 'MockInstitution');
-      const testService = testBed.inject(ConfigService);
-
-      expect(testService.getViewOption()).toBe('stack-plus-browzine');
-    });
-
-    it('does not fallback to unprefixed keys in multicampus mode', async () => {
-      const config = {
-        mode: 'multicampus',
-        apiKey: 'unprefixed-should-not-be-used',
-        libraryId: '222',
-        // institution is defined, but no prefixed apiKey/libraryId exist
-      };
-
-      const testBed = await createTestModule(config, 'MockInstitution');
-      const testService = testBed.inject(ConfigService);
-
-      expect(testService.getApiKey()).toBeUndefined();
-      expect(testService.getApiUrl()).toBe(
-        'https://public-api.thirdiron.com/public/v1/libraries/undefined'
-      );
+      expect(testService.showJournalCoverImages()).toBeTrue();
     });
   });
 });
