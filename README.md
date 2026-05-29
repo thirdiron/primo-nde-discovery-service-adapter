@@ -89,7 +89,48 @@ Third Iron recommended configuration JSON:
 
 <details>
 <summary><strong>Multicampus mode (multiple institutions)</strong></summary>
-Coming soon. Full solution still under development, no multicampus features should be used yet.
+
+Some customers serve multiple campuses from a single Primo NDE instance, where each campus is a separate Primo **view** identified by its own `vid` (View ID). Multicampus mode lets you supply campus-specific custom label text so each view can show different button wording.
+
+**1. Enable multicampus mode**
+
+Add `"mode": "multicampus"` to your config JSON:
+
+```
+  {
+    "mode": "multicampus",
+    "apiKey": "your-libkey-api-key",
+    "libraryId": "your-libkey-library-id",
+    ...
+  }
+```
+
+When `mode` is omitted (or set to anything other than `multicampus`), the add-on runs in normal single-campus mode and labels are resolved without any prefix.
+
+**2. Configure custom labels with the VID prefix**
+
+In multicampus mode, the add-on derives a prefix from the current page's `vid` URL parameter and applies it to the LibKey custom label codes (see [Custom Labels and Translation](#custom-labels-and-translation)). The prefix is **only the segment after the last colon** in the `vid`.
+
+For example, given this URL:
+
+```
+https://example.primo.exlibrisgroup.com/nde/search?...&vid=01COLSCHL_INST:LIBKEY_NDE&lang=en
+```
+
+the `vid` is `01COLSCHL_INST:LIBKEY_NDE`, so the prefix is `LIBKEY_NDE`. The label code you enter in Alma becomes:
+
+```
+LIBKEY_NDE.LibKey.articleLinkText
+```
+
+Set up one prefixed set of label codes per campus view. For a second campus whose `vid` ends in `LIBKEY_NDE_CAMPUS_2`, you would add `LIBKEY_NDE_CAMPUS_2.LibKey.articleLinkText`, and so on for each label you want to customize.
+
+Notes:
+
+- The prefix is matched **case-sensitively**, so the label code casing in Alma must match the `vid` segment exactly.
+- Only `LibKey.*` custom label codes are prefixed. Primo's own native labels are never prefixed.
+- If no prefixed label is found for a given campus, the button falls back to its built-in default text.
+
 </details>
 
 ### Step 3: Setup Add-On configuration in Alma
