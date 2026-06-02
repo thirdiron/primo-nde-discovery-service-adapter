@@ -22,10 +22,7 @@ describe('StackedDropdownComponent', () => {
 
     TestBed.configureTestingModule({
       imports: [StackedDropdownComponent, NoopAnimationsModule],
-      providers: [
-        { provide: TranslateService, useValue: translateServiceMock },
-        { provide: 'MODULE_PARAMETERS', useValue: {} },
-      ],
+      providers: [{ provide: TranslateService, useValue: translateServiceMock }],
     });
     fixture = TestBed.createComponent(StackedDropdownComponent);
     component = fixture.componentInstance;

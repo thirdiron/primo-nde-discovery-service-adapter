@@ -4,23 +4,28 @@ import { BehaviorSubject } from 'rxjs';
 
 import { TranslationService } from './translation.service';
 import { DebugLogService } from './debug-log.service';
-import { ConfigService } from './config.service';
 
 interface SetupOptions {
-  multicampus?: boolean;
-  initialValue?: string;
+  translationsByKey?: Record<string, string>;
 }
 
 const setup = (opts: SetupOptions = {}) => {
-  const multicampus = opts.multicampus ?? false;
   const streamedKeys: string[] = [];
-  const stream$ = new BehaviorSubject<string>(opts.initialValue ?? '');
+  const streamSubjects = new Map<string, BehaviorSubject<string>>();
   const langChange$ = new BehaviorSubject<any>({ lang: 'en', previousLang: 'fr' });
+
+  const getOrCreateSubject = (key: string): BehaviorSubject<string> => {
+    if (!streamSubjects.has(key)) {
+      const initial = opts.translationsByKey?.[key] ?? key;
+      streamSubjects.set(key, new BehaviorSubject<string>(initial));
+    }
+    return streamSubjects.get(key)!;
+  };
 
   const translateMock = {
     stream: (key: string) => {
       streamedKeys.push(key);
-      return stream$.asObservable();
+      return getOrCreateSubject(key).asObservable();
     },
     onLangChange: langChange$.asObservable(),
   } as unknown as TranslateService;
@@ -29,28 +34,23 @@ const setup = (opts: SetupOptions = {}) => {
     debug: jasmine.createSpy('debug'),
   } as unknown as DebugLogService;
 
-  const configMock = {
-    isMulticampus: () => multicampus,
-  } as unknown as ConfigService;
-
   TestBed.resetTestingModule();
   TestBed.configureTestingModule({
     providers: [
       TranslationService,
       { provide: TranslateService, useValue: translateMock },
       { provide: DebugLogService, useValue: debugLogMock },
-      { provide: ConfigService, useValue: configMock },
     ],
   });
 
   const service = TestBed.inject(TranslationService);
-  return { service, stream$, streamedKeys, debugLogMock };
+  return { service, streamSubjects, streamedKeys, debugLogMock };
 };
 
 describe('TranslationService', () => {
   it('emits fallback when translation equals the key, otherwise emits translated value', () => {
-    const { service, stream$, streamedKeys, debugLogMock } = setup({
-      initialValue: 'TRANSLATION_KEY',
+    const { service, streamSubjects, streamedKeys, debugLogMock } = setup({
+      translationsByKey: { TRANSLATION_KEY: 'TRANSLATION_KEY' },
     });
 
     const received: string[] = [];
@@ -58,21 +58,15 @@ describe('TranslationService', () => {
       .getTranslatedText$('TRANSLATION_KEY', 'Fallback')
       .subscribe(v => received.push(v));
 
-    // Single-campus: key is looked up as-is (no prefix).
-    expect(streamedKeys[0]).toBe('TRANSLATION_KEY');
-
-    // Initial emission equals key → fallback
+    expect(streamedKeys).toEqual(['TRANSLATION_KEY']);
     expect(received[0]).toBe('Fallback');
 
-    // Update: a real translation should pass through
-    stream$.next('Translated!');
+    streamSubjects.get('TRANSLATION_KEY')!.next('Translated!');
     expect(received[1]).toBe('Translated!');
 
-    // Update: empty string should fall back
-    stream$.next('');
+    streamSubjects.get('TRANSLATION_KEY')!.next('');
     expect(received[2]).toBe('Fallback');
 
-    // Language change is logged
     expect((debugLogMock as any).debug).toHaveBeenCalledWith('Translation.langChange', {
       lang: 'en',
     });
@@ -80,55 +74,93 @@ describe('TranslationService', () => {
     sub.unsubscribe();
   });
 
-  describe('multicampus vid prefixing', () => {
-    it('prefixes LibKey.* keys with the vid suffix (segment after last ":")', () => {
-      const { service, streamedKeys } = setup({ multicampus: true });
+  describe('View Id (VID) prefix cascade', () => {
+    const libKey = 'LibKey.articleLinkText';
+    const prefixedKey = 'LIBKEY_NDE.LibKey.articleLinkText';
+
+    it('uses prefixed translation when prefixed key resolves', () => {
+      const { service, streamedKeys } = setup({
+        translationsByKey: {
+          [prefixedKey]: 'View 1 Read Article',
+          [libKey]: 'Read Article',
+        },
+      });
       spyOn(service as any, 'getVidSuffix').and.returnValue('LIBKEY_NDE');
 
-      const sub = service.getTranslatedText$('LibKey.articleLinkText', 'Read Article').subscribe();
+      const received: string[] = [];
+      const sub = service.getTranslatedText$(libKey, 'Default').subscribe(v => received.push(v));
 
-      expect(streamedKeys[0]).toBe('LIBKEY_NDE.LibKey.articleLinkText');
+      expect(streamedKeys).toEqual([prefixedKey, libKey]);
+      expect(received[0]).toBe('View 1 Read Article');
       sub.unsubscribe();
     });
 
-    it('derives the prefix from only the part after the last ":" of the URL vid', () => {
-      const { service, streamedKeys } = setup({ multicampus: true });
-      // getVidSuffix reads the `vid` param via URLSearchParams; return a full vid to verify ":"-stripping.
+    it('falls back to unprefixed LibKey key when prefixed key is missing', () => {
+      const { service, streamedKeys } = setup({
+        translationsByKey: {
+          [prefixedKey]: prefixedKey,
+          [libKey]: 'Read Article',
+        },
+      });
+      spyOn(service as any, 'getVidSuffix').and.returnValue('LIBKEY_NDE');
+
+      const received: string[] = [];
+      const sub = service.getTranslatedText$(libKey, 'Default').subscribe(v => received.push(v));
+
+      expect(streamedKeys).toEqual([prefixedKey, libKey]);
+      expect(received[0]).toBe('Read Article');
+      sub.unsubscribe();
+    });
+
+    it('falls back to default text when both prefixed and unprefixed keys are missing', () => {
+      // setting key values to the key itself is the behavior from the translation service when no value is found for a given key
+      const { service, streamedKeys } = setup({
+        translationsByKey: {
+          [prefixedKey]: prefixedKey,
+          [libKey]: libKey,
+        },
+      });
+      spyOn(service as any, 'getVidSuffix').and.returnValue('LIBKEY_NDE');
+
+      const received: string[] = [];
+      const sub = service.getTranslatedText$(libKey, 'Default').subscribe(v => received.push(v));
+
+      expect(streamedKeys).toEqual([prefixedKey, libKey]);
+      expect(received[0]).toBe('Default');
+      sub.unsubscribe();
+    });
+
+    it('derives prefix from only the segment after the last colon in URL vid', () => {
+      const { service, streamedKeys } = setup({
+        translationsByKey: {
+          [prefixedKey]: 'Campus Read Article',
+        },
+      });
       spyOn(URLSearchParams.prototype, 'get').and.returnValue('01COLSCHL_INST:LIBKEY_NDE');
 
-      const sub = service.getTranslatedText$('LibKey.articleLinkText', 'Read Article').subscribe();
+      const sub = service.getTranslatedText$(libKey, 'Default').subscribe();
 
-      expect(streamedKeys[0]).toBe('LIBKEY_NDE.LibKey.articleLinkText');
+      expect(streamedKeys[0]).toBe(prefixedKey);
       sub.unsubscribe();
     });
 
     it('does not prefix non-LibKey keys', () => {
-      const { service, streamedKeys } = setup({ multicampus: true });
+      const { service, streamedKeys } = setup();
       spyOn(service as any, 'getVidSuffix').and.returnValue('LIBKEY_NDE');
 
       const sub = service.getTranslatedText$('fulldisplay.HTML', 'Read Online').subscribe();
 
-      expect(streamedKeys[0]).toBe('fulldisplay.HTML');
+      expect(streamedKeys).toEqual(['fulldisplay.HTML']);
       sub.unsubscribe();
     });
 
-    it('does not prefix when the vid suffix is empty', () => {
-      const { service, streamedKeys } = setup({ multicampus: true });
+    it('skips prefixed lookup when vid suffix is empty', () => {
+      const { service, streamedKeys } = setup();
       spyOn(service as any, 'getVidSuffix').and.returnValue('');
 
-      const sub = service.getTranslatedText$('LibKey.articleLinkText', 'Read Article').subscribe();
+      const sub = service.getTranslatedText$(libKey, 'Default').subscribe();
 
-      expect(streamedKeys[0]).toBe('LibKey.articleLinkText');
-      sub.unsubscribe();
-    });
-
-    it('does not prefix in single-campus mode', () => {
-      const { service, streamedKeys } = setup({ multicampus: false });
-      spyOn(service as any, 'getVidSuffix').and.returnValue('LIBKEY_NDE');
-
-      const sub = service.getTranslatedText$('LibKey.articleLinkText', 'Read Article').subscribe();
-
-      expect(streamedKeys[0]).toBe('LibKey.articleLinkText');
+      expect(streamedKeys).toEqual([libKey]);
       sub.unsubscribe();
     });
   });

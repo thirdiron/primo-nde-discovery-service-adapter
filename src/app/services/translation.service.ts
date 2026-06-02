@@ -1,8 +1,7 @@
 import { Injectable } from '@angular/core';
 import { TranslateService } from '@ngx-translate/core';
-import { Observable, map } from 'rxjs';
+import { Observable, combineLatest, map } from 'rxjs';
 import { DebugLogService } from './debug-log.service';
-import { ConfigService } from './config.service';
 
 @Injectable({
   providedIn: 'root',
@@ -13,8 +12,7 @@ export class TranslationService {
 
   constructor(
     private translate: TranslateService,
-    private debugLog: DebugLogService,
-    private configService: ConfigService
+    private debugLog: DebugLogService
   ) {
     // Log language changes once at the translation boundary so downstream callers don't need to.
     const onLangChange$ = (this.translate as any)?.onLangChange;
@@ -34,29 +32,45 @@ export class TranslationService {
    * @returns Observable that emits the translated text (and updates on language changes) or fallback text
    */
   getTranslatedText$(translationKey: string, fallbackText: string): Observable<string> {
-    const effectiveKey = this.buildEffectiveKey(translationKey);
-    return this.translate
-      .stream(effectiveKey)
-      .pipe(
-        map(translatedText =>
-          translatedText && translatedText !== effectiveKey ? translatedText : fallbackText
-        )
-      );
+    const lookupKeys = this.getLookupKeys(translationKey);
+
+    if (lookupKeys.length === 1) {
+      // no VID value found, so use the single lookup key
+      const key = lookupKeys[0];
+      return this.translate
+        .stream(key)
+        .pipe(map(value => (this.isResolved(key, value) ? value : fallbackText)));
+    }
+
+    return combineLatest(lookupKeys.map(key => this.translate.stream(key))).pipe(
+      map(values => {
+        for (let i = 0; i < lookupKeys.length; i++) {
+          if (this.isResolved(lookupKeys[i], values[i])) {
+            return values[i];
+          }
+        }
+        return fallbackText;
+      })
+    );
   }
 
   /**
-   * In multicampus mode, LibKey custom-label keys are looked up under a campus-specific prefix
-   * derived from the URL `vid` (e.g. vid `01COLSCHL_INST:LIBKEY_NDE` => prefix `LIBKEY_NDE`).
-   * Non-LibKey keys (Primo's own labels) and single-campus mode are left untouched.
+   * For LibKey custom-label keys, try VID prefixed key first, then unprefixed.
+   * All other keys use a single lookup - e.g. Primo's own native labels.
    */
-  private buildEffectiveKey(translationKey: string): string {
-    if (this.configService.isMulticampus() && translationKey.startsWith('LibKey.')) {
+  private getLookupKeys(translationKey: string): string[] {
+    if (translationKey.startsWith('LibKey.')) {
       const vidSuffix = this.getVidSuffix();
       if (vidSuffix) {
-        return `${vidSuffix}.${translationKey}`;
+        return [`${vidSuffix}.${translationKey}`, translationKey];
       }
     }
-    return translationKey;
+    return [translationKey];
+  }
+
+  // We consider a translation lookup successful if it is not the same as the key and has a truthy value.
+  private isResolved(key: string, value: string | undefined): boolean {
+    return !!value && value !== key;
   }
 
   /**

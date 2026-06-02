@@ -11,28 +11,14 @@ import { DebugLogService } from './debug-log.service';
   providedIn: 'root',
 })
 export class ConfigService {
-  private readonly isMulticampusMode: boolean;
-
   constructor(
     @Inject('MODULE_PARAMETERS') public moduleParameters: any,
     @Optional() private debugLog?: DebugLogService
   ) {
-    const modeRaw = this.moduleParameters?.mode;
-    this.isMulticampusMode = typeof modeRaw === 'string' && modeRaw.toLowerCase() === 'multicampus';
-
     // Debug-only: emit full MODULE_PARAMETERS for troubleshooting.
     this.debugLog?.debug?.('ConfigService.moduleParameters', {
-      mode: this.isMulticampusMode ? 'multicampus' : 'single-campus',
       moduleParameters: this.moduleParameters,
     });
-  }
-
-  /**
-   * Whether the add-on is configured to run in multicampus mode (config `mode` === 'multicampus').
-   * In this mode, translation keys are looked up with a vid-derived prefix (see TranslationService).
-   */
-  isMulticampus(): boolean {
-    return this.isMulticampusMode;
   }
 
   private getParam(paramName: string): any {

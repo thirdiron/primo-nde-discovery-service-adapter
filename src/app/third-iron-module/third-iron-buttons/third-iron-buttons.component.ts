@@ -88,10 +88,7 @@ export class ThirdIronButtonsComponent {
   combinedLinks: StackLink[] = []; // used to build custom merged array of online services for stack views
   primoLinks: StackLink[] = []; // used to build array of Primo only links for NoStack view option
   showDropdown = false;
-  get viewOption(): ViewOptionType {
-    // Resolve lazily so multicampus config can “start working” once translations become available.
-    return this.configService.getViewOption();
-  }
+  viewOption = this.configService.getViewOption();
   hasThirdIronSourceItems = false;
 
   // Expose enum to template
@@ -214,7 +211,6 @@ export class ThirdIronButtonsComponent {
               ariaLabel: viewModel?.ariaLabel ?? null,
             });
 
-            // Read once per emission; config may change (e.g. multicampus translations become available).
             const viewOption = this.viewOption;
 
             // If the TI API / waterfall yields no TI-specific button(s), we should leave the host Primo UI
@@ -273,7 +269,6 @@ export class ThirdIronButtonsComponent {
               });
             } else {
               // Build array of Primo only links, filter based on TI config settings
-              // Clear stale stack links (viewOption can change during lifecycle in multicampus mode).
               this.combinedLinks = [];
               this.primoLinks = this.buttonInfoService.buildPrimoLinks(viewModel, primoLinkLabels);
 
