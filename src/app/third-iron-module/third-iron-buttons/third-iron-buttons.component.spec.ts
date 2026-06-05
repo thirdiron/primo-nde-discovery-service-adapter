@@ -160,10 +160,8 @@ describe('ThirdIronButtonsComponent', () => {
       const fixture = TestBed.createComponent(ThirdIronButtonsComponent);
       const component = fixture.componentInstance;
 
-      const configService = TestBed.inject(ConfigService);
-      spyOn(configService, 'getViewOption').and.returnValue(
-        opts?.viewOption ?? ViewOptionType.NoStack
-      );
+      // viewOption is read once at construction from MODULE_PARAMETERS; override for template tests.
+      component.viewOption = opts?.viewOption ?? ViewOptionType.NoStack;
       component.combinedLinks = opts?.combinedLinks ?? [];
       component.primoLinks = opts?.primoLinks ?? [];
       component.hasThirdIronSourceItems = opts?.hasThirdIronSourceItems ?? true;
@@ -801,8 +799,7 @@ describe('ThirdIronButtonsComponent', () => {
 
       const fixture = TestBed.createComponent(ThirdIronButtonsComponent);
       const component = fixture.componentInstance;
-      const configService = TestBed.inject(ConfigService);
-      spyOn(configService, 'getViewOption').and.returnValue(ViewOptionType.StackPlusBrowzine);
+      component.viewOption = ViewOptionType.StackPlusBrowzine;
 
       component.hostComponent = {
         searchResult: enhancedArticleRecord,
