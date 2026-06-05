@@ -76,7 +76,7 @@ describe('TranslationService', () => {
 
   describe('View Id (VID) prefix cascade', () => {
     const libKey = 'LibKey.articleLinkText';
-    const prefixedKey = 'LIBKEY_NDE.LibKey.articleLinkText';
+    const prefixedKey = 'Campus1ViewId.LibKey.articleLinkText';
 
     it('uses prefixed translation when prefixed key resolves', () => {
       const { service, streamedKeys } = setup({
@@ -85,7 +85,7 @@ describe('TranslationService', () => {
           [libKey]: 'Read Article',
         },
       });
-      spyOn(service as any, 'getVidSuffix').and.returnValue('LIBKEY_NDE');
+      spyOn(service as any, 'getVidSuffix').and.returnValue('Campus1ViewId');
 
       const received: string[] = [];
       const sub = service.getTranslatedText$(libKey, 'Default').subscribe(v => received.push(v));
@@ -102,7 +102,7 @@ describe('TranslationService', () => {
           [libKey]: 'Read Article',
         },
       });
-      spyOn(service as any, 'getVidSuffix').and.returnValue('LIBKEY_NDE');
+      spyOn(service as any, 'getVidSuffix').and.returnValue('Campus1ViewId');
 
       const received: string[] = [];
       const sub = service.getTranslatedText$(libKey, 'Default').subscribe(v => received.push(v));
@@ -120,7 +120,7 @@ describe('TranslationService', () => {
           [libKey]: libKey,
         },
       });
-      spyOn(service as any, 'getVidSuffix').and.returnValue('LIBKEY_NDE');
+      spyOn(service as any, 'getVidSuffix').and.returnValue('Campus1ViewId');
 
       const received: string[] = [];
       const sub = service.getTranslatedText$(libKey, 'Default').subscribe(v => received.push(v));
@@ -136,7 +136,7 @@ describe('TranslationService', () => {
           [prefixedKey]: 'Campus Read Article',
         },
       });
-      spyOn(URLSearchParams.prototype, 'get').and.returnValue('01COLSCHL_INST:LIBKEY_NDE');
+      spyOn(URLSearchParams.prototype, 'get').and.returnValue('01COLSCHL_INST:Campus1ViewId');
 
       const sub = service.getTranslatedText$(libKey, 'Default').subscribe();
 
@@ -146,7 +146,7 @@ describe('TranslationService', () => {
 
     it('does not prefix non-LibKey keys', () => {
       const { service, streamedKeys } = setup();
-      spyOn(service as any, 'getVidSuffix').and.returnValue('LIBKEY_NDE');
+      spyOn(service as any, 'getVidSuffix').and.returnValue('Campus1ViewId');
 
       const sub = service.getTranslatedText$('fulldisplay.HTML', 'Read Online').subscribe();
 
