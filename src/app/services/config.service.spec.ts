@@ -369,6 +369,123 @@ describe('ConfigService', () => {
     });
   });
 
+  describe('showLinkResolverLinkOnArticles', () => {
+    it('should fall back to legacy showLinkResolverLink (true) when not present', () => {
+      // MOCK_MODULE_PARAMETERS sets showLinkResolverLink: true and does not set the new element
+      expect(service.showLinkResolverLinkOnArticles()).toBeTrue();
+    });
+
+    it('should fall back to legacy showLinkResolverLink (false) when not present', async () => {
+      const config = {
+        ...MOCK_MODULE_PARAMETERS,
+        showLinkResolverLink: false,
+      };
+
+      const testBed = await createTestModule(config);
+      const testService = testBed.inject(ConfigService);
+
+      expect(testService.showLinkResolverLinkOnArticles()).toBeFalse();
+    });
+
+    it('should take priority over legacy element when present and true', async () => {
+      const config = {
+        ...MOCK_MODULE_PARAMETERS,
+        showLinkResolverLink: false,
+        showLinkResolverLinkOnArticles: true,
+      };
+
+      const testBed = await createTestModule(config);
+      const testService = testBed.inject(ConfigService);
+
+      expect(testService.showLinkResolverLinkOnArticles()).toBeTrue();
+    });
+
+    it('should take priority over legacy element when present and false', async () => {
+      const config = {
+        ...MOCK_MODULE_PARAMETERS,
+        showLinkResolverLink: true,
+        showLinkResolverLinkOnArticles: false,
+      };
+
+      const testBed = await createTestModule(config);
+      const testService = testBed.inject(ConfigService);
+
+      expect(testService.showLinkResolverLinkOnArticles()).toBeFalse();
+    });
+
+    it('should support string "true"/"false" values', async () => {
+      const config = {
+        ...MOCK_MODULE_PARAMETERS,
+        showLinkResolverLink: 'true',
+        showLinkResolverLinkOnArticles: 'false',
+      };
+
+      const testBed = await createTestModule(config);
+      const testService = testBed.inject(ConfigService);
+
+      expect(testService.showLinkResolverLinkOnArticles()).toBeFalse();
+    });
+  });
+
+  describe('showLinkResolverLinkOnJournals', () => {
+    it('should fall back to legacy showLinkResolverLink (true) when not present', () => {
+      expect(service.showLinkResolverLinkOnJournals()).toBeTrue();
+    });
+
+    it('should fall back to legacy showLinkResolverLink (false) when not present', async () => {
+      const config = {
+        ...MOCK_MODULE_PARAMETERS,
+        showLinkResolverLink: false,
+      };
+
+      const testBed = await createTestModule(config);
+      const testService = testBed.inject(ConfigService);
+
+      expect(testService.showLinkResolverLinkOnJournals()).toBeFalse();
+    });
+
+    it('should take priority over legacy element when present and true', async () => {
+      const config = {
+        ...MOCK_MODULE_PARAMETERS,
+        showLinkResolverLink: false,
+        showLinkResolverLinkOnJournals: true,
+      };
+
+      const testBed = await createTestModule(config);
+      const testService = testBed.inject(ConfigService);
+
+      expect(testService.showLinkResolverLinkOnJournals()).toBeTrue();
+    });
+
+    it('should take priority over legacy element when present and false', async () => {
+      const config = {
+        ...MOCK_MODULE_PARAMETERS,
+        showLinkResolverLink: true,
+        showLinkResolverLinkOnJournals: false,
+      };
+
+      const testBed = await createTestModule(config);
+      const testService = testBed.inject(ConfigService);
+
+      expect(testService.showLinkResolverLinkOnJournals()).toBeFalse();
+    });
+
+    it('should be independent from the article-specific element', async () => {
+      const config = {
+        ...MOCK_MODULE_PARAMETERS,
+        showLinkResolverLink: false,
+        showLinkResolverLinkOnArticles: false,
+        showLinkResolverLinkOnJournals: true,
+      };
+
+      const testBed = await createTestModule(config);
+      const testService = testBed.inject(ConfigService);
+
+      expect(testService.showLinkResolverLinkOnArticles()).toBeFalse();
+      expect(testService.showLinkResolverLinkOnJournals()).toBeTrue();
+    });
+  });
+
   describe('getApiUrl', () => {
     it('should return the correct API URL', () => {
       expect(service.getApiUrl()).toBe('https://public-api.thirdiron.com/public/v1/libraries/222');

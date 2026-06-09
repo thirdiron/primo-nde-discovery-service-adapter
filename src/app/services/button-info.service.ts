@@ -348,11 +348,19 @@ export class ButtonInfoService {
   }
 
   // Wrapper for buildStackOptions to build Primo links
+  // entityType is the type of the host record (article/journal). It is needed so the link
+  // resolver (direct) link can be shown/hidden per entity type even when there is no Third Iron
+  // display info to carry the entity type (the NoStack/Primo-only path).
   buildPrimoLinks = (
     viewModel: PrimoViewModel,
-    labels: PrimoLinkTextBundle = DEFAULT_PRIMO_LINK_LABELS
+    labels: PrimoLinkTextBundle = DEFAULT_PRIMO_LINK_LABELS,
+    entityType: EntityType = EntityType.Unknown
   ): StackLink[] => {
-    return this.buildStackOptions(DEFAULT_DISPLAY_WATERFALL_RESPONSE, viewModel, labels);
+    return this.buildStackOptions(
+      { ...DEFAULT_DISPLAY_WATERFALL_RESPONSE, entityType },
+      viewModel,
+      labels
+    );
   };
 
   // Wrapper for buildStackOptions to build combined Third Iron and Primo links
@@ -381,7 +389,9 @@ export class ButtonInfoService {
     this.debugLog.debug('ButtonInfo.buildStackOptions.start', {
       viewOption: this.configService.getViewOption(),
       enableLinkOptimizer: this.configService.enableLinkOptimizer(),
-      showLinkResolverLink: this.configService.showLinkResolverLink(),
+      showLinkResolverLink: `deprecated: ${this.configService.showLinkResolverLink()}`,
+      shouldShowLinkResolverLink: this.shouldShowLinkResolverLink(displayInfo.entityType),
+      entityType: displayInfo.entityType,
       hasThirdIronMainButton:
         displayInfo.entityType !== EntityType.Unknown &&
         displayInfo.mainButtonType !== ButtonType.None &&
@@ -438,12 +448,31 @@ export class ButtonInfoService {
     primoOnlineLinks.forEach(link => links.push(link));
 
     // Primo directLink
-    const directLink = this.buildPrimoDirectLinkBase(viewModel, links.length > 0, labels);
+    const directLink = this.buildPrimoDirectLinkBase(
+      viewModel,
+      links.length > 0,
+      labels,
+      displayInfo.entityType
+    );
     if (directLink) {
       links.push(directLink);
     }
 
     return links;
+  }
+
+  // Resolve whether the link resolver (direct) link should be shown for the given entity type.
+  // Article/Journal use their dedicated config values (which fall back to the legacy joint value
+  // for either type when unset). Any other/unknown type uses the legacy value directly.
+  private shouldShowLinkResolverLink(entityType: EntityType): boolean {
+    switch (entityType) {
+      case EntityType.Article:
+        return this.configService.showLinkResolverLinkOnArticles();
+      case EntityType.Journal:
+        return this.configService.showLinkResolverLinkOnJournals();
+      default:
+        return this.configService.showLinkResolverLink();
+    }
   }
 
   private buildPrimoOnlineLinksBase(
@@ -479,9 +508,10 @@ export class ButtonInfoService {
   private buildPrimoDirectLinkBase(
     viewModel: PrimoViewModel,
     hasOtherLinks: boolean,
-    labels: PrimoLinkTextBundle = DEFAULT_PRIMO_LINK_LABELS
+    labels: PrimoLinkTextBundle = DEFAULT_PRIMO_LINK_LABELS,
+    entityType: EntityType = EntityType.Unknown
   ): StackLink | null {
-    if (!viewModel.directLink || !this.configService.showLinkResolverLink()) return null;
+    if (!viewModel.directLink || !this.shouldShowLinkResolverLink(entityType)) return null;
 
     const rawDirectLink = (viewModel.directLink ?? '').trim();
     if (!rawDirectLink) return null;
