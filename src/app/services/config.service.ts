@@ -34,6 +34,13 @@ export class ConfigService {
     }
   }
 
+  // Whether a config element is present (configured) at all, regardless of its value.
+  // Used so newer elements can take priority over legacy ones only when they are actually set.
+  private hasParam(paramName: string): boolean {
+    const value = this.getParam(paramName);
+    return value !== undefined && value !== null;
+  }
+
   getIsUnpaywallEnabled(): boolean {
     return (
       this.getBooleanParam('articlePDFDownloadViaUnpaywallEnabled') ||
@@ -100,6 +107,22 @@ export class ConfigService {
 
   showLinkResolverLink() {
     return this.getBooleanParam('showLinkResolverLink');
+  }
+
+  // The newer `showLinkResolverLinkOnArticles` element TAKES PRIORITY over the legacy
+  // `showLinkResolverLink` when it is present for backwards compatibility.
+  showLinkResolverLinkOnArticles(): boolean {
+    return this.hasParam('showLinkResolverLinkOnArticles')
+      ? this.getBooleanParam('showLinkResolverLinkOnArticles')
+      : this.getBooleanParam('showLinkResolverLink');
+  }
+
+  // The newer `showLinkResolverLinkOnJournals` element TAKES PRIORITY over the legacy
+  // `showLinkResolverLink` when it is present for backwards compatibility.
+  showLinkResolverLinkOnJournals(): boolean {
+    return this.hasParam('showLinkResolverLinkOnJournals')
+      ? this.getBooleanParam('showLinkResolverLinkOnJournals')
+      : this.getBooleanParam('showLinkResolverLink');
   }
 
   enableLinkOptimizer() {
