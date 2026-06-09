@@ -268,9 +268,15 @@ export class ThirdIronButtonsComponent {
                 combinedLinks: this.combinedLinks,
               });
             } else {
-              // Build array of Primo only links, filter based on TI config settings
+              // Build array of Primo only links, filter based on TI config settings.
+              // Pass the record's entity type so the link resolver (direct) link can be
+              // shown/hidden per entity type (article vs journal).
               this.combinedLinks = [];
-              this.primoLinks = this.buttonInfoService.buildPrimoLinks(viewModel, primoLinkLabels);
+              this.primoLinks = this.buttonInfoService.buildPrimoLinks(
+                viewModel,
+                primoLinkLabels,
+                displayInfo.entityType
+              );
 
               // Primo links are re-rendered via our own `stacked-dropdown` in NoStack mode.
             }
