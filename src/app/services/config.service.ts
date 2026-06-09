@@ -109,16 +109,16 @@ export class ConfigService {
     return this.getBooleanParam('showLinkResolverLink');
   }
 
-  // The newer `showLinkResolverLinkOnArticles` element TAKES PRIORITY over the legacy
-  // `showLinkResolverLink` when it is present for backwards compatibility.
+  // The newer `showLinkResolverLinkOnArticles` element TAKES PRIORITY over the legacy `showLinkResolverLink` -
+  // if the newer value is not present, fall back to the legacy value for backwards compatibility.
   showLinkResolverLinkOnArticles(): boolean {
     return this.hasParam('showLinkResolverLinkOnArticles')
       ? this.getBooleanParam('showLinkResolverLinkOnArticles')
       : this.getBooleanParam('showLinkResolverLink');
   }
 
-  // The newer `showLinkResolverLinkOnJournals` element TAKES PRIORITY over the legacy
-  // `showLinkResolverLink` when it is present for backwards compatibility.
+  // The newer `showLinkResolverLinkOnJournals` element TAKES PRIORITY over the legacy `showLinkResolverLink` -
+  // if the newer value is not present, fall back to the legacy value for backwards compatibility.
   showLinkResolverLinkOnJournals(): boolean {
     return this.hasParam('showLinkResolverLinkOnJournals')
       ? this.getBooleanParam('showLinkResolverLinkOnJournals')

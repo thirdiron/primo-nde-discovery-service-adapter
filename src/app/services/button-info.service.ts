@@ -389,8 +389,8 @@ export class ButtonInfoService {
     this.debugLog.debug('ButtonInfo.buildStackOptions.start', {
       viewOption: this.configService.getViewOption(),
       enableLinkOptimizer: this.configService.enableLinkOptimizer(),
-      showLinkResolverLink: this.configService.showLinkResolverLink(),
-      showLinkResolverLinkResolved: this.shouldShowLinkResolverLink(displayInfo.entityType),
+      showLinkResolverLink: `deprecated: ${this.configService.showLinkResolverLink()}`,
+      shouldShowLinkResolverLink: this.shouldShowLinkResolverLink(displayInfo.entityType),
       entityType: displayInfo.entityType,
       hasThirdIronMainButton:
         displayInfo.entityType !== EntityType.Unknown &&
@@ -462,8 +462,8 @@ export class ButtonInfoService {
   }
 
   // Resolve whether the link resolver (direct) link should be shown for the given entity type.
-  // Article/Journal use their dedicated config elements (which fall back to the legacy element when
-  // unset). Any other/unknown type uses the legacy element directly.
+  // Article/Journal use their dedicated config values (which fall back to the legacy joint value
+  // for either type when unset). Any other/unknown type uses the legacy value directly.
   private shouldShowLinkResolverLink(entityType: EntityType): boolean {
     switch (entityType) {
       case EntityType.Article:
