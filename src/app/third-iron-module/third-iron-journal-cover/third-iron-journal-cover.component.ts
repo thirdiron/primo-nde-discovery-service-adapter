@@ -108,10 +108,10 @@ export class ThirdIronJournalCoverComponent {
       | undefined;
     if (!imageElements || imageElements.length === 0) return;
     Array.from(imageElements as HTMLCollectionOf<HTMLElement>).forEach((elem: HTMLElement) => {
-      if (elem.dataset['tiPrevDisplay'] === undefined) {
-        elem.dataset['tiPrevDisplay'] = elem.style.display ?? '';
+      if (elem.dataset['tiRecordImagePrevDisplay'] === undefined) {
+        elem.dataset['tiRecordImagePrevDisplay'] = elem.style.display ?? '';
       }
-      elem.dataset['tiHiddenByThirdIron'] = '1';
+      elem.dataset['tiRecordImageHiddenByThirdIron'] = '1';
       elem.style.display = 'none';
     });
   }
@@ -122,11 +122,11 @@ export class ThirdIronJournalCoverComponent {
       | undefined;
     if (!imageElements || imageElements.length === 0) return;
     Array.from(imageElements as HTMLCollectionOf<HTMLElement>).forEach((elem: HTMLElement) => {
-      if (elem.dataset['tiHiddenByThirdIron'] !== '1') return;
-      const prevDisplay = elem.dataset['tiPrevDisplay'];
+      if (elem.dataset['tiRecordImageHiddenByThirdIron'] !== '1') return;
+      const prevDisplay = elem.dataset['tiRecordImagePrevDisplay'];
       elem.style.display = prevDisplay ?? '';
-      delete elem.dataset['tiHiddenByThirdIron'];
-      delete elem.dataset['tiPrevDisplay'];
+      delete elem.dataset['tiRecordImageHiddenByThirdIron'];
+      delete elem.dataset['tiRecordImagePrevDisplay'];
     });
   }
 }

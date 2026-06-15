@@ -88,10 +88,7 @@ export class ThirdIronButtonsComponent {
   combinedLinks: StackLink[] = []; // used to build custom merged array of online services for stack views
   primoLinks: StackLink[] = []; // used to build array of Primo only links for NoStack view option
   showDropdown = false;
-  get viewOption(): ViewOptionType {
-    // Resolve lazily so multicampus config can “start working” once translations become available.
-    return this.configService.getViewOption();
-  }
+  viewOption = this.configService.getViewOption();
   hasThirdIronSourceItems = false;
 
   // Expose enum to template
@@ -182,12 +179,18 @@ export class ThirdIronButtonsComponent {
             this.debugLog.safeSearchEntityMeta(record)
           );
           this.resetEnhancementState();
-          const restoredCount = this.restorePrimoOnlineAvailability(
-            this.elementRef.nativeElement as HTMLElement
-          );
+          const hostElem = this.elementRef.nativeElement as HTMLElement;
+          const restoredCount = this.restorePrimoOnlineAvailability(hostElem);
           this.debugLog.debug('ThirdIronButtons.restorePrimoOnlineAvailability', {
             reason: 'shouldEnhanceButtons=false',
             restoredCount,
+          });
+          // We render nothing in this case; collapse our wrapper so the host flex container's
+          // gap doesn't apply between us and the sibling `nde-online-availability`.
+          const wrapperHidden = this.hideHostWrapper(hostElem);
+          this.debugLog.debug('ThirdIronButtons.hideHostWrapper', {
+            reason: 'shouldEnhanceButtons=false',
+            wrapperHidden,
           });
           return of(null);
         }
@@ -208,7 +211,6 @@ export class ThirdIronButtonsComponent {
               ariaLabel: viewModel?.ariaLabel ?? null,
             });
 
-            // Read once per emission; config may change (e.g. multicampus translations become available).
             const viewOption = this.viewOption;
 
             // If the TI API / waterfall yields no TI-specific button(s), we should leave the host Primo UI
@@ -217,12 +219,18 @@ export class ThirdIronButtonsComponent {
 
             if (!this.hasThirdIronSourceItems) {
               this.resetEnhancementState();
-              const restoredCount = this.restorePrimoOnlineAvailability(
-                this.elementRef.nativeElement as HTMLElement
-              );
+              const hostElem = this.elementRef.nativeElement as HTMLElement;
+              const restoredCount = this.restorePrimoOnlineAvailability(hostElem);
               this.debugLog.debug('ThirdIronButtons.restorePrimoOnlineAvailability', {
                 reason: 'hasThirdIronSourceItems=false',
                 restoredCount,
+              });
+              // We render nothing in this case; collapse our wrapper so the host flex container's
+              // gap doesn't apply between us and the sibling `nde-online-availability`.
+              const wrapperHidden = this.hideHostWrapper(hostElem);
+              this.debugLog.debug('ThirdIronButtons.hideHostWrapper', {
+                reason: 'hasThirdIronSourceItems=false',
+                wrapperHidden,
               });
               return displayInfo;
             }
@@ -236,6 +244,13 @@ export class ThirdIronButtonsComponent {
               this.debugLog.debug('ThirdIronButtons.removePrimoOnlineAvailability', {
                 reason: 'hasThirdIronSourceItems',
                 removedCount,
+              });
+              // If a previous emission (for this or another record) had hidden our wrapper because
+              // we were empty, make sure it's visible again now that we have content to render.
+              const wrapperRestored = this.restoreHostWrapper(hostElem);
+              this.debugLog.debug('ThirdIronButtons.restoreHostWrapper', {
+                reason: 'hasThirdIronSourceItems',
+                wrapperRestored,
               });
             }
 
@@ -253,10 +268,15 @@ export class ThirdIronButtonsComponent {
                 combinedLinks: this.combinedLinks,
               });
             } else {
-              // Build array of Primo only links, filter based on TI config settings
-              // Clear stale stack links (viewOption can change during lifecycle in multicampus mode).
+              // Build array of Primo only links, filter based on TI config settings.
+              // Pass the record's entity type so the link resolver (direct) link can be
+              // shown/hidden per entity type (article vs journal).
               this.combinedLinks = [];
-              this.primoLinks = this.buttonInfoService.buildPrimoLinks(viewModel, primoLinkLabels);
+              this.primoLinks = this.buttonInfoService.buildPrimoLinks(
+                viewModel,
+                primoLinkLabels,
+                displayInfo.entityType
+              );
 
               // Primo links are re-rendered via our own `stacked-dropdown` in NoStack mode.
             }
@@ -306,11 +326,11 @@ export class ThirdIronButtonsComponent {
       if (onlineAvailabilityElems.length > 0) {
         const arr = Array.from(onlineAvailabilityElems);
         for (const elem of arr) {
-          if (elem.dataset['tiPrevDisplay'] === undefined) {
+          if (elem.dataset['tiOnlineAvailabilityPrevDisplay'] === undefined) {
             // if we need to restore this element later, we will set display back to the original value
-            elem.dataset['tiPrevDisplay'] = elem.style.display ?? '';
+            elem.dataset['tiOnlineAvailabilityPrevDisplay'] = elem.style.display ?? '';
           }
-          elem.dataset['tiHiddenByThirdIron'] = '1';
+          elem.dataset['tiOnlineAvailabilityHiddenByThirdIron'] = '1';
           elem.style.display = 'none';
         }
         return arr.length;
@@ -325,8 +345,8 @@ export class ThirdIronButtonsComponent {
   };
 
   // Traverse the DOM up to 12 levels (arbitrary depth) to find the `nde-online-availability` element and restore it to its original display value.
-  // We only restore elements we previously hid (tiHiddenByThirdIron dataset is set to '1')
-  // After restoring, we delete the tiHiddenByThirdIron and tiPrevDisplay dataset attributes (cleanup).
+  // We only restore elements we previously hid (tiOnlineAvailabilityHiddenByThirdIron dataset is set to '1')
+  // After restoring, we delete the tiOnlineAvailabilityHiddenByThirdIron and tiOnlineAvailabilityPrevDisplay dataset attributes (cleanup).
   restorePrimoOnlineAvailability = (hostElement: HTMLElement): number => {
     let current: HTMLElement | null = hostElement ?? null;
     for (let depth = 0; current && depth < 12; depth++) {
@@ -337,11 +357,11 @@ export class ThirdIronButtonsComponent {
         const arr = Array.from(onlineAvailabilityElems);
         let restored = 0;
         for (const elem of arr) {
-          if (elem.dataset['tiHiddenByThirdIron'] !== '1') continue;
-          const prevDisplay = elem.dataset['tiPrevDisplay'];
+          if (elem.dataset['tiOnlineAvailabilityHiddenByThirdIron'] !== '1') continue;
+          const prevDisplay = elem.dataset['tiOnlineAvailabilityPrevDisplay'];
           elem.style.display = prevDisplay ?? '';
-          delete elem.dataset['tiHiddenByThirdIron'];
-          delete elem.dataset['tiPrevDisplay'];
+          delete elem.dataset['tiOnlineAvailabilityHiddenByThirdIron'];
+          delete elem.dataset['tiOnlineAvailabilityPrevDisplay'];
           restored++;
         }
         return restored;
@@ -350,4 +370,51 @@ export class ThirdIronButtonsComponent {
     }
     return 0;
   };
+
+  // The host (Primo NDE) renders this component via `*ngComponentOutlet`, which wraps our
+  // custom element in an `<ng-component>` element. That `<ng-component>` is a direct child
+  // of the host's `.responsive-availability-layout` flex container (which currently sets `gap: .5rem`).
+  //
+  // When this component has nothing to render (no TI buttons), our own host element is empty
+  // (just Angular `<!---->` placeholders), but `<ng-component>` is still a flex item — so the
+  // container's gap is still applied between it and the sibling `<nde-online-availability>`,
+  // leaving an unwanted blank space to the left of the Primo "Available Online" button.
+  //
+  // Hiding our own host element doesn't fix this (the flex item is the wrapper, not us), so
+  // we walk up to the wrapping `<ng-component>` and hide it instead. We mark our mutation
+  // with dataset flags so `restoreHostWrapper` only undoes changes we made.
+  hideHostWrapper = (hostElement: HTMLElement): boolean => {
+    const wrapper = this.findHostWrapper(hostElement);
+    if (!wrapper) return false;
+    if (wrapper.dataset['tiWrapperPrevDisplay'] === undefined) {
+      wrapper.dataset['tiWrapperPrevDisplay'] = wrapper.style.display ?? '';
+    }
+    wrapper.dataset['tiWrapperHiddenByThirdIron'] = '1';
+    wrapper.style.display = 'none';
+    return true;
+  };
+
+  // Restore the wrapping `<ng-component>`'s display if (and only if) we previously hid it.
+  restoreHostWrapper = (hostElement: HTMLElement): boolean => {
+    const wrapper = this.findHostWrapper(hostElement);
+    if (!wrapper) return false;
+    if (wrapper.dataset['tiWrapperHiddenByThirdIron'] !== '1') return false;
+    const prevDisplay = wrapper.dataset['tiWrapperPrevDisplay'];
+    wrapper.style.display = prevDisplay ?? '';
+    delete wrapper.dataset['tiWrapperHiddenByThirdIron'];
+    delete wrapper.dataset['tiWrapperPrevDisplay'];
+    return true;
+  };
+
+  // Walk up a small fixed number of levels from our host element looking for the
+  // `<ng-component>` wrapper. Depth is normally 1, but we allow a few hops in case
+  // a future host inserts an extra wrapper.
+  private findHostWrapper(hostElement: HTMLElement | null): HTMLElement | null {
+    let current: HTMLElement | null = hostElement?.parentElement ?? null;
+    for (let depth = 0; current && depth < 4; depth++) {
+      if (current.tagName.toLowerCase() === 'ng-component') return current;
+      current = current.parentElement;
+    }
+    return null;
+  }
 }

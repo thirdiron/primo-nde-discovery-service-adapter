@@ -1,7 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 
 import { ConfigService } from './config.service';
-import { TranslateService } from '@ngx-translate/core';
 
 // Mock module parameters that can be reused across test files
 export const MOCK_MODULE_PARAMETERS = {
@@ -29,27 +28,11 @@ export const MOCK_MODULE_PARAMETERS = {
   //TODO: add all the other module parameters
 };
 
-const createTranslateMock = (instantValue?: string): Partial<TranslateService> => {
-  return {
-    instant: (key: string) => {
-      if (key === 'LibKey.institutionName') return instantValue ?? 'MockInstitution';
-      return key;
-    },
-    stream: (key: string) => {
-      // This test file doesn't rely on streaming translation behavior; return key-as-value.
-      return {
-        pipe: () => ({ subscribe: () => {} }),
-      } as any;
-    },
-  };
-};
-
-const createTestModule = async (config: any, translateInstantValue?: string) => {
+const createTestModule = async (config: any) => {
   TestBed.resetTestingModule();
   TestBed.configureTestingModule({
     providers: [
       ConfigService,
-      { provide: TranslateService, useValue: createTranslateMock(translateInstantValue) },
       {
         provide: 'MODULE_PARAMETERS',
         useValue: config,
@@ -67,7 +50,6 @@ describe('ConfigService', () => {
     TestBed.configureTestingModule({
       providers: [
         ConfigService,
-        { provide: TranslateService, useValue: createTranslateMock() },
         {
           provide: 'MODULE_PARAMETERS',
           useValue: MOCK_MODULE_PARAMETERS,
@@ -387,6 +369,123 @@ describe('ConfigService', () => {
     });
   });
 
+  describe('showLinkResolverLinkOnArticles', () => {
+    it('should fall back to legacy showLinkResolverLink (true) when not present', () => {
+      // MOCK_MODULE_PARAMETERS sets showLinkResolverLink: true and does not set the new element
+      expect(service.showLinkResolverLinkOnArticles()).toBeTrue();
+    });
+
+    it('should fall back to legacy showLinkResolverLink (false) when not present', async () => {
+      const config = {
+        ...MOCK_MODULE_PARAMETERS,
+        showLinkResolverLink: false,
+      };
+
+      const testBed = await createTestModule(config);
+      const testService = testBed.inject(ConfigService);
+
+      expect(testService.showLinkResolverLinkOnArticles()).toBeFalse();
+    });
+
+    it('should take priority over legacy element when present and true', async () => {
+      const config = {
+        ...MOCK_MODULE_PARAMETERS,
+        showLinkResolverLink: false,
+        showLinkResolverLinkOnArticles: true,
+      };
+
+      const testBed = await createTestModule(config);
+      const testService = testBed.inject(ConfigService);
+
+      expect(testService.showLinkResolverLinkOnArticles()).toBeTrue();
+    });
+
+    it('should take priority over legacy element when present and false', async () => {
+      const config = {
+        ...MOCK_MODULE_PARAMETERS,
+        showLinkResolverLink: true,
+        showLinkResolverLinkOnArticles: false,
+      };
+
+      const testBed = await createTestModule(config);
+      const testService = testBed.inject(ConfigService);
+
+      expect(testService.showLinkResolverLinkOnArticles()).toBeFalse();
+    });
+
+    it('should support string "true"/"false" values', async () => {
+      const config = {
+        ...MOCK_MODULE_PARAMETERS,
+        showLinkResolverLink: 'true',
+        showLinkResolverLinkOnArticles: 'false',
+      };
+
+      const testBed = await createTestModule(config);
+      const testService = testBed.inject(ConfigService);
+
+      expect(testService.showLinkResolverLinkOnArticles()).toBeFalse();
+    });
+  });
+
+  describe('showLinkResolverLinkOnJournals', () => {
+    it('should fall back to legacy showLinkResolverLink (true) when not present', () => {
+      expect(service.showLinkResolverLinkOnJournals()).toBeTrue();
+    });
+
+    it('should fall back to legacy showLinkResolverLink (false) when not present', async () => {
+      const config = {
+        ...MOCK_MODULE_PARAMETERS,
+        showLinkResolverLink: false,
+      };
+
+      const testBed = await createTestModule(config);
+      const testService = testBed.inject(ConfigService);
+
+      expect(testService.showLinkResolverLinkOnJournals()).toBeFalse();
+    });
+
+    it('should take priority over legacy element when present and true', async () => {
+      const config = {
+        ...MOCK_MODULE_PARAMETERS,
+        showLinkResolverLink: false,
+        showLinkResolverLinkOnJournals: true,
+      };
+
+      const testBed = await createTestModule(config);
+      const testService = testBed.inject(ConfigService);
+
+      expect(testService.showLinkResolverLinkOnJournals()).toBeTrue();
+    });
+
+    it('should take priority over legacy element when present and false', async () => {
+      const config = {
+        ...MOCK_MODULE_PARAMETERS,
+        showLinkResolverLink: true,
+        showLinkResolverLinkOnJournals: false,
+      };
+
+      const testBed = await createTestModule(config);
+      const testService = testBed.inject(ConfigService);
+
+      expect(testService.showLinkResolverLinkOnJournals()).toBeFalse();
+    });
+
+    it('should be independent from the article-specific element', async () => {
+      const config = {
+        ...MOCK_MODULE_PARAMETERS,
+        showLinkResolverLink: false,
+        showLinkResolverLinkOnArticles: false,
+        showLinkResolverLinkOnJournals: true,
+      };
+
+      const testBed = await createTestModule(config);
+      const testService = testBed.inject(ConfigService);
+
+      expect(testService.showLinkResolverLinkOnArticles()).toBeFalse();
+      expect(testService.showLinkResolverLinkOnJournals()).toBeTrue();
+    });
+  });
+
   describe('getApiUrl', () => {
     it('should return the correct API URL', () => {
       expect(service.getApiUrl()).toBe('https://public-api.thirdiron.com/public/v1/libraries/222');
@@ -567,67 +666,4 @@ describe('ConfigService', () => {
     });
   });
 
-  describe('multicampus mode', () => {
-    it('uses prefixed keys (case-insensitive) when mode is multicampus', async () => {
-      const config = {
-        mode: 'multicampus',
-        // intentionally mixed case for the prefix and some keys
-        'mOcKiNsTiTuTiOn.apiKey': 'multi-api-key',
-        'MockInstitution.LibraryId': '999',
-      };
-
-      const testBed = await createTestModule(config, 'MockInstitution');
-      const testService = testBed.inject(ConfigService);
-
-      expect(testService.getApiKey()).toBe('multi-api-key');
-      expect(testService.getApiUrl()).toBe(
-        'https://public-api.thirdiron.com/public/v1/libraries/999'
-      );
-    });
-
-    it('treats missing prefixed booleans as unset (false)', async () => {
-      const config = {
-        mode: 'multicampus',
-        'MockInstitution.apiKey': 'multi-api-key',
-        'MockInstitution.libraryId': '999',
-        // note: no 'MockInstitution.journalCoverImagesEnabled' key
-      };
-
-      const testBed = await createTestModule(config, 'MockInstitution');
-      const testService = testBed.inject(ConfigService);
-
-      expect(testService.showJournalCoverImages()).toBeFalse();
-    });
-
-    it('treats missing prefixed viewOption as unset (defaults to stack-plus-browzine)', async () => {
-      const config = {
-        mode: 'multicampus',
-        'MockInstitution.apiKey': 'multi-api-key',
-        'MockInstitution.libraryId': '999',
-        // note: no 'MockInstitution.viewOption'
-      };
-
-      const testBed = await createTestModule(config, 'MockInstitution');
-      const testService = testBed.inject(ConfigService);
-
-      expect(testService.getViewOption()).toBe('stack-plus-browzine');
-    });
-
-    it('does not fallback to unprefixed keys in multicampus mode', async () => {
-      const config = {
-        mode: 'multicampus',
-        apiKey: 'unprefixed-should-not-be-used',
-        libraryId: '222',
-        // institution is defined, but no prefixed apiKey/libraryId exist
-      };
-
-      const testBed = await createTestModule(config, 'MockInstitution');
-      const testService = testBed.inject(ConfigService);
-
-      expect(testService.getApiKey()).toBeUndefined();
-      expect(testService.getApiUrl()).toBe(
-        'https://public-api.thirdiron.com/public/v1/libraries/undefined'
-      );
-    });
-  });
 });

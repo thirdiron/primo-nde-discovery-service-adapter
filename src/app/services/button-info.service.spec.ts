@@ -1877,4 +1877,156 @@ describe('ButtonInfoService', () => {
       expect(link.url).toBe(`/somethingelse/fulldisplay?docid=AAA${fullDisplayHash}`);
     });
   });
+
+  // The newer showLinkResolverLinkOnArticles/showLinkResolverLinkOnJournals elements take
+  // priority over the legacy showLinkResolverLink element when present.
+  describe('link resolver link per entity type', () => {
+    const directLinkViewModel = (): any => ({
+      onlineLinks: [],
+      directLink: 'https://example.com/nde/fulldisplay/some/direct/link',
+      ariaLabel: 'aria',
+    });
+
+    const displayInfoFor = (entityType: EntityType): DisplayWaterfallResponse => ({
+      entityType,
+      mainButtonType: ButtonType.None,
+      mainUrl: '',
+      secondaryUrl: '',
+      showSecondaryButton: false,
+      showBrowzineButton: false,
+      browzineUrl: '',
+    });
+
+    const getDirectLink = (links: any[]) => links.find(l => l.source === 'directLink');
+
+    it('hides the article direct link when showLinkResolverLinkOnArticles is false (overriding legacy true)', async () => {
+      const testBed = await createTestModule({
+        ...MOCK_MODULE_PARAMETERS,
+        showLinkResolverLink: true,
+        showLinkResolverLinkOnArticles: false,
+      });
+      const testService = testBed.inject(ButtonInfoService);
+
+      const result = testService.buildCombinedLinks(
+        displayInfoFor(EntityType.Article),
+        directLinkViewModel()
+      );
+
+      expect(getDirectLink(result)).toBeUndefined();
+    });
+
+    it('shows the article direct link when showLinkResolverLinkOnArticles is true (overriding legacy false)', async () => {
+      const testBed = await createTestModule({
+        ...MOCK_MODULE_PARAMETERS,
+        showLinkResolverLink: false,
+        showLinkResolverLinkOnArticles: true,
+      });
+      const testService = testBed.inject(ButtonInfoService);
+
+      const result = testService.buildCombinedLinks(
+        displayInfoFor(EntityType.Article),
+        directLinkViewModel()
+      );
+
+      expect(getDirectLink(result)).toBeDefined();
+    });
+
+    it('hides the journal direct link when showLinkResolverLinkOnJournals is false (overriding legacy true)', async () => {
+      const testBed = await createTestModule({
+        ...MOCK_MODULE_PARAMETERS,
+        showLinkResolverLink: true,
+        showLinkResolverLinkOnJournals: false,
+      });
+      const testService = testBed.inject(ButtonInfoService);
+
+      const result = testService.buildCombinedLinks(
+        displayInfoFor(EntityType.Journal),
+        directLinkViewModel()
+      );
+
+      expect(getDirectLink(result)).toBeUndefined();
+    });
+
+    it('shows the journal direct link when showLinkResolverLinkOnJournals is true (overriding legacy false)', async () => {
+      const testBed = await createTestModule({
+        ...MOCK_MODULE_PARAMETERS,
+        showLinkResolverLink: false,
+        showLinkResolverLinkOnJournals: true,
+      });
+      const testService = testBed.inject(ButtonInfoService);
+
+      const result = testService.buildCombinedLinks(
+        displayInfoFor(EntityType.Journal),
+        directLinkViewModel()
+      );
+
+      expect(getDirectLink(result)).toBeDefined();
+    });
+
+    it('allows independent control of article vs journal direct links', async () => {
+      const testBed = await createTestModule({
+        ...MOCK_MODULE_PARAMETERS,
+        showLinkResolverLink: true,
+        showLinkResolverLinkOnArticles: false,
+        showLinkResolverLinkOnJournals: true,
+      });
+      const testService = testBed.inject(ButtonInfoService);
+
+      const articleResult = testService.buildCombinedLinks(
+        displayInfoFor(EntityType.Article),
+        directLinkViewModel()
+      );
+      const journalResult = testService.buildCombinedLinks(
+        displayInfoFor(EntityType.Journal),
+        directLinkViewModel()
+      );
+
+      expect(getDirectLink(articleResult)).toBeUndefined();
+      expect(getDirectLink(journalResult)).toBeDefined();
+    });
+
+    it('falls back to legacy showLinkResolverLink when the new elements are absent', async () => {
+      const testBed = await createTestModule({
+        ...MOCK_MODULE_PARAMETERS,
+        showLinkResolverLink: true,
+      });
+      const testService = testBed.inject(ButtonInfoService);
+
+      const articleResult = testService.buildCombinedLinks(
+        displayInfoFor(EntityType.Article),
+        directLinkViewModel()
+      );
+      const journalResult = testService.buildCombinedLinks(
+        displayInfoFor(EntityType.Journal),
+        directLinkViewModel()
+      );
+
+      expect(getDirectLink(articleResult)).toBeDefined();
+      expect(getDirectLink(journalResult)).toBeDefined();
+    });
+
+    it('buildPrimoLinks (NoStack) respects per-entity-type config using the passed entityType', async () => {
+      const testBed = await createTestModule({
+        ...MOCK_MODULE_PARAMETERS,
+        showLinkResolverLink: true,
+        showLinkResolverLinkOnArticles: false,
+        showLinkResolverLinkOnJournals: true,
+      });
+      const testService = testBed.inject(ButtonInfoService);
+
+      const articleResult = testService.buildPrimoLinks(
+        directLinkViewModel(),
+        DEFAULT_PRIMO_LINK_LABELS,
+        EntityType.Article
+      );
+      const journalResult = testService.buildPrimoLinks(
+        directLinkViewModel(),
+        DEFAULT_PRIMO_LINK_LABELS,
+        EntityType.Journal
+      );
+
+      expect(getDirectLink(articleResult)).toBeUndefined();
+      expect(getDirectLink(journalResult)).toBeDefined();
+    });
+  });
 });
