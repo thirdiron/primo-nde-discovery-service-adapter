@@ -4,8 +4,77 @@
 
 Our customer facing documentation for getting up and running with this Primo NDE add-on can be found [in our confluence docs](https://thirdiron.atlassian.net/wiki/spaces/BrowZineAPIDocs/pages/4018733059/Ex+Libris+Primo+NDE+Beta). This README is targeted mostly for advanced users who may be adding additional customization to their add-on or for Third Iron internal developers. If you are a customer who will be integrating the Third Iron LibKey add-on in a standard way, please refer to the documentation in the link above.
 
+## Getting started
+
+This repo is the **Third Iron LibKey add-on for Ex Libris Primo NDE**. It is an Angular microfrontend (module federation) that Primo loads at runtime. The add-on reads Primo search-result data, calls the Third Iron Public API, and renders LibKey/BrowZine buttons and journal covers in the Primo UI.
+
+### Prerequisites
+
+- Node.js and npm (Angular 18 project)
+- Git
+
+### First-time setup
+
+1. Clone the repo and install dependencies:
+   ```bash
+   npm install
+   ```
+2. Review `build-settings.env` at the repo root. This file drives the add-on name and asset base URL used during build. The checked-in defaults are:
+   - `ADDON_NAME=LibKey`
+   - `INST_ID` / `VIEW_ID` for local/proxy configuration
+3. Run a build or start command once so `prebuild.js` can generate/update bootstrap and asset config files.
+
+### Run against Primo Sandbox account (recommended for full testing)
+
+Changes are pushed up to the '/dev-test/' S3 bucket when the feature branch CI pipeline runs. You can then point the Alma backend config Add-On URL to the '/dev-test/' URL for end-to-end testing (with our config loaded).
+
+### Run locally
+
+- **Standalone dev server** (useful for unit work and quick UI checks):
+
+  ```bash
+  npm start
+  ```
+
+  Serves on port `4201`.
+
+- **Against a Primo instance** (end-to-end behavior):
+  ```bash
+  npm run start:proxy
+  ```
+  Uses `proxy/proxy.conf.mjs` to proxy Primo and inject local add-on assets. Set the target Primo environment in `proxy/proxy.const.mjs` (`PROXY_TARGET`).
+  Note: the drawback of this proxied testing is that all our config values are not loaded. You can hardcode defaults, or just push up a build to the /dev-test S3 directory (described in [CircleCI deployment targets](#circleci-deployment-targets)) and point the Alma backend Add-On url to the /dev-test directory.
+
+### Test and build
+
+```bash
+npm test          # unit tests (Karma/Jasmine)
+npm run test:ci   # headless CI-style test run
+npm run build     # production build to dist/
+```
+
+### Where to start in the code
+
+| Area                   | Location                                               | What it does                                         |
+| ---------------------- | ------------------------------------------------------ | ---------------------------------------------------- |
+| Primo entry point      | `src/bootstrapLibKey.ts`                               | Bootstraps the remote microfrontend                  |
+| Component registration | `src/app/third-iron-module/customComponentMappings.ts` | Maps Primo DOM slots to Angular components           |
+| Main UI                | `src/app/third-iron-module/third-iron-buttons/`        | Renders LibKey buttons on search results and records |
+| Button logic           | `src/app/services/button-info.service.ts`              | Calls TI API and runs the display waterfall          |
+| Config flags           | `src/app/services/config.service.ts`                   | Reads add-on module parameters from Primo            |
+| Local proxy setup      | `proxy/`                                               | Primo proxy rules and customization overrides        |
+
+For runtime troubleshooting, enable debug mode in the browser console (`window.__TI_NDE__.debug.enable()`). See [Debug mode](#debug-mode) below.
+
+### What to read next
+
+- [Developer notes](#developer-notes) for debugging, syncing the upstream fork, icons, and Redux/pnx inspection
+- [Primo LibKey Add-on Architecture](#primo-libkey-add-on-architecture-sequence-diagram) for the high-level runtime flow
+- [S3_DEPLOYMENT_GUIDE.md](S3_DEPLOYMENT_GUIDE.md) and [CircleCI deployment targets](#circleci-deployment-targets) for release paths
+
 ## README Outline
 
+- [Getting started](#getting-started)
 - [Developer Notes](#developer-notes)
 - [Resources](#additional-resources)
 
