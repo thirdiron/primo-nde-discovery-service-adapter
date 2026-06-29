@@ -80,6 +80,10 @@ For runtime troubleshooting, enable debug mode in the browser console (`window._
 
 ## Developer notes
 
+### Pushing commits
+
+When pushing a commit, make sure to change the base repository to the Third Iron develop branch. You'll know its correct when our PR template shows up.
+
 ### Debug mode
 
 This add-on supports a **runtime-toggleable debug mode**. When enabled, the add-on will emit structured log messages to the browser console at key points in the app flow (API calls, decision points, DOM removal, etc.).
