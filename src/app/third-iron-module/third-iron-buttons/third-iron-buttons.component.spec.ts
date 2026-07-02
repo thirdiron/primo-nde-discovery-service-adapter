@@ -284,10 +284,10 @@ describe('ThirdIronButtonsComponent', () => {
         };
 
         // Spy on side-effect method to ensure enhancement pipeline didn't run.
-        spyOn(component, 'removePrimoOnlineAvailability').and.callThrough();
+        spyOn(component.availabilityDom, 'hideAvailability').and.callThrough();
         // Spy on host-wrapper toggling so tests can assert we collapse the wrapping
         // `<ng-component>` to avoid the host flex container's `gap` rule applying.
-        spyOn(component, 'hideHostWrapper').and.callThrough();
+        spyOn(component.availabilityDom, 'hideWrapper').and.callThrough();
 
         fixture.detectChanges(); // runs ngOnInit
         // Ensure the Rx pipeline runs by subscribing (in the real app the template async pipe does this).
@@ -314,7 +314,7 @@ describe('ThirdIronButtonsComponent', () => {
       it('renders nothing and does not remove original Primo online availability element', async () => {
         const { component, el, sub } = await setupSkipEnhancement();
 
-        expect(component.removePrimoOnlineAvailability).not.toHaveBeenCalled();
+        expect(component.availabilityDom.hideAvailability).not.toHaveBeenCalled();
         expect(el.querySelector('.ti-stack-options-container')).toBeNull();
         expect(el.querySelector('.ti-no-stack-container')).toBeNull();
         sub?.unsubscribe();
@@ -327,7 +327,7 @@ describe('ThirdIronButtonsComponent', () => {
       it('hides the wrapping ng-component so the host flex container gap does not apply', async () => {
         const { component, sub } = await setupSkipEnhancement();
 
-        expect(component.hideHostWrapper).toHaveBeenCalled();
+        expect(component.availabilityDom.hideWrapper).toHaveBeenCalled();
         sub?.unsubscribe();
       });
     });
@@ -817,12 +817,14 @@ describe('ThirdIronButtonsComponent', () => {
     // When moving to a non-enhanced record, we should redraw the original Primo UI (restores Primo availability) and reset the enhancement state.
     it('resets enhancement state and restores Primo availability when transitioning from enhanced -> non-enhanced record', async () => {
       const { fixture, component, getDisplayInfoSpy } = await setupNavigationFixture();
-      const removeSpy = spyOn(component, 'removePrimoOnlineAvailability').and.returnValue(1);
-      const restoreSpy = spyOn(component, 'restorePrimoOnlineAvailability').and.returnValue(1);
+      const removeSpy = spyOn(component.availabilityDom, 'hideAvailability').and.returnValue(1);
+      const restoreSpy = spyOn(component.availabilityDom, 'restoreAvailability').and.returnValue(1);
       // Track host-wrapper toggling: when processing an enhanced record, we should restore the wrapper, transitioning
       // to a non-enhanced (empty render) record should then hide it again.
-      const hideWrapperSpy = spyOn(component, 'hideHostWrapper').and.returnValue(true);
-      const restoreWrapperSpy = spyOn(component, 'restoreHostWrapper').and.returnValue(true);
+      const hideWrapperSpy = spyOn(component.availabilityDom, 'hideWrapper').and.returnValue(true);
+      const restoreWrapperSpy = spyOn(component.availabilityDom, 'restoreWrapper').and.returnValue(
+        true
+      );
 
       fixture.detectChanges();
       const sub = component.displayInfo$?.subscribe();
@@ -851,12 +853,14 @@ describe('ThirdIronButtonsComponent', () => {
     it('enhances and removes Primo availability when navigating from a non-enhanced -> enhanced record', async () => {
       const { fixture, component, getDisplayInfoSpy, buildCombinedLinksSpy } =
         await setupNavigationFixture();
-      const removeSpy = spyOn(component, 'removePrimoOnlineAvailability').and.returnValue(1);
-      const restoreSpy = spyOn(component, 'restorePrimoOnlineAvailability').and.returnValue(1);
+      const removeSpy = spyOn(component.availabilityDom, 'hideAvailability').and.returnValue(1);
+      const restoreSpy = spyOn(component.availabilityDom, 'restoreAvailability').and.returnValue(1);
       // Track host-wrapper toggling: non-enhanced render should hide the wrapper,
       // transitioning to an enhanced record should restore it.
-      const hideWrapperSpy = spyOn(component, 'hideHostWrapper').and.returnValue(true);
-      const restoreWrapperSpy = spyOn(component, 'restoreHostWrapper').and.returnValue(true);
+      const hideWrapperSpy = spyOn(component.availabilityDom, 'hideWrapper').and.returnValue(true);
+      const restoreWrapperSpy = spyOn(component.availabilityDom, 'restoreWrapper').and.returnValue(
+        true
+      );
 
       component.hostComponent.searchResult = nonEnhancedArticleRecord;
 
@@ -964,10 +968,10 @@ describe('ThirdIronButtonsComponent', () => {
       fixture = TestBed.createComponent(ThirdIronButtonsComponent);
       component = fixture.componentInstance;
       component.viewOption = ViewOptionType.StackPlusBrowzine;
-      removeSpy = spyOn(component, 'removePrimoOnlineAvailability').and.returnValue(1);
-      restoreSpy = spyOn(component, 'restorePrimoOnlineAvailability').and.returnValue(1);
-      spyOn(component, 'restoreHostWrapper').and.returnValue(true);
-      spyOn(component, 'hideHostWrapper').and.returnValue(true);
+      removeSpy = spyOn(component.availabilityDom, 'hideAvailability').and.returnValue(1);
+      restoreSpy = spyOn(component.availabilityDom, 'restoreAvailability').and.returnValue(1);
+      spyOn(component.availabilityDom, 'restoreWrapper').and.returnValue(true);
+      spyOn(component.availabilityDom, 'hideWrapper').and.returnValue(true);
       component.hostComponent = {
         searchResult: enhancedArticleRecord,
         viewModel$: of({ onlineLinks: [], directLink: '', ariaLabel: '' }),
@@ -1037,6 +1041,44 @@ describe('ThirdIronButtonsComponent', () => {
 
       fixture.destroy();
     }));
+
+    // The core race: our component is injected before `nde-online-availability`, so the native
+    // element frequently doesn't exist yet when we first try to hide it. The observer must hide it
+    // the moment Primo renders it. Here we let the real hide/observer logic run (no spies) and add
+    // the native element to the DOM *after* entering the loading phase.
+    it('hides a native availability element that Primo renders after loading starts', async () => {
+      // Use the real hide + observer logic for this test (undo the beforeEach spies).
+      removeSpy.and.callThrough();
+
+      const wrapper = document.createElement('ng-component');
+      const container = document.createElement('div');
+      container.appendChild(wrapper);
+      // Place our component's host element inside the wrapper so the controller's observer root
+      // resolves to the container.
+      wrapper.appendChild(fixture.nativeElement);
+      document.body.appendChild(container);
+
+      try {
+        fixture.detectChanges(); // enters loading + starts the observer
+        expect(component.buttonsPhase).toBe('loading');
+
+        // Native element rendered by Primo *after* we started loading.
+        const nativeAvailability = document.createElement('nde-online-availability');
+        container.appendChild(nativeAvailability);
+
+        // Let the MutationObserver callback run.
+        await Promise.resolve();
+        await new Promise(resolve => setTimeout(resolve, 0));
+
+        expect(
+          nativeAvailability.classList.contains('ti-online-availability-hidden')
+        ).toBeTrue();
+        expect(nativeAvailability.style.display).toBe('none');
+      } finally {
+        fixture.destroy();
+        document.body.removeChild(container);
+      }
+    });
   });
 
   it('passes translated Primo labels into buildPrimoLinks and updates when translation streams emit', async () => {

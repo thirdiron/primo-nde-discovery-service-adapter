@@ -34,6 +34,7 @@ import {
   resolvePrimoHostRecord,
 } from 'src/app/shared/primo-host-record.utils';
 import { TranslationService } from 'src/app/services/translation.service';
+import { PrimoAvailabilityDomController } from 'src/app/shared/primo-availability-dom';
 
 @Component({
   selector: 'custom-third-iron-buttons',
@@ -114,6 +115,12 @@ export class ThirdIronButtonsComponent {
   private enhanceCommitTimer: ReturnType<typeof setTimeout> | null = null;
   private maxWaitTimer: ReturnType<typeof setTimeout> | null = null;
 
+  // Owns all DOM coordination with the host Primo `nde-online-availability` element (hiding,
+  // restoring, and observing for late/re-renders) and the `<ng-component>` wrapper. Kept public so
+  // the side-effects can be spied in tests. Because we're injected *before* the native element, the
+  // eager one-shot hide can run before Primo has created it — the observer covers that race.
+  readonly availabilityDom = new PrimoAvailabilityDomController();
+
   // Expose enum to template
   ViewOptionType = ViewOptionType;
 
@@ -177,6 +184,7 @@ export class ThirdIronButtonsComponent {
 
   ngOnDestroy() {
     this.clearPhaseTimers();
+    this.availabilityDom.disconnect();
     this.hostProxy.destroy();
   }
 
@@ -267,7 +275,22 @@ export class ThirdIronButtonsComponent {
     }
 
     // We are enhancing this record with at least one TI-provided button (main/secondary/BrowZine).
-    // The native Primo online availability UI was already hidden in enterLoading(); keep it hidden.
+    // The native Primo online availability UI was hidden in enterLoading(); re-hide now that the
+    // call has settled (by this point the native element definitely exists) and ensure the observer
+    // is still guarding against Primo re-rendering it. Keep our wrapper visible so our buttons show.
+    {
+      const hostElem = this.elementRef.nativeElement as HTMLElement;
+      const removedCount = this.availabilityDom.hideAvailability(hostElem);
+      const wrapperRestored = this.availabilityDom.restoreWrapper(hostElem);
+      if (!this.availabilityDom.isObserving()) {
+        this.availabilityDom.observeAvailability(hostElem, () => this.isGuardingNativeButtons());
+      }
+      this.debugLog.debug('ThirdIronButtons.applyEnhancement.hideNative', {
+        removedCount,
+        wrapperRestored,
+      });
+    }
+
     if (viewOption !== ViewOptionType.NoStack) {
       // build custom stack options array for StackPlusBrowzine and SingleStack view options
       // Clear stale NoStack links so template can't get "stuck" on old state.
@@ -310,9 +333,12 @@ export class ThirdIronButtonsComponent {
     this.skeletonShownAt = null;
 
     const hostElem = this.elementRef.nativeElement as HTMLElement;
-    const removedCount = this.removePrimoOnlineAvailability(hostElem);
+    const removedCount = this.availabilityDom.hideAvailability(hostElem);
+    // Keep the native element hidden even if Primo renders it *after* us (the common race: we're
+    // injected before `nde-online-availability`, so it may not exist yet at this point).
+    this.availabilityDom.observeAvailability(hostElem, () => this.isGuardingNativeButtons());
     // Make sure our wrapper is visible so the skeleton (and later, our buttons) can render.
-    const wrapperRestored = this.restoreHostWrapper(hostElem);
+    const wrapperRestored = this.availabilityDom.restoreWrapper(hostElem);
     this.debugLog.debug('ThirdIronButtons.enterLoading', {
       removedCount,
       wrapperRestored,
@@ -383,24 +409,33 @@ export class ThirdIronButtonsComponent {
    */
   private enterPassthrough(reason: string): void {
     this.clearPhaseTimers();
+    // Stop guarding the native element *before* restoring it, otherwise the observer would
+    // immediately re-hide what we're trying to reveal.
+    this.availabilityDom.disconnect();
     this.resetEnhancementState();
     this.showSkeleton = false;
     this.skeletonShownAt = null;
     this.buttonsPhase = 'passthrough';
 
     const hostElem = this.elementRef.nativeElement as HTMLElement;
-    const restoredCount = this.restorePrimoOnlineAvailability(hostElem);
+    const restoredCount = this.availabilityDom.restoreAvailability(hostElem);
     this.debugLog.debug('ThirdIronButtons.restorePrimoOnlineAvailability', {
       reason,
       restoredCount,
     });
     // We render nothing in this case; collapse our wrapper so the host flex container's
     // gap doesn't apply between us and the sibling `nde-online-availability`.
-    const wrapperHidden = this.hideHostWrapper(hostElem);
+    const wrapperHidden = this.availabilityDom.hideWrapper(hostElem);
     this.debugLog.debug('ThirdIronButtons.hideHostWrapper', {
       reason,
       wrapperHidden,
     });
+  }
+
+  // While loading or enhancing, we intend to keep the native Primo buttons hidden; the availability
+  // observer uses this as its guard so it stops re-hiding once we've handed control back to Primo.
+  private isGuardingNativeButtons(): boolean {
+    return this.buttonsPhase === 'loading' || this.buttonsPhase === 'enhanced';
   }
 
   private clearPhaseTimers(): void {
@@ -439,111 +474,5 @@ export class ThirdIronButtonsComponent {
     this.hasThirdIronSourceItems = false;
     this.combinedLinks = [];
     this.primoLinks = [];
-  }
-
-  removePrimoOnlineAvailability = (hostElement: HTMLElement): number => {
-    // This component is injected *before* the host `nde-online-availability` block.
-    // Depending on the host (and `ngComponentOutlet`), our host element may be an `<ng-component>`
-    // node or some other wrapper. Walk up the DOM until we find an ancestor that actually contains
-    // the `nde-online-availability` element, then hide it.
-    // Choosing to look up the tree to a depth of 12 is arbitrary, but seemed a reasonable depth.
-    let current: HTMLElement | null = hostElement ?? null;
-    for (let depth = 0; current && depth < 12; depth++) {
-      const onlineAvailabilityElems = current.getElementsByTagName(
-        'nde-online-availability'
-      ) as HTMLCollectionOf<HTMLElement>;
-      if (onlineAvailabilityElems.length > 0) {
-        const arr = Array.from(onlineAvailabilityElems);
-        for (const elem of arr) {
-          if (elem.dataset['tiOnlineAvailabilityPrevDisplay'] === undefined) {
-            // if we need to restore this element later, we will set display back to the original value
-            elem.dataset['tiOnlineAvailabilityPrevDisplay'] = elem.style.display ?? '';
-          }
-          elem.dataset['tiOnlineAvailabilityHiddenByThirdIron'] = '1';
-          elem.style.display = 'none';
-        }
-        return arr.length;
-      }
-      current = current.parentElement;
-    }
-
-    this.debugLog.debug('ThirdIronButtons.removePrimoOnlineAvailability.notFound', {
-      maxDepth: 12,
-    });
-    return 0;
-  };
-
-  // Traverse the DOM up to 12 levels (arbitrary depth) to find the `nde-online-availability` element and restore it to its original display value.
-  // We only restore elements we previously hid (tiOnlineAvailabilityHiddenByThirdIron dataset is set to '1')
-  // After restoring, we delete the tiOnlineAvailabilityHiddenByThirdIron and tiOnlineAvailabilityPrevDisplay dataset attributes (cleanup).
-  restorePrimoOnlineAvailability = (hostElement: HTMLElement): number => {
-    let current: HTMLElement | null = hostElement ?? null;
-    for (let depth = 0; current && depth < 12; depth++) {
-      const onlineAvailabilityElems = current.getElementsByTagName(
-        'nde-online-availability'
-      ) as HTMLCollectionOf<HTMLElement>;
-      if (onlineAvailabilityElems.length > 0) {
-        const arr = Array.from(onlineAvailabilityElems);
-        let restored = 0;
-        for (const elem of arr) {
-          if (elem.dataset['tiOnlineAvailabilityHiddenByThirdIron'] !== '1') continue;
-          const prevDisplay = elem.dataset['tiOnlineAvailabilityPrevDisplay'];
-          elem.style.display = prevDisplay ?? '';
-          delete elem.dataset['tiOnlineAvailabilityHiddenByThirdIron'];
-          delete elem.dataset['tiOnlineAvailabilityPrevDisplay'];
-          restored++;
-        }
-        return restored;
-      }
-      current = current.parentElement;
-    }
-    return 0;
-  };
-
-  // The host (Primo NDE) renders this component via `*ngComponentOutlet`, which wraps our
-  // custom element in an `<ng-component>` element. That `<ng-component>` is a direct child
-  // of the host's `.responsive-availability-layout` flex container (which currently sets `gap: .5rem`).
-  //
-  // When this component has nothing to render (no TI buttons), our own host element is empty
-  // (just Angular `<!---->` placeholders), but `<ng-component>` is still a flex item — so the
-  // container's gap is still applied between it and the sibling `<nde-online-availability>`,
-  // leaving an unwanted blank space to the left of the Primo "Available Online" button.
-  //
-  // Hiding our own host element doesn't fix this (the flex item is the wrapper, not us), so
-  // we walk up to the wrapping `<ng-component>` and hide it instead. We mark our mutation
-  // with dataset flags so `restoreHostWrapper` only undoes changes we made.
-  hideHostWrapper = (hostElement: HTMLElement): boolean => {
-    const wrapper = this.findHostWrapper(hostElement);
-    if (!wrapper) return false;
-    if (wrapper.dataset['tiWrapperPrevDisplay'] === undefined) {
-      wrapper.dataset['tiWrapperPrevDisplay'] = wrapper.style.display ?? '';
-    }
-    wrapper.dataset['tiWrapperHiddenByThirdIron'] = '1';
-    wrapper.style.display = 'none';
-    return true;
-  };
-
-  // Restore the wrapping `<ng-component>`'s display if (and only if) we previously hid it.
-  restoreHostWrapper = (hostElement: HTMLElement): boolean => {
-    const wrapper = this.findHostWrapper(hostElement);
-    if (!wrapper) return false;
-    if (wrapper.dataset['tiWrapperHiddenByThirdIron'] !== '1') return false;
-    const prevDisplay = wrapper.dataset['tiWrapperPrevDisplay'];
-    wrapper.style.display = prevDisplay ?? '';
-    delete wrapper.dataset['tiWrapperHiddenByThirdIron'];
-    delete wrapper.dataset['tiWrapperPrevDisplay'];
-    return true;
-  };
-
-  // Walk up a small fixed number of levels from our host element looking for the
-  // `<ng-component>` wrapper. Depth is normally 1, but we allow a few hops in case
-  // a future host inserts an extra wrapper.
-  private findHostWrapper(hostElement: HTMLElement | null): HTMLElement | null {
-    let current: HTMLElement | null = hostElement?.parentElement ?? null;
-    for (let depth = 0; current && depth < 4; depth++) {
-      if (current.tagName.toLowerCase() === 'ng-component') return current;
-      current = current.parentElement;
-    }
-    return null;
   }
 }

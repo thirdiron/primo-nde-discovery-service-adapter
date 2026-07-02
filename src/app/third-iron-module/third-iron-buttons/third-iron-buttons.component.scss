@@ -1,3 +1,10 @@
+// Hide the native Primo `nde-online-availability` while we're enhancing a record. Uses `!important`
+// so it beats Primo's own inline / bound `display` styles, and so the native buttons can't flash in
+// between our JS toggles. Applied/removed via ThirdIronButtonsComponent (class + MutationObserver).
+nde-online-availability.ti-online-availability-hidden {
+  display: none !important;
+}
+
 .ti-single-button {
   float: left;
 }
