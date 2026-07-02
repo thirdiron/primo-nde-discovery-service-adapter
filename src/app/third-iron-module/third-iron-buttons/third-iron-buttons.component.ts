@@ -91,6 +91,29 @@ export class ThirdIronButtonsComponent {
   viewOption = this.configService.getViewOption();
   hasThirdIronSourceItems = false;
 
+  // **Render phase / anti-flash state**
+  // The host (Primo) paints its native `nde-online-availability` buttons immediately, but our
+  // enhancement decision depends on an async LibKey call. To avoid the "native buttons flash then
+  // get replaced" effect, we hide the native buttons *eagerly* (as soon as we know a record is
+  // enhance-eligible) and show a loading skeleton until the call settles.
+  //  - 'idle'        : nothing decided yet (initial)
+  //  - 'loading'     : eligible record, LibKey call in-flight; native buttons hidden, skeleton reserved
+  //  - 'enhanced'    : LibKey settled with TI content; render our buttons
+  //  - 'passthrough' : not eligible / no TI content; native Primo buttons shown, we render nothing
+  buttonsPhase: 'idle' | 'loading' | 'enhanced' | 'passthrough' = 'idle';
+  // Only becomes true once the skeleton-delay has elapsed, so fast/cached responses never flash a shimmer.
+  showSkeleton = false;
+
+  // Timing guards (ms). Kept as constants for easy tuning.
+  private readonly SKELETON_DELAY_MS = 150; // don't show the shimmer for fast/cached responses
+  private readonly SKELETON_MIN_VISIBLE_MS = 400; // once shown, keep it visible at least this long
+  private readonly MAX_WAIT_MS = 8000; // fallback: restore native buttons if the call never settles
+
+  private skeletonShownAt: number | null = null;
+  private skeletonDelayTimer: ReturnType<typeof setTimeout> | null = null;
+  private enhanceCommitTimer: ReturnType<typeof setTimeout> | null = null;
+  private maxWaitTimer: ReturnType<typeof setTimeout> | null = null;
+
   // Expose enum to template
   ViewOptionType = ViewOptionType;
 
@@ -153,6 +176,7 @@ export class ThirdIronButtonsComponent {
   }
 
   ngOnDestroy() {
+    this.clearPhaseTimers();
     this.hostProxy.destroy();
   }
 
@@ -178,20 +202,7 @@ export class ThirdIronButtonsComponent {
             'ThirdIronButtons.enhance.skip',
             this.debugLog.safeSearchEntityMeta(record)
           );
-          this.resetEnhancementState();
-          const hostElem = this.elementRef.nativeElement as HTMLElement;
-          const restoredCount = this.restorePrimoOnlineAvailability(hostElem);
-          this.debugLog.debug('ThirdIronButtons.restorePrimoOnlineAvailability', {
-            reason: 'shouldEnhanceButtons=false',
-            restoredCount,
-          });
-          // We render nothing in this case; collapse our wrapper so the host flex container's
-          // gap doesn't apply between us and the sibling `nde-online-availability`.
-          const wrapperHidden = this.hideHostWrapper(hostElem);
-          this.debugLog.debug('ThirdIronButtons.hideHostWrapper', {
-            reason: 'shouldEnhanceButtons=false',
-            wrapperHidden,
-          });
+          this.enterPassthrough('shouldEnhanceButtons=false');
           return of(null);
         }
 
@@ -200,93 +211,211 @@ export class ThirdIronButtonsComponent {
           ...this.debugLog.safeSearchEntityMeta(record),
         });
 
+        // Eagerly hide the native Primo buttons and show a loading state *before* the LibKey call
+        // resolves. This is what removes the flash: the user never sees the native buttons for
+        // enhance-eligible records.
+        this.enterLoading();
+
         return combineLatest([
           this.buttonInfoService.getDisplayInfo(record),
           this.viewModel$,
           this.primoLinkLabels$,
         ]).pipe(
-          map(([displayInfo, viewModel, primoLinkLabels]) => {
-            this.debugLog.debug('ThirdIronButtons.viewModel', {
-              ...getPrimoViewModelMeta(viewModel),
-              ariaLabel: viewModel?.ariaLabel ?? null,
-            });
-
-            const viewOption = this.viewOption;
-
-            // If the TI API / waterfall yields no TI-specific button(s), we should leave the host Primo UI
-            // untouched and render nothing from this component.
-            this.hasThirdIronSourceItems = this.hasThirdIronAdditions(displayInfo);
-
-            if (!this.hasThirdIronSourceItems) {
-              this.resetEnhancementState();
-              const hostElem = this.elementRef.nativeElement as HTMLElement;
-              const restoredCount = this.restorePrimoOnlineAvailability(hostElem);
-              this.debugLog.debug('ThirdIronButtons.restorePrimoOnlineAvailability', {
-                reason: 'hasThirdIronSourceItems=false',
-                restoredCount,
-              });
-              // We render nothing in this case; collapse our wrapper so the host flex container's
-              // gap doesn't apply between us and the sibling `nde-online-availability`.
-              const wrapperHidden = this.hideHostWrapper(hostElem);
-              this.debugLog.debug('ThirdIronButtons.hideHostWrapper', {
-                reason: 'hasThirdIronSourceItems=false',
-                wrapperHidden,
-              });
-              return displayInfo;
-            }
-
-            // We are enhancing this record with at least one TI-provided button (main/secondary/BrowZine).
-            // Hide the host Primo online availability UI so we don't show duplicate "Online access available"
-            // buttons alongside our custom buttons (notably, BrowZine-only records).
-            {
-              const hostElem = this.elementRef.nativeElement as HTMLElement; // this component's host element
-              const removedCount = this.removePrimoOnlineAvailability(hostElem);
-              this.debugLog.debug('ThirdIronButtons.removePrimoOnlineAvailability', {
-                reason: 'hasThirdIronSourceItems',
-                removedCount,
-              });
-              // If a previous emission (for this or another record) had hidden our wrapper because
-              // we were empty, make sure it's visible again now that we have content to render.
-              const wrapperRestored = this.restoreHostWrapper(hostElem);
-              this.debugLog.debug('ThirdIronButtons.restoreHostWrapper', {
-                reason: 'hasThirdIronSourceItems',
-                wrapperRestored,
-              });
-            }
-
-            if (viewOption !== ViewOptionType.NoStack) {
-              // build custom stack options array for StackPlusBrowzine and SingleStack view options
-              // Clear stale NoStack links so template can't get "stuck" on old state.
-              this.primoLinks = [];
-              this.combinedLinks = this.buttonInfoService.buildCombinedLinks(
-                displayInfo,
-                viewModel,
-                primoLinkLabels
-              );
-
-              this.debugLog.debug('ThirdIronButtons.combinedLinks', {
-                combinedLinks: this.combinedLinks,
-              });
-            } else {
-              // Build array of Primo only links, filter based on TI config settings.
-              // Pass the record's entity type so the link resolver (direct) link can be
-              // shown/hidden per entity type (article vs journal).
-              this.combinedLinks = [];
-              this.primoLinks = this.buttonInfoService.buildPrimoLinks(
-                viewModel,
-                primoLinkLabels,
-                displayInfo.entityType
-              );
-
-              // Primo links are re-rendered via our own `stacked-dropdown` in NoStack mode.
-            }
-
-            return displayInfo;
-          })
+          map(([displayInfo, viewModel, primoLinkLabels]) =>
+            this.applyEnhancement(displayInfo, viewModel, primoLinkLabels)
+          )
         );
       }),
-      takeUntilDestroyed(this.destroyRef)
+      takeUntilDestroyed(this.destroyRef),
+      shareReplay({ bufferSize: 1, refCount: true })
     );
+
+    // The template only reads displayInfo$/viewModel$ (via async pipe) inside the
+    // `buttonsPhase === 'enhanced'` block, but it's this very pipeline that *sets* buttonsPhase and
+    // performs the eager-hide / skeleton side-effects. Subscribe here so the phase transitions run
+    // regardless of what the template is currently rendering. shareReplay lets the template's later
+    // async-pipe subscription share this same source (so we don't issue duplicate LibKey calls).
+    this.displayInfo$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe();
+  }
+
+  /**
+   * Process a settled LibKey result: decide whether we actually have Third Iron content and
+   * transition to the appropriate render phase. Extracted from the pipeline so the loading /
+   * enhanced / passthrough transitions live in one place.
+   */
+  private applyEnhancement(
+    displayInfo: DisplayWaterfallResponse,
+    viewModel: PrimoViewModel,
+    primoLinkLabels: Parameters<ButtonInfoService['buildCombinedLinks']>[2]
+  ): DisplayWaterfallResponse {
+    this.debugLog.debug('ThirdIronButtons.viewModel', {
+      ...getPrimoViewModelMeta(viewModel),
+      ariaLabel: viewModel?.ariaLabel ?? null,
+    });
+
+    const viewOption = this.viewOption;
+
+    // If the TI API / waterfall yields no TI-specific button(s), we should leave the host Primo UI
+    // untouched and render nothing from this component.
+    this.hasThirdIronSourceItems = this.hasThirdIronAdditions(displayInfo);
+
+    if (!this.hasThirdIronSourceItems) {
+      // Rarer "reverse" path: we eagerly hid the native buttons but there's no TI content to show,
+      // so restore them. enterPassthrough handles restore + wrapper collapse + phase reset.
+      this.enterPassthrough('hasThirdIronSourceItems=false');
+      return displayInfo;
+    }
+
+    // We are enhancing this record with at least one TI-provided button (main/secondary/BrowZine).
+    // The native Primo online availability UI was already hidden in enterLoading(); keep it hidden.
+    if (viewOption !== ViewOptionType.NoStack) {
+      // build custom stack options array for StackPlusBrowzine and SingleStack view options
+      // Clear stale NoStack links so template can't get "stuck" on old state.
+      this.primoLinks = [];
+      this.combinedLinks = this.buttonInfoService.buildCombinedLinks(
+        displayInfo,
+        viewModel,
+        primoLinkLabels
+      );
+
+      this.debugLog.debug('ThirdIronButtons.combinedLinks', {
+        combinedLinks: this.combinedLinks,
+      });
+    } else {
+      // Build array of Primo only links, filter based on TI config settings.
+      // Pass the record's entity type so the link resolver (direct) link can be
+      // shown/hidden per entity type (article vs journal).
+      this.combinedLinks = [];
+      this.primoLinks = this.buttonInfoService.buildPrimoLinks(
+        viewModel,
+        primoLinkLabels,
+        displayInfo.entityType
+      );
+
+      // Primo links are re-rendered via our own `stacked-dropdown` in NoStack mode.
+    }
+
+    this.commitEnhanced();
+    return displayInfo;
+  }
+
+  /**
+   * Enter the loading phase for an enhance-eligible record: hide the native Primo buttons now,
+   * reserve space for our skeleton, and arm the skeleton-delay + max-wait timers.
+   */
+  private enterLoading(): void {
+    this.clearPhaseTimers();
+    this.buttonsPhase = 'loading';
+    this.showSkeleton = false;
+    this.skeletonShownAt = null;
+
+    const hostElem = this.elementRef.nativeElement as HTMLElement;
+    const removedCount = this.removePrimoOnlineAvailability(hostElem);
+    // Make sure our wrapper is visible so the skeleton (and later, our buttons) can render.
+    const wrapperRestored = this.restoreHostWrapper(hostElem);
+    this.debugLog.debug('ThirdIronButtons.enterLoading', {
+      removedCount,
+      wrapperRestored,
+    });
+
+    // Only reveal the shimmer if loading actually takes a noticeable amount of time. This avoids a
+    // sub-150ms flash for fast/cached responses (native hidden -> straight to our buttons).
+    this.skeletonDelayTimer = setTimeout(() => {
+      this.skeletonDelayTimer = null;
+      if (this.buttonsPhase !== 'loading') return;
+      this.showSkeleton = true;
+      this.skeletonShownAt = Date.now();
+      this.debugLog.debug('ThirdIronButtons.skeleton.show', {});
+    }, this.SKELETON_DELAY_MS);
+
+    // Safety net: if the call never settles (very slow / hung), restore the native buttons so the
+    // user isn't stranded on a skeleton. If the call resolves later, applyEnhancement runs normally.
+    this.maxWaitTimer = setTimeout(() => {
+      this.maxWaitTimer = null;
+      if (this.buttonsPhase !== 'loading') return;
+      this.debugLog.warn('ThirdIronButtons.maxWaitFallback', { maxWaitMs: this.MAX_WAIT_MS });
+      this.enterPassthrough('maxWaitFallback');
+    }, this.MAX_WAIT_MS);
+  }
+
+  /**
+   * Commit the 'enhanced' phase so the template renders our buttons. If the skeleton is currently
+   * visible, defer the swap until it has been shown for at least SKELETON_MIN_VISIBLE_MS so it
+   * can't flash-and-vanish.
+   */
+  private commitEnhanced(): void {
+    if (this.maxWaitTimer) {
+      clearTimeout(this.maxWaitTimer);
+      this.maxWaitTimer = null;
+    }
+    if (this.skeletonDelayTimer) {
+      clearTimeout(this.skeletonDelayTimer);
+      this.skeletonDelayTimer = null;
+    }
+    if (this.enhanceCommitTimer) {
+      clearTimeout(this.enhanceCommitTimer);
+      this.enhanceCommitTimer = null;
+    }
+
+    const elapsed = this.skeletonShownAt !== null ? Date.now() - this.skeletonShownAt : 0;
+    const remaining = this.SKELETON_MIN_VISIBLE_MS - elapsed;
+
+    if (this.showSkeleton && remaining > 0) {
+      this.enhanceCommitTimer = setTimeout(() => {
+        this.enhanceCommitTimer = null;
+        this.finalizeEnhanced();
+      }, remaining);
+      return;
+    }
+
+    this.finalizeEnhanced();
+  }
+
+  private finalizeEnhanced(): void {
+    this.showSkeleton = false;
+    this.skeletonShownAt = null;
+    this.buttonsPhase = 'enhanced';
+  }
+
+  /**
+   * Leave our UI out entirely and show the native Primo buttons. Used when a record is not
+   * enhance-eligible, when the settled result has no TI content, or as the max-wait fallback.
+   */
+  private enterPassthrough(reason: string): void {
+    this.clearPhaseTimers();
+    this.resetEnhancementState();
+    this.showSkeleton = false;
+    this.skeletonShownAt = null;
+    this.buttonsPhase = 'passthrough';
+
+    const hostElem = this.elementRef.nativeElement as HTMLElement;
+    const restoredCount = this.restorePrimoOnlineAvailability(hostElem);
+    this.debugLog.debug('ThirdIronButtons.restorePrimoOnlineAvailability', {
+      reason,
+      restoredCount,
+    });
+    // We render nothing in this case; collapse our wrapper so the host flex container's
+    // gap doesn't apply between us and the sibling `nde-online-availability`.
+    const wrapperHidden = this.hideHostWrapper(hostElem);
+    this.debugLog.debug('ThirdIronButtons.hideHostWrapper', {
+      reason,
+      wrapperHidden,
+    });
+  }
+
+  private clearPhaseTimers(): void {
+    if (this.skeletonDelayTimer) {
+      clearTimeout(this.skeletonDelayTimer);
+      this.skeletonDelayTimer = null;
+    }
+    if (this.enhanceCommitTimer) {
+      clearTimeout(this.enhanceCommitTimer);
+      this.enhanceCommitTimer = null;
+    }
+    if (this.maxWaitTimer) {
+      clearTimeout(this.maxWaitTimer);
+      this.maxWaitTimer = null;
+    }
   }
 
   private hasThirdIronAdditions(displayInfo: DisplayWaterfallResponse | null): boolean {

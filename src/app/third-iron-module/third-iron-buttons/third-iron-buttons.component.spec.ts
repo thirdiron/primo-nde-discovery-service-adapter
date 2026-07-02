@@ -1,5 +1,5 @@
-import { TestBed } from '@angular/core/testing';
-import { BehaviorSubject, of } from 'rxjs';
+import { TestBed, fakeAsync, tick } from '@angular/core/testing';
+import { BehaviorSubject, Subject, of } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { Store } from '@ngrx/store';
 import { Component, Input } from '@angular/core';
@@ -165,6 +165,10 @@ describe('ThirdIronButtonsComponent', () => {
       component.combinedLinks = opts?.combinedLinks ?? [];
       component.primoLinks = opts?.primoLinks ?? [];
       component.hasThirdIronSourceItems = opts?.hasThirdIronSourceItems ?? true;
+      // The template only renders our buttons in the 'enhanced' phase. These tests exercise the
+      // rendered markup directly, so force the phase here (the real phase transitions are covered
+      // separately in the anti-flash loading-state tests).
+      component.buttonsPhase = 'enhanced';
 
       // First pass runs the component's ngOnInit, which overwrites `displayInfo$` with the enhance pipeline.
       // We then replace the streams with our test values (we're testing template branching, not ngOnInit).
@@ -878,6 +882,161 @@ describe('ThirdIronButtonsComponent', () => {
 
       sub?.unsubscribe();
     });
+  });
+
+  // Anti-flash loading behavior: we hide the native Primo buttons eagerly (before the LibKey call
+  // resolves) and show a loading skeleton, guarded by a skeleton-delay, a min-visible time, and a
+  // max-wait fallback. These tests drive the real pipeline with a controllable displayInfo source.
+  describe('anti-flash loading state', () => {
+    const enhancedArticleRecord = {
+      pnx: {
+        control: { recordid: ['rec-enhanced'] },
+        display: { type: ['article'] },
+        addata: { doi: ['10.1000/enhanced'] },
+      },
+    };
+
+    const enhancedDisplayInfo = {
+      entityType: EntityType.Article,
+      mainButtonType: ButtonType.DirectToPDF,
+      mainUrl: 'https://example.com/pdf',
+      showSecondaryButton: false,
+      secondaryUrl: '',
+      showBrowzineButton: false,
+      browzineUrl: '',
+    };
+
+    const emptyDisplayInfo = {
+      entityType: EntityType.Unknown,
+      mainButtonType: ButtonType.None,
+      mainUrl: '',
+      showSecondaryButton: false,
+      secondaryUrl: '',
+      showBrowzineButton: false,
+      browzineUrl: '',
+    };
+
+    let displayInfoSubject: Subject<any>;
+    let fixture: ReturnType<typeof TestBed.createComponent<ThirdIronButtonsComponent>>;
+    let component: ThirdIronButtonsComponent;
+    let removeSpy: jasmine.Spy;
+    let restoreSpy: jasmine.Spy;
+
+    beforeEach(async () => {
+      displayInfoSubject = new Subject<any>();
+
+      await TestBed.resetTestingModule()
+        .configureTestingModule({
+          imports: [ThirdIronButtonsComponent],
+          providers: [
+            ConfigService,
+            { provide: Store, useValue: mockStore },
+            { provide: 'MODULE_PARAMETERS', useValue: MOCK_MODULE_PARAMETERS },
+            { provide: TranslateService, useValue: { stream: (key: string) => of(key) } },
+            { provide: SearchEntityService, useValue: { shouldEnhanceButtons: () => true } },
+            {
+              provide: ButtonInfoService,
+              useValue: {
+                getDisplayInfo: () => displayInfoSubject.asObservable(),
+                buildCombinedLinks: () => [],
+                buildPrimoLinks: () => [],
+              },
+            },
+            {
+              provide: DebugLogService,
+              useValue: { debug: () => {}, warn: () => {}, safeSearchEntityMeta: () => ({}) },
+            },
+          ],
+        })
+        .overrideComponent(ThirdIronButtonsComponent, {
+          set: {
+            imports: [
+              AsyncPipe,
+              StackedDropdownStubComponent,
+              MainButtonStubComponent,
+              ArticleLinkButtonStubComponent,
+              BrowzineButtonStubComponent,
+            ],
+          },
+        })
+        .compileComponents();
+
+      fixture = TestBed.createComponent(ThirdIronButtonsComponent);
+      component = fixture.componentInstance;
+      component.viewOption = ViewOptionType.StackPlusBrowzine;
+      removeSpy = spyOn(component, 'removePrimoOnlineAvailability').and.returnValue(1);
+      restoreSpy = spyOn(component, 'restorePrimoOnlineAvailability').and.returnValue(1);
+      spyOn(component, 'restoreHostWrapper').and.returnValue(true);
+      spyOn(component, 'hideHostWrapper').and.returnValue(true);
+      component.hostComponent = {
+        searchResult: enhancedArticleRecord,
+        viewModel$: of({ onlineLinks: [], directLink: '', ariaLabel: '' }),
+      };
+    });
+
+    it('eagerly hides native Primo buttons and shows a loading skeleton before the call resolves', fakeAsync(() => {
+      fixture.detectChanges(); // ngOnInit subscribes to + drives the pipeline
+
+      // Native buttons hidden immediately; loading phase entered; shimmer not shown yet.
+      expect(component.buttonsPhase).toBe('loading');
+      expect(removeSpy).toHaveBeenCalled();
+      expect(component.showSkeleton).toBeFalse();
+
+      // Shimmer only appears after the skeleton-delay elapses.
+      tick(component['SKELETON_DELAY_MS']);
+      expect(component.showSkeleton).toBeTrue();
+
+      // Resolving with TI content transitions to 'enhanced' (after the min-visible window).
+      displayInfoSubject.next(enhancedDisplayInfo);
+      tick(component['SKELETON_MIN_VISIBLE_MS']);
+
+      expect(component.buttonsPhase).toBe('enhanced');
+      expect(component.showSkeleton).toBeFalse();
+
+      fixture.destroy();
+    }));
+
+    it('does not flash a skeleton for fast responses (resolves before the skeleton delay)', fakeAsync(() => {
+      fixture.detectChanges();
+      expect(component.buttonsPhase).toBe('loading');
+
+      // Resolve well before the skeleton-delay.
+      tick(50);
+      displayInfoSubject.next(enhancedDisplayInfo);
+
+      expect(component.showSkeleton).toBeFalse();
+      expect(component.buttonsPhase).toBe('enhanced');
+
+      // The skeleton timer must not fire after the fact.
+      tick(component['SKELETON_DELAY_MS']);
+      expect(component.showSkeleton).toBeFalse();
+
+      fixture.destroy();
+    }));
+
+    it('restores native Primo buttons via the max-wait fallback if the call never settles', fakeAsync(() => {
+      fixture.detectChanges();
+      expect(component.buttonsPhase).toBe('loading');
+
+      tick(component['MAX_WAIT_MS']);
+
+      expect(component.buttonsPhase).toBe('passthrough');
+      expect(restoreSpy).toHaveBeenCalled();
+
+      fixture.destroy();
+    }));
+
+    it('restores native Primo buttons when the settled result has no Third Iron content', fakeAsync(() => {
+      fixture.detectChanges();
+
+      displayInfoSubject.next(emptyDisplayInfo);
+
+      expect(component.hasThirdIronSourceItems).toBeFalse();
+      expect(component.buttonsPhase).toBe('passthrough');
+      expect(restoreSpy).toHaveBeenCalled();
+
+      fixture.destroy();
+    }));
   });
 
   it('passes translated Primo labels into buildPrimoLinks and updates when translation streams emit', async () => {
