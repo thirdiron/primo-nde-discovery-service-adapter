@@ -1,15 +1,20 @@
+import { Injectable } from '@angular/core';
+
 /**
- * Framework-agnostic DOM helper for coordinating with the host Primo (NDE) online-availability UI.
+ * DOM helper for coordinating with the host Primo (NDE) online-availability UI.
  *
- * The ThirdIron buttons component is injected *before* the host `nde-online-availability` element
+ * The ThirdIron buttons component is inserted in the DOM *before* the host `nde-online-availability` element
  * (via `nde-online-availability-before`). When we enhance a record we need to hide that native
  * element (so we don't show duplicate buttons), and when we don't enhance we must leave it alone /
  * restore it. This controller owns all of that DOM plumbing so the component can stay focused on
  * the enhancement/rendering logic.
  *
- * It has no Angular or RxJS dependencies and keeps its only piece of state (a MutationObserver)
- * internal, which makes it straightforward to unit test in isolation.
+ * Aside from the `@Injectable()` decorator it has no Angular/RxJS dependencies, and it keeps its
+ * only piece of state (a MutationObserver) internal — which makes it straightforward to unit test
+ * in isolation. It is provided at the *component* level (not root) so each buttons component gets
+ * its own instance and therefore its own observer.
  */
+@Injectable()
 export class PrimoAvailabilityDomController {
   static readonly ONLINE_AVAILABILITY_TAG = 'nde-online-availability';
 
@@ -161,8 +166,8 @@ export class PrimoAvailabilityDomController {
     let current: HTMLElement | null = hostElement?.parentElement ?? null;
     for (let depth = 0; current && depth < 12; depth++) {
       if (
-        current.getElementsByTagName(PrimoAvailabilityDomController.ONLINE_AVAILABILITY_TAG).length >
-        0
+        current.getElementsByTagName(PrimoAvailabilityDomController.ONLINE_AVAILABILITY_TAG)
+          .length > 0
       ) {
         return current;
       }

@@ -49,7 +49,7 @@ import { PrimoAvailabilityDomController } from 'src/app/shared/primo-availabilit
   ],
   templateUrl: './third-iron-buttons.component.html',
   styleUrls: ['./third-iron-buttons.component.scss'],
-  providers: [SearchEntityService],
+  providers: [SearchEntityService, PrimoAvailabilityDomController],
   encapsulation: ViewEncapsulation.None,
 })
 export class ThirdIronButtonsComponent {
@@ -115,12 +115,6 @@ export class ThirdIronButtonsComponent {
   private enhanceCommitTimer: ReturnType<typeof setTimeout> | null = null;
   private maxWaitTimer: ReturnType<typeof setTimeout> | null = null;
 
-  // Owns all DOM coordination with the host Primo `nde-online-availability` element (hiding,
-  // restoring, and observing for late/re-renders) and the `<ng-component>` wrapper. Kept public so
-  // the side-effects can be spied in tests. Because we're injected *before* the native element, the
-  // eager one-shot hide can run before Primo has created it — the observer covers that race.
-  readonly availabilityDom = new PrimoAvailabilityDomController();
-
   // Expose enum to template
   ViewOptionType = ViewOptionType;
 
@@ -170,6 +164,9 @@ export class ThirdIronButtonsComponent {
     private configService: ConfigService,
     private debugLog: DebugLogService,
     private translationService: TranslationService,
+    // Owns all DOM coordination with the host Primo `nde-online-availability` element (hiding,
+    // restoring, and observing for late/re-renders) and the `<ng-component>` wrapper.
+    readonly availabilityDom: PrimoAvailabilityDomController,
     private destroyRef: DestroyRef,
     elementRef: ElementRef
   ) {
