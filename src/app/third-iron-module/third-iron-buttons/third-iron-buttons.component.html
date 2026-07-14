@@ -1,57 +1,77 @@
-@if (viewModel$ | async; as viewModel) {
-  @if (displayInfo$ | async; as displayInfo) {
-    @if (hasThirdIronSourceItems) {
-      @if (viewOption !== ViewOptionType.NoStack && combinedLinks.length > 0) {
-        <!-- dealing with stack options -->
-        <div class="ti-stack-options-container">
-          <stacked-dropdown [links]="combinedLinks"></stacked-dropdown>
-          @if (
-            viewOption === ViewOptionType.StackPlusBrowzine &&
-            displayInfo.showBrowzineButton &&
-            displayInfo.browzineUrl
-          ) {
-            <!-- for Stack + Browzine view option -->
-            <custom-browzine-button
-              class="ti-browzine-button-with-stack"
-              [entityType]="displayInfo.entityType"
-              [url]="displayInfo.browzineUrl"
-            ></custom-browzine-button>
-          }
-          @if (viewModel.consolidatedCoverage) {
-            <div class="ti-consolidated-coverage">
-              {{ viewModel.consolidatedCoverage }}
-            </div>
-          }
-        </div>
-      } @else {
-        <!-- dealing with individual button options -->
-        <span class="ti-no-stack-container">
-          @if (displayInfo.mainUrl !== '') {
-            <main-button
-              class="ti-single-button"
-              [url]="displayInfo.mainUrl"
-              [buttonType]="displayInfo.mainButtonType"
-            ></main-button>
-          }
-          @if (displayInfo.showSecondaryButton && displayInfo.secondaryUrl) {
-            <article-link-button class="ti-single-button" [url]="displayInfo.secondaryUrl || ''"></article-link-button>
-          }
-          @if (primoLinks.length > 0) {
-            <stacked-dropdown [links]="primoLinks"></stacked-dropdown>
-          }
-          @if (displayInfo.showBrowzineButton && displayInfo.browzineUrl) {
-            <custom-browzine-button
-              class="ti-single-button"
-              [entityType]="displayInfo.entityType"
-              [url]="displayInfo.browzineUrl"
-            ></custom-browzine-button>
-          }
-          @if (viewModel.consolidatedCoverage) {
-            <div class="ti-consolidated-coverage">
-              {{ viewModel.consolidatedCoverage }}
-            </div>
-          }
-        </span>
+@if (buttonsPhase === 'loading') {
+  <!--
+    Loading placeholder shown in place of the native Primo buttons (which we hide eagerly) while the
+    LibKey call is in-flight. The container always reserves space to avoid layout shift; the shimmer
+    itself only becomes visible once the skeleton-delay has elapsed (showSkeleton), so fast/cached
+    responses don't flash a placeholder. aria-hidden/aria-busy keep it out of the accessibility tree.
+  -->
+  <span
+    class="ti-buttons-skeleton"
+    [class.is-visible]="showSkeleton"
+    aria-hidden="true"
+    aria-busy="true"
+  >
+    <span class="ti-skeleton-chip"></span>
+    <span class="ti-skeleton-chip"></span>
+  </span>
+}
+
+@if (buttonsPhase === 'enhanced') {
+  @if (viewModel$ | async; as viewModel) {
+    @if (displayInfo$ | async; as displayInfo) {
+      @if (hasThirdIronSourceItems) {
+        @if (viewOption !== ViewOptionType.NoStack && combinedLinks.length > 0) {
+          <!-- dealing with stack options -->
+          <div class="ti-stack-options-container">
+            <stacked-dropdown [links]="combinedLinks"></stacked-dropdown>
+            @if (
+              viewOption === ViewOptionType.StackPlusBrowzine &&
+              displayInfo.showBrowzineButton &&
+              displayInfo.browzineUrl
+            ) {
+              <!-- for Stack + Browzine view option -->
+              <custom-browzine-button
+                class="ti-browzine-button-with-stack"
+                [entityType]="displayInfo.entityType"
+                [url]="displayInfo.browzineUrl"
+              ></custom-browzine-button>
+            }
+            @if (viewModel.consolidatedCoverage) {
+              <div class="ti-consolidated-coverage">
+                {{ viewModel.consolidatedCoverage }}
+              </div>
+            }
+          </div>
+        } @else {
+          <!-- dealing with individual button options -->
+          <span class="ti-no-stack-container">
+            @if (displayInfo.mainUrl !== '') {
+              <main-button
+                class="ti-single-button"
+                [url]="displayInfo.mainUrl"
+                [buttonType]="displayInfo.mainButtonType"
+              ></main-button>
+            }
+            @if (displayInfo.showSecondaryButton && displayInfo.secondaryUrl) {
+              <article-link-button class="ti-single-button" [url]="displayInfo.secondaryUrl || ''"></article-link-button>
+            }
+            @if (primoLinks.length > 0) {
+              <stacked-dropdown [links]="primoLinks"></stacked-dropdown>
+            }
+            @if (displayInfo.showBrowzineButton && displayInfo.browzineUrl) {
+              <custom-browzine-button
+                class="ti-single-button"
+                [entityType]="displayInfo.entityType"
+                [url]="displayInfo.browzineUrl"
+              ></custom-browzine-button>
+            }
+            @if (viewModel.consolidatedCoverage) {
+              <div class="ti-consolidated-coverage">
+                {{ viewModel.consolidatedCoverage }}
+              </div>
+            }
+          </span>
+        }
       }
     }
   }
