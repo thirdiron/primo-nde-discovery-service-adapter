@@ -1,5 +1,5 @@
-import { TestBed } from '@angular/core/testing';
-import { BehaviorSubject, of } from 'rxjs';
+import { TestBed, fakeAsync, tick } from '@angular/core/testing';
+import { BehaviorSubject, Subject, of } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { Store } from '@ngrx/store';
 import { Component, Input } from '@angular/core';
@@ -16,6 +16,23 @@ import { TranslateService } from '@ngx-translate/core';
 import { EntityType } from 'src/app/shared/entity-type.enum';
 import { ButtonType } from 'src/app/shared/button-type.enum';
 import { DebugLogService } from 'src/app/services/debug-log.service';
+import { PrimoAvailabilityDomController } from 'src/app/shared/primo-availability-dom';
+
+// The component injects PrimoAvailabilityDomController (component-scoped provider). Its real DOM
+// behavior is unit-tested directly in primo-availability-dom.spec.ts, so here we swap in a spy
+// object via DI and just assert that the component calls it at the right times. Because the
+// controller is provided at the component level, tests override it with TestBed.overrideProvider.
+type AvailabilityDomFake = jasmine.SpyObj<PrimoAvailabilityDomController>;
+const createAvailabilityDomFake = (): AvailabilityDomFake =>
+  jasmine.createSpyObj<PrimoAvailabilityDomController>('PrimoAvailabilityDomController', {
+    hideAvailability: 1,
+    restoreAvailability: 1,
+    hideWrapper: true,
+    restoreWrapper: true,
+    isObserving: false,
+    observeAvailability: undefined,
+    disconnect: undefined,
+  });
 
 @Component({
   selector: 'stacked-dropdown',
@@ -88,7 +105,9 @@ describe('ThirdIronButtonsComponent', () => {
           },
         },
       ],
-    }).compileComponents();
+    })
+      .overrideProvider(PrimoAvailabilityDomController, { useValue: createAvailabilityDomFake() })
+      .compileComponents();
   });
 
   it('should create component successfully', () => {
@@ -136,6 +155,7 @@ describe('ThirdIronButtonsComponent', () => {
             ],
           },
         })
+        .overrideProvider(PrimoAvailabilityDomController, { useValue: createAvailabilityDomFake() })
         .compileComponents();
     });
 
@@ -165,6 +185,10 @@ describe('ThirdIronButtonsComponent', () => {
       component.combinedLinks = opts?.combinedLinks ?? [];
       component.primoLinks = opts?.primoLinks ?? [];
       component.hasThirdIronSourceItems = opts?.hasThirdIronSourceItems ?? true;
+      // The template only renders our buttons in the 'enhanced' phase. These tests exercise the
+      // rendered markup directly, so force the phase here (the real phase transitions are covered
+      // separately in the anti-flash loading-state tests).
+      component.buttonsPhase = 'enhanced';
 
       // First pass runs the component's ngOnInit, which overwrites `displayInfo$` with the enhance pipeline.
       // We then replace the streams with our test values (we're testing template branching, not ngOnInit).
@@ -269,6 +293,9 @@ describe('ThirdIronButtonsComponent', () => {
               ],
             },
           })
+          .overrideProvider(PrimoAvailabilityDomController, {
+            useValue: createAvailabilityDomFake(),
+          })
           .compileComponents();
 
         const fixture = TestBed.createComponent(ThirdIronButtonsComponent);
@@ -278,12 +305,6 @@ describe('ThirdIronButtonsComponent', () => {
           searchResult: makeArticleIssnNoDoi(),
           viewModel$: of({}),
         };
-
-        // Spy on side-effect method to ensure enhancement pipeline didn't run.
-        spyOn(component, 'removePrimoOnlineAvailability').and.callThrough();
-        // Spy on host-wrapper toggling so tests can assert we collapse the wrapping
-        // `<ng-component>` to avoid the host flex container's `gap` rule applying.
-        spyOn(component, 'hideHostWrapper').and.callThrough();
 
         fixture.detectChanges(); // runs ngOnInit
         // Ensure the Rx pipeline runs by subscribing (in the real app the template async pipe does this).
@@ -310,7 +331,7 @@ describe('ThirdIronButtonsComponent', () => {
       it('renders nothing and does not remove original Primo online availability element', async () => {
         const { component, el, sub } = await setupSkipEnhancement();
 
-        expect(component.removePrimoOnlineAvailability).not.toHaveBeenCalled();
+        expect(component.availabilityDom.hideAvailability).not.toHaveBeenCalled();
         expect(el.querySelector('.ti-stack-options-container')).toBeNull();
         expect(el.querySelector('.ti-no-stack-container')).toBeNull();
         sub?.unsubscribe();
@@ -323,7 +344,7 @@ describe('ThirdIronButtonsComponent', () => {
       it('hides the wrapping ng-component so the host flex container gap does not apply', async () => {
         const { component, sub } = await setupSkipEnhancement();
 
-        expect(component.hideHostWrapper).toHaveBeenCalled();
+        expect(component.availabilityDom.hideWrapper).toHaveBeenCalled();
         sub?.unsubscribe();
       });
     });
@@ -743,6 +764,7 @@ describe('ThirdIronButtonsComponent', () => {
     };
 
     const setupNavigationFixture = async () => {
+      const availabilityDom = createAvailabilityDomFake();
       const viewModel$ = new BehaviorSubject<any>({
         onlineLinks: [],
         directLink: '/fulldisplay?docid=rec-enhanced',
@@ -795,6 +817,7 @@ describe('ThirdIronButtonsComponent', () => {
             ],
           },
         })
+        .overrideProvider(PrimoAvailabilityDomController, { useValue: availabilityDom })
         .compileComponents();
 
       const fixture = TestBed.createComponent(ThirdIronButtonsComponent);
@@ -806,19 +829,20 @@ describe('ThirdIronButtonsComponent', () => {
         viewModel$: viewModel$.asObservable(),
       };
 
-      return { fixture, component, getDisplayInfoSpy, buildCombinedLinksSpy };
+      return { fixture, component, getDisplayInfoSpy, buildCombinedLinksSpy, availabilityDom };
     };
 
     // The scenario here is when stepping through fulldisplay records and moving from a record enhanced by Third Iron to a record that is not enhanced by Third Iron.
     // When moving to a non-enhanced record, we should redraw the original Primo UI (restores Primo availability) and reset the enhancement state.
     it('resets enhancement state and restores Primo availability when transitioning from enhanced -> non-enhanced record', async () => {
-      const { fixture, component, getDisplayInfoSpy } = await setupNavigationFixture();
-      const removeSpy = spyOn(component, 'removePrimoOnlineAvailability').and.returnValue(1);
-      const restoreSpy = spyOn(component, 'restorePrimoOnlineAvailability').and.returnValue(1);
+      const { fixture, component, getDisplayInfoSpy, availabilityDom } =
+        await setupNavigationFixture();
+      const removeSpy = availabilityDom.hideAvailability;
+      const restoreSpy = availabilityDom.restoreAvailability;
       // Track host-wrapper toggling: when processing an enhanced record, we should restore the wrapper, transitioning
       // to a non-enhanced (empty render) record should then hide it again.
-      const hideWrapperSpy = spyOn(component, 'hideHostWrapper').and.returnValue(true);
-      const restoreWrapperSpy = spyOn(component, 'restoreHostWrapper').and.returnValue(true);
+      const hideWrapperSpy = availabilityDom.hideWrapper;
+      const restoreWrapperSpy = availabilityDom.restoreWrapper;
 
       fixture.detectChanges();
       const sub = component.displayInfo$?.subscribe();
@@ -845,14 +869,14 @@ describe('ThirdIronButtonsComponent', () => {
     });
 
     it('enhances and removes Primo availability when navigating from a non-enhanced -> enhanced record', async () => {
-      const { fixture, component, getDisplayInfoSpy, buildCombinedLinksSpy } =
+      const { fixture, component, getDisplayInfoSpy, buildCombinedLinksSpy, availabilityDom } =
         await setupNavigationFixture();
-      const removeSpy = spyOn(component, 'removePrimoOnlineAvailability').and.returnValue(1);
-      const restoreSpy = spyOn(component, 'restorePrimoOnlineAvailability').and.returnValue(1);
+      const removeSpy = availabilityDom.hideAvailability;
+      const restoreSpy = availabilityDom.restoreAvailability;
       // Track host-wrapper toggling: non-enhanced render should hide the wrapper,
       // transitioning to an enhanced record should restore it.
-      const hideWrapperSpy = spyOn(component, 'hideHostWrapper').and.returnValue(true);
-      const restoreWrapperSpy = spyOn(component, 'restoreHostWrapper').and.returnValue(true);
+      const hideWrapperSpy = availabilityDom.hideWrapper;
+      const restoreWrapperSpy = availabilityDom.restoreWrapper;
 
       component.hostComponent.searchResult = nonEnhancedArticleRecord;
 
@@ -878,6 +902,162 @@ describe('ThirdIronButtonsComponent', () => {
 
       sub?.unsubscribe();
     });
+  });
+
+  // Anti-flash loading behavior: we hide the native Primo buttons eagerly (before the LibKey call
+  // resolves) and show a loading skeleton, guarded by a skeleton-delay, a min-visible time, and a
+  // max-wait fallback. These tests drive the real pipeline with a controllable displayInfo source.
+  describe('anti-flash loading state', () => {
+    const enhancedArticleRecord = {
+      pnx: {
+        control: { recordid: ['rec-enhanced'] },
+        display: { type: ['article'] },
+        addata: { doi: ['10.1000/enhanced'] },
+      },
+    };
+
+    const enhancedDisplayInfo = {
+      entityType: EntityType.Article,
+      mainButtonType: ButtonType.DirectToPDF,
+      mainUrl: 'https://example.com/pdf',
+      showSecondaryButton: false,
+      secondaryUrl: '',
+      showBrowzineButton: false,
+      browzineUrl: '',
+    };
+
+    const emptyDisplayInfo = {
+      entityType: EntityType.Unknown,
+      mainButtonType: ButtonType.None,
+      mainUrl: '',
+      showSecondaryButton: false,
+      secondaryUrl: '',
+      showBrowzineButton: false,
+      browzineUrl: '',
+    };
+
+    let displayInfoSubject: Subject<any>;
+    let fixture: ReturnType<typeof TestBed.createComponent<ThirdIronButtonsComponent>>;
+    let component: ThirdIronButtonsComponent;
+    let availabilityDom: AvailabilityDomFake;
+    let removeSpy: jasmine.Spy;
+    let restoreSpy: jasmine.Spy;
+
+    beforeEach(async () => {
+      displayInfoSubject = new Subject<any>();
+      availabilityDom = createAvailabilityDomFake();
+
+      await TestBed.resetTestingModule()
+        .configureTestingModule({
+          imports: [ThirdIronButtonsComponent],
+          providers: [
+            ConfigService,
+            { provide: Store, useValue: mockStore },
+            { provide: 'MODULE_PARAMETERS', useValue: MOCK_MODULE_PARAMETERS },
+            { provide: TranslateService, useValue: { stream: (key: string) => of(key) } },
+            { provide: SearchEntityService, useValue: { shouldEnhanceButtons: () => true } },
+            {
+              provide: ButtonInfoService,
+              useValue: {
+                getDisplayInfo: () => displayInfoSubject.asObservable(),
+                buildCombinedLinks: () => [],
+                buildPrimoLinks: () => [],
+              },
+            },
+            {
+              provide: DebugLogService,
+              useValue: { debug: () => {}, warn: () => {}, safeSearchEntityMeta: () => ({}) },
+            },
+          ],
+        })
+        .overrideComponent(ThirdIronButtonsComponent, {
+          set: {
+            imports: [
+              AsyncPipe,
+              StackedDropdownStubComponent,
+              MainButtonStubComponent,
+              ArticleLinkButtonStubComponent,
+              BrowzineButtonStubComponent,
+            ],
+          },
+        })
+        .overrideProvider(PrimoAvailabilityDomController, { useValue: availabilityDom })
+        .compileComponents();
+
+      fixture = TestBed.createComponent(ThirdIronButtonsComponent);
+      component = fixture.componentInstance;
+      component.viewOption = ViewOptionType.StackPlusBrowzine;
+      removeSpy = availabilityDom.hideAvailability;
+      restoreSpy = availabilityDom.restoreAvailability;
+      component.hostComponent = {
+        searchResult: enhancedArticleRecord,
+        viewModel$: of({ onlineLinks: [], directLink: '', ariaLabel: '' }),
+      };
+    });
+
+    it('eagerly hides native Primo buttons and shows a loading skeleton before the call resolves', fakeAsync(() => {
+      fixture.detectChanges(); // ngOnInit subscribes to + drives the pipeline
+
+      // Native buttons hidden immediately; loading phase entered; shimmer not shown yet.
+      expect(component.buttonsPhase).toBe('loading');
+      expect(removeSpy).toHaveBeenCalled();
+      expect(component.showSkeleton).toBeFalse();
+
+      // Shimmer only appears after the skeleton-delay elapses.
+      tick(component['SKELETON_DELAY_MS']);
+      expect(component.showSkeleton).toBeTrue();
+
+      // Resolving with TI content transitions to 'enhanced' (after the min-visible window).
+      displayInfoSubject.next(enhancedDisplayInfo);
+      tick(component['SKELETON_MIN_VISIBLE_MS']);
+
+      expect(component.buttonsPhase).toBe('enhanced');
+      expect(component.showSkeleton).toBeFalse();
+
+      fixture.destroy();
+    }));
+
+    it('does not flash a skeleton for fast responses (resolves before the skeleton delay)', fakeAsync(() => {
+      fixture.detectChanges();
+      expect(component.buttonsPhase).toBe('loading');
+
+      // Resolve well before the skeleton-delay.
+      tick(50);
+      displayInfoSubject.next(enhancedDisplayInfo);
+
+      expect(component.showSkeleton).toBeFalse();
+      expect(component.buttonsPhase).toBe('enhanced');
+
+      // The skeleton timer must not fire after the fact.
+      tick(component['SKELETON_DELAY_MS']);
+      expect(component.showSkeleton).toBeFalse();
+
+      fixture.destroy();
+    }));
+
+    it('restores native Primo buttons via the max-wait fallback if the call never settles', fakeAsync(() => {
+      fixture.detectChanges();
+      expect(component.buttonsPhase).toBe('loading');
+
+      tick(component['MAX_WAIT_MS']);
+
+      expect(component.buttonsPhase).toBe('passthrough');
+      expect(restoreSpy).toHaveBeenCalled();
+
+      fixture.destroy();
+    }));
+
+    it('restores native Primo buttons when the settled result has no Third Iron content', fakeAsync(() => {
+      fixture.detectChanges();
+
+      displayInfoSubject.next(emptyDisplayInfo);
+
+      expect(component.hasThirdIronSourceItems).toBeFalse();
+      expect(component.buttonsPhase).toBe('passthrough');
+      expect(restoreSpy).toHaveBeenCalled();
+
+      fixture.destroy();
+    }));
   });
 
   it('passes translated Primo labels into buildPrimoLinks and updates when translation streams emit', async () => {
@@ -948,6 +1128,7 @@ describe('ThirdIronButtonsComponent', () => {
         },
       })
       .overrideProvider(ButtonInfoService, { useValue: buttonInfoMock })
+      .overrideProvider(PrimoAvailabilityDomController, { useValue: createAvailabilityDomFake() })
       .compileComponents();
 
     const fixture = TestBed.createComponent(ThirdIronButtonsComponent);
@@ -1029,6 +1210,7 @@ describe('ThirdIronButtonsComponent', () => {
         },
       })
       .overrideProvider(ButtonInfoService, { useValue: buttonInfoMock })
+      .overrideProvider(PrimoAvailabilityDomController, { useValue: createAvailabilityDomFake() })
       .compileComponents();
 
     const fixture = TestBed.createComponent(ThirdIronButtonsComponent);

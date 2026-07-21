@@ -1,3 +1,10 @@
+// Hide the native Primo `nde-online-availability` while we're enhancing a record. Uses `!important`
+// so it beats Primo's own inline / bound `display` styles, and so the native buttons can't flash in
+// between our JS toggles. Applied/removed via ThirdIronButtonsComponent (class + MutationObserver).
+nde-online-availability.ti-online-availability-hidden {
+  display: none !important;
+}
+
 .ti-single-button {
   float: left;
 }
@@ -24,4 +31,62 @@
   font-size: 0.875rem;
   color: var(--sys-primary);
   font-weight: 400;
+}
+
+// Loading placeholder shown while the LibKey call is in-flight (see component template).
+// The container reserves space at all times to avoid layout shift; the chips only become
+// visible (and shimmer) once `.is-visible` is applied, so fast responses don't flash a placeholder.
+.ti-buttons-skeleton {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 5px;
+  min-height: 36px; // roughly matches the height of a rendered button row to keep layout stable
+}
+
+.ti-skeleton-chip {
+  display: inline-block;
+  height: 32px;
+  width: 96px;
+  border-radius: 18px;
+  background: var(--sys-surface-variant, rgba(0, 0, 0, 0.08));
+  // Hidden-but-space-reserving until the skeleton-delay elapses.
+  visibility: hidden;
+  opacity: 0;
+
+  &:nth-child(2) {
+    width: 72px;
+  }
+}
+
+.ti-buttons-skeleton.is-visible .ti-skeleton-chip {
+  visibility: visible;
+  opacity: 1;
+  background: linear-gradient(
+    90deg,
+    var(--sys-surface-variant, rgba(0, 0, 0, 0.08)) 25%,
+    var(--sys-surface, rgba(0, 0, 0, 0.04)) 37%,
+    var(--sys-surface-variant, rgba(0, 0, 0, 0.08)) 63%
+  );
+  background-size: 400% 100%;
+  animation: ti-skeleton-shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes ti-skeleton-shimmer {
+  0% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0 50%;
+  }
+}
+
+// Respect reduced-motion: show a static muted chip rather than an animated shimmer.
+@media (prefers-reduced-motion: reduce) {
+  .ti-buttons-skeleton.is-visible .ti-skeleton-chip {
+    animation: none;
+    background: var(--sys-surface-variant, rgba(0, 0, 0, 0.08));
+  }
 }
