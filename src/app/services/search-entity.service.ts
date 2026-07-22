@@ -80,7 +80,7 @@ export class SearchEntityService {
       if (result.pnx.display && result.pnx.display.type) {
         var contentType = result.pnx.display.type[0]?.trim().toLowerCase();
 
-        if (contentType?.indexOf('article') > -1) {
+        if (contentType?.indexOf('article') > -1 || contentType?.indexOf('review') > -1) {
           validation = true;
         }
       }
