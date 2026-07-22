@@ -48,7 +48,12 @@ describe('SearchEntityService', () => {
       expect(service.isArticle(entity)).toBe(true);
     });
 
-    it('returns false when contentType is neither article nor review', () => {
+    it('returns true when contentType is video', () => {
+      const entity = makeEntity({ type: 'video' });
+      expect(service.isArticle(entity)).toBe(true);
+    });
+
+    it('returns false when contentType is neither article, review, nor video', () => {
       const entity = makeEntity({ type: 'journal' });
       expect(service.isArticle(entity)).toBe(false);
     });
