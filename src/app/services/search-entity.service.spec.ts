@@ -37,6 +37,28 @@ describe('SearchEntityService', () => {
     expect(service).toBeTruthy();
   });
 
+  describe('isArticle', () => {
+    it('returns true when contentType is article', () => {
+      const entity = makeEntity({ type: 'article' });
+      expect(service.isArticle(entity)).toBe(true);
+    });
+
+    it('returns true when contentType is review', () => {
+      const entity = makeEntity({ type: 'review' });
+      expect(service.isArticle(entity)).toBe(true);
+    });
+
+    it('returns true when contentType is video', () => {
+      const entity = makeEntity({ type: 'video' });
+      expect(service.isArticle(entity)).toBe(true);
+    });
+
+    it('returns false when contentType is neither article, review, nor video', () => {
+      const entity = makeEntity({ type: 'journal' });
+      expect(service.isArticle(entity)).toBe(false);
+    });
+  });
+
   describe('shouldEnhanceCover', () => {
     it('returns true for an article with ISSN and no DOI', () => {
       const entity = makeEntity({ type: 'article', issn: ['1234-5678'] });

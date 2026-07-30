@@ -6,6 +6,10 @@ import { EntityType } from '../shared/entity-type.enum';
   providedIn: 'root',
 })
 export class SearchEntityService {
+  // Primo content types we treat as articles: each is looked up by DOI
+  // through the article endpoint.
+  private readonly articleContentTypes = ['article', 'review', 'video'];
+
   constructor() {}
 
   isFiltered = (result: SearchEntity): boolean => {
@@ -16,7 +20,7 @@ export class SearchEntityService {
 
     // if (result && result.delivery) {
     //   if (result.delivery.deliveryCategory && result.delivery.deliveryCategory.length > 0) {
-    //     var deliveryCategory = result.delivery.deliveryCategory[0].trim().toLowerCase();
+    //     const deliveryCategory = result.delivery.deliveryCategory[0].trim().toLowerCase();
 
     //     if (deliveryCategory === "alma-p" && !showPrintRecords()) {
     //       validation = true;
@@ -74,13 +78,17 @@ export class SearchEntityService {
   };
 
   isArticle = (result: SearchEntity): boolean => {
-    var validation = false;
+    let validation = false;
 
     if (result && result.pnx) {
       if (result.pnx.display && result.pnx.display.type) {
-        var contentType = result.pnx.display.type[0]?.trim().toLowerCase();
+        const contentType = result.pnx.display.type[0]?.trim().toLowerCase();
 
-        if (contentType?.indexOf('article') > -1) {
+        if (
+          this.articleContentTypes.some(
+            articleContentType => contentType?.indexOf(articleContentType) > -1
+          )
+        ) {
           validation = true;
         }
       }
@@ -90,11 +98,11 @@ export class SearchEntityService {
   };
 
   isJournal = (result: SearchEntity): boolean => {
-    var validation = false;
+    let validation = false;
 
     if (result && result.pnx) {
       if (result.pnx.display && result.pnx.display.type) {
-        var contentType = result.pnx.display.type[0]?.trim().toLowerCase();
+        const contentType = result.pnx.display.type[0]?.trim().toLowerCase();
 
         if (contentType?.indexOf('journal') > -1) {
           validation = true;
@@ -106,7 +114,7 @@ export class SearchEntityService {
   };
 
   getIssn = (result: SearchEntity): string => {
-    var issn = '';
+    let issn = '';
 
     if (result && result.pnx && result.pnx.addata) {
       if (result.pnx.addata.issn) {
@@ -147,7 +155,7 @@ export class SearchEntityService {
   };
 
   getDoi = (result: SearchEntity): string => {
-    var doi = '';
+    let doi = '';
     if (result && result.pnx) {
       if (result.pnx.addata && result.pnx.addata.doi) {
         if (result.pnx.addata.doi[0]) {
