@@ -6,6 +6,10 @@ import { EntityType } from '../shared/entity-type.enum';
   providedIn: 'root',
 })
 export class SearchEntityService {
+  // Primo content types we treat as articles: each is looked up by DOI
+  // through the article endpoint.
+  private readonly articleContentTypes = ['article', 'review', 'video'];
+
   constructor() {}
 
   isFiltered = (result: SearchEntity): boolean => {
@@ -81,9 +85,9 @@ export class SearchEntityService {
         const contentType = result.pnx.display.type[0]?.trim().toLowerCase();
 
         if (
-          contentType?.indexOf('article') > -1 ||
-          contentType?.indexOf('review') > -1 ||
-          contentType?.indexOf('video') > -1
+          this.articleContentTypes.some(
+            articleContentType => contentType?.indexOf(articleContentType) > -1
+          )
         ) {
           validation = true;
         }
