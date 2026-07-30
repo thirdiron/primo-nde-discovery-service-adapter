@@ -16,7 +16,7 @@ export class SearchEntityService {
 
     // if (result && result.delivery) {
     //   if (result.delivery.deliveryCategory && result.delivery.deliveryCategory.length > 0) {
-    //     var deliveryCategory = result.delivery.deliveryCategory[0].trim().toLowerCase();
+    //     const deliveryCategory = result.delivery.deliveryCategory[0].trim().toLowerCase();
 
     //     if (deliveryCategory === "alma-p" && !showPrintRecords()) {
     //       validation = true;
@@ -74,11 +74,11 @@ export class SearchEntityService {
   };
 
   isArticle = (result: SearchEntity): boolean => {
-    var validation = false;
+    let validation = false;
 
     if (result && result.pnx) {
       if (result.pnx.display && result.pnx.display.type) {
-        var contentType = result.pnx.display.type[0]?.trim().toLowerCase();
+        const contentType = result.pnx.display.type[0]?.trim().toLowerCase();
 
         if (
           contentType?.indexOf('article') > -1 ||
@@ -94,11 +94,11 @@ export class SearchEntityService {
   };
 
   isJournal = (result: SearchEntity): boolean => {
-    var validation = false;
+    let validation = false;
 
     if (result && result.pnx) {
       if (result.pnx.display && result.pnx.display.type) {
-        var contentType = result.pnx.display.type[0]?.trim().toLowerCase();
+        const contentType = result.pnx.display.type[0]?.trim().toLowerCase();
 
         if (contentType?.indexOf('journal') > -1) {
           validation = true;
@@ -110,7 +110,7 @@ export class SearchEntityService {
   };
 
   getIssn = (result: SearchEntity): string => {
-    var issn = '';
+    let issn = '';
 
     if (result && result.pnx && result.pnx.addata) {
       if (result.pnx.addata.issn) {
@@ -151,7 +151,7 @@ export class SearchEntityService {
   };
 
   getDoi = (result: SearchEntity): string => {
-    var doi = '';
+    let doi = '';
     if (result && result.pnx) {
       if (result.pnx.addata && result.pnx.addata.doi) {
         if (result.pnx.addata.doi[0]) {
