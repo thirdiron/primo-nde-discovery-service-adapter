@@ -1,5 +1,13 @@
 // A class, not an id: this component renders once per search result, so an id would be duplicated
 .ti-custom-button {
+  /*
+   * This is a `mat-flat-button` - to maintain our own styling, point Material's own tokens at our colors so
+   * its rule resolves to the same values and there is no race to lose our styling. The plain declarations
+   * below still stand on their own if Material's rule ever stops applying.
+   */
+  --mdc-filled-button-container-color: #fff;
+  --mdc-filled-button-label-text-color: var(--sys-primary);
+
   border-radius: 0.3125rem;
   background-color: #fff;
   border: 1px solid var(--sys-primary);

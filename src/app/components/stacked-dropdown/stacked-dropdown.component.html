@@ -47,10 +47,7 @@
         </span>
       </button>
 
-      <!-- `ti-scope` is required as well as decorative: mat-menu portals this panel to document.body,
-           outside our root element, so the panel has to carry the scope class itself for our
-           (scope-rewritten) menu and button styles to match inside it. -->
-      <mat-menu #stackedDropdownMenu="matMenu" panelClass="ti-stacked-dropdown-panel ti-scope">
+      <mat-menu #stackedDropdownMenu="matMenu">
         @for (link of links().slice(1); track $index) {
           <div
             mat-menu-item
