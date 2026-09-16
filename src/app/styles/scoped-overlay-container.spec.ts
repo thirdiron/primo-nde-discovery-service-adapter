@@ -4,9 +4,9 @@ import { ScopedOverlayContainer } from './scoped-overlay-container';
 import { TI_SCOPE_CLASS } from './css-scope';
 
 /**
- * Guards the second half of BZ-10918: CDK portals overlays to document.body, outside the root
- * element carrying our scope class, so without this the scope-rewritten menu/button styles never
- * reach an open `mat-menu` panel and its options fall back to Material's filled-button colors.
+ * CDK portals overlays to document.body, outside the root element carrying our scope class,
+ * so without this the scope-rewritten menu/button styles never reach an open
+ * `mat-menu` panel and its options fall back to Material's filled-button colors.
  */
 describe('ScopedOverlayContainer', () => {
   let container: OverlayContainer;

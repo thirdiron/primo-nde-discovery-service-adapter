@@ -1,6 +1,6 @@
 // NOTE: the rule hiding Primo's native `nde-online-availability` lives in
-// styles/_host-element-overrides.scss. That element is a sibling of our root, so it is outside the
-// scope that ScopedStylesHost rewrites component styles against and has to ship in custom.css.
+// styles/host-element-overrides.ts. That element is a sibling of our root, so it falls outside the
+// scope ScopedStylesHost rewrites component styles against and has to be injected unscoped.
 
 .ti-single-button {
   float: left;
