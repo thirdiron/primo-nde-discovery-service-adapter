@@ -35,6 +35,7 @@ import {
 } from 'src/app/shared/primo-host-record.utils';
 import { TranslationService } from 'src/app/services/translation.service';
 import { PrimoAvailabilityDomController } from 'src/app/shared/primo-availability-dom';
+import { TI_SCOPE_CLASS } from 'src/app/styles/css-scope';
 
 @Component({
   selector: 'custom-third-iron-buttons',
@@ -51,6 +52,9 @@ import { PrimoAvailabilityDomController } from 'src/app/shared/primo-availabilit
   styleUrls: ['./third-iron-buttons.component.scss'],
   providers: [SearchEntityService, PrimoAvailabilityDomController],
   encapsulation: ViewEncapsulation.None,
+  // Anchors the scope that ScopedStylesHost rewrites every injected stylesheet against, so our
+  // (and Angular Material's) CSS can't reach Primo's markup.
+  host: { class: TI_SCOPE_CLASS },
 })
 export class ThirdIronButtonsComponent {
   // **Host record + viewModel proxy**:
