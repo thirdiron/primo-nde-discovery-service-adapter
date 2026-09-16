@@ -1,5 +1,5 @@
 import { ApplicationRef, DoBootstrap, Injector, NgModule } from '@angular/core';
-import { BrowserModule } from '@angular/platform-browser';
+import { BrowserModule, ɵSharedStylesHost as SharedStylesHost } from '@angular/platform-browser';
 import { AppComponent } from './app.component';
 import { createCustomElement, NgElementConstructor } from '@angular/elements';
 import { Router } from '@angular/router';
@@ -9,6 +9,7 @@ import { CommonModule } from '@angular/common';
 import { AutoAssetSrcDirective } from './services/auto-asset-src.directive';
 import { SHELL_ROUTER } from './injection-tokens';
 import { provideHttpClient } from '@angular/common/http';
+import { ScopedStylesHost } from './styles/scoped-styles-host';
 
 export const AppModule = ({ providers, shellRouter }: { providers: any; shellRouter: Router }) => {
   @NgModule({
@@ -19,6 +20,9 @@ export const AppModule = ({ providers, shellRouter }: { providers: any; shellRou
       ...providers,
       provideHttpClient(),
       { provide: SHELL_ROUTER, useValue: shellRouter },
+      // Displaces the `SharedStylesHost` from BROWSER_MODULE_PROVIDERS so every stylesheet we
+      // inject into the host page is scoped to our components. Must stay ahead of first render.
+      { provide: SharedStylesHost, useClass: ScopedStylesHost },
     ],
     bootstrap: [],
   })

@@ -18,9 +18,9 @@ import { Injectable } from '@angular/core';
 export class PrimoAvailabilityDomController {
   static readonly ONLINE_AVAILABILITY_TAG = 'nde-online-availability';
 
-  // CSS class used to hide the native availability element. Marked `!important` in the ThirdIron
-  // buttons component stylesheet so Primo's own inline / bound `display` styles can't override us.
-  // NOTE: the same literal is referenced in third-iron-buttons.component.scss.
+  // CSS class used to hide the native availability element. Marked `!important` so Primo's own
+  // inline / bound `display` styles can't override us.
+  // NOTE: the same literal is referenced in styles/_host-element-overrides.scss.
   static readonly HIDDEN_CLASS = 'ti-online-availability-hidden';
 
   private observer: MutationObserver | null = null;

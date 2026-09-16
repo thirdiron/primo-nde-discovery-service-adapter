@@ -1,16 +1,20 @@
-/* You can add global styles to this file, and also import other style files */
-@use "@angular/material" as mat;
-@include mat.core();
-
-$primary: mat.m2-define-palette(mat.$m2-indigo-palette);
-$accent: mat.m2-define-palette(mat.$m2-pink-palette, A200, A100, A400);
-$theme: mat.m2-define-light-theme(
-  (
-    color: (
-      primary: $primary,
-      accent: $accent,
-    ),
-  )
-);
-
-@include mat.all-component-themes($theme);
+/**
+ * Intentionally empty.
+ *
+ * This file is scaffolding from `ng new` + `ng add @angular/material` — the default indigo/pink
+ * Material theme, never customized. Nothing imports it, and the theme it used to emit had no consumer:
+ *
+ *   - In production, Primo loads our remote as `remoteEntry.js` and links only
+ *     `assets/css/custom.css`. It never links this bundle.
+ *   - In the local dev harness, `app.component.html` renders no Material components at all.
+ *
+ * Do not add global styles here. As an add-on we share `document.head` with Primo, so anything
+ * global here would restyle the host page (see BZ-10918). Styles belong in:
+ *
+ *   - a component stylesheet — `ScopedStylesHost` scopes these to our components automatically, or
+ *   - `app/styles/_host-element-overrides.scss` — for the rare rule that must target Primo's own
+ *     markup, qualified by a `ti-` class only our code applies.
+ *
+ * Kept as an empty file (rather than deleted) because `angular.json` references it from both the
+ * `build` and `test` targets.
+ */

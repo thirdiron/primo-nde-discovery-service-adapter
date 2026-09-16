@@ -10,3 +10,7 @@
 
 /* Include stacked dropdown overrides in the custom.css bundle so the host page loads them */
 @import "../third-iron-module/stacked-dropdown-overrides.scss";
+
+/* Styles that deliberately target Primo's own elements, and so can't go through the
+   scope-rewriting ScopedStylesHost. Keep this list as small as possible. */
+@import "host-element-overrides";

@@ -1,0 +1,15 @@
+/**
+ * The only styles we intentionally apply to Primo's own elements.
+ *
+ * These live in the `custom.css` bundle rather than in a component stylesheet because component
+ * styles are rewritten by `ScopedStylesHost` to only match inside our root element, and every
+ * element targeted here is *outside* it. Each selector must therefore be qualified by a `ti-`
+ * prefixed class that only our own code applies — never a bare Primo selector.
+ */
+
+/* Hides Primo's native `nde-online-availability` while we're enhancing a record. `!important` is
+   required so Primo's own bound `display` (written as an inline style) can't override us.
+   Applied/removed by PrimoAvailabilityDomController; the literal is shared via its HIDDEN_CLASS. */
+nde-online-availability.ti-online-availability-hidden {
+  display: none !important;
+}
