@@ -7,12 +7,6 @@
   display: inline-flex;
   position: relative;
 
-  /*
-   * These buttons are `mat-flat-button`s, which Material paints with
-   * `.mat-mdc-unelevated-button:not(:disabled) { background-color; color }` at specificity (0,2,0) —
-   * outranking the class selectors below, and injected after them. Configuring its tokens makes
-   * Material's own rule resolve to our colors, so there's no cascade race to lose.
-   */
   --mdc-filled-button-container-color: #fff;
   --mdc-filled-button-label-text-color: var(--sys-primary);
 
