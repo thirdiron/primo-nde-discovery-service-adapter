@@ -11,6 +11,7 @@ import {
   resolvePrimoHostRecord,
 } from 'src/app/shared/primo-host-record.utils';
 import { DebugLogService } from 'src/app/services/debug-log.service';
+import { TI_SCOPE_CLASS } from 'src/app/styles/css-scope';
 
 @Component({
   selector: 'custom-third-iron-journal-cover',
@@ -19,6 +20,8 @@ import { DebugLogService } from 'src/app/services/debug-log.service';
   templateUrl: './third-iron-journal-cover.component.html',
   styleUrl: './third-iron-journal-cover.component.scss',
   providers: [JournalCoverService, SearchEntityService],
+  // See ThirdIronButtonsComponent: anchors the scope ScopedStylesHost rewrites our CSS against.
+  host: { class: TI_SCOPE_CLASS },
 })
 export class ThirdIronJournalCoverComponent {
   // **Host record proxy**:
