@@ -79,13 +79,11 @@ module.exports = {
 
       // },
 
+      // Don't share @angular/*. The NDE host runs a different Angular major, so we never consume its
+      // copy, and offering ours lets other Angular remotes on the page (view/central packages)
+      // resolve a mix of copies, which breaks dependency injection (error NG0203).
       shared: share({
-        '@angular/core': { requiredVersion: 'auto' },
-        '@angular/common': { requiredVersion: 'auto' },
-        '@angular/router': { requiredVersion: 'auto' },
         rxjs: { requiredVersion: 'auto' },
-        '@angular/common/http': { requiredVersion: 'auto' },
-        '@angular/platform-browser': { requiredVersion: 'auto' },
         '@ngx-translate/core': { singleton: true },
         '@ngrx/store': { singleton: true },
         ...sharedMappings.getDescriptors(),
