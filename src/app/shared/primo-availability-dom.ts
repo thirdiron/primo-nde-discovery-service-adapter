@@ -1,4 +1,5 @@
 import { Injectable } from '@angular/core';
+import { ONLINE_AVAILABILITY_HIDDEN_CLASS } from '../styles/host-element-overrides';
 
 /**
  * DOM helper for coordinating with the host Primo (NDE) online-availability UI.
@@ -18,10 +19,8 @@ import { Injectable } from '@angular/core';
 export class PrimoAvailabilityDomController {
   static readonly ONLINE_AVAILABILITY_TAG = 'nde-online-availability';
 
-  // CSS class used to hide the native availability element. Marked `!important` in the ThirdIron
-  // buttons component stylesheet so Primo's own inline / bound `display` styles can't override us.
-  // NOTE: the same literal is referenced in third-iron-buttons.component.scss.
-  static readonly HIDDEN_CLASS = 'ti-online-availability-hidden';
+  // The matching `display: none !important` rule is injected by styles/host-element-overrides.ts, which owns this literal.
+  static readonly HIDDEN_CLASS = ONLINE_AVAILABILITY_HIDDEN_CLASS;
 
   private observer: MutationObserver | null = null;
 

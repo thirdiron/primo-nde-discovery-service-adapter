@@ -24,14 +24,7 @@
             "tsConfig": "tsconfig.app.json",
             "inlineStyleLanguage": "scss",
             "assets": ["src/favicon.ico", "src/assets"],
-            "styles": [
-              "src/styles.scss",
-              {
-                "input": "src/app/styles/_customized-theme.scss",
-                "bundleName": "custom",
-                "inject": false
-              }
-            ],
+            "styles": ["src/styles.scss"],
             "scripts": [],
             "extraWebpackConfig": "webpack.config.js",
             "commonChunk": false

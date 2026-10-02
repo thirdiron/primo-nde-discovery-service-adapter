@@ -16,22 +16,11 @@ function renameAndArchive() {
     if (err) throw err;
     console.log(`Renamed directory to ${targetPath}`);
 
-    // Ensure custom style overrides are available to the host package under assets/css/custom.css
-    try {
-      const sourceCustomCss = path.join(targetPath, 'custom.css');
-      const destAssetsCssDir = path.join(targetPath, 'assets', 'css');
-      const destCustomCss = path.join(destAssetsCssDir, 'custom.css');
-
-      if (fs.existsSync(sourceCustomCss)) {
-        fs.mkdirSync(destAssetsCssDir, { recursive: true });
-        fs.copyFileSync(sourceCustomCss, destCustomCss);
-        console.log(`Copied custom.css to ${destCustomCss}`);
-      } else {
-        console.warn(`custom.css not found at ${sourceCustomCss}. Skipping copy to assets/css.`);
-      }
-    } catch (e) {
-      console.warn('Warning copying custom.css into assets/css:', e);
-    }
+    // NOTE: we used to build a `custom.css` bundle here and copy it to assets/css/custom.css, one of
+    // the two paths Primo probes for a view customization package's stylesheet. It was dead weight:
+    // our add-on is deployed as a module-federation remote via Alma's Add-On URL, not as a view
+    // package, so nothing ever linked the file. All of our styles now ship inside the bundle — see
+    // src/app/styles/host-element-overrides.ts for the one case that has to be injected unscoped.
 
     const output = fs.createWriteStream(zipPath);
     const archive = archiver('zip', { zlib: { level: 9 } });
