@@ -115,6 +115,22 @@ export class PrimoAvailabilityDomController {
   isObserving = (): boolean => this.observer !== null;
 
   /**
+   * Debug-only: list the native Primo availability buttons for this record (whether or not we've
+   * hidden them), so logs can show what Primo itself would offer next to what we render.
+   */
+  describeNativeButtons = (
+    hostElement: HTMLElement | null
+  ): { count: number; labels: string[] } => {
+    const root = this.getObserverRoot(hostElement);
+    if (!root) return { count: 0, labels: [] };
+    const buttons = Array.from(
+      root.querySelectorAll(`${PrimoAvailabilityDomController.ONLINE_AVAILABILITY_TAG} button`)
+    ) as HTMLElement[];
+    const labels = buttons.map(b => (b.textContent ?? '').trim()).filter(Boolean);
+    return { count: labels.length, labels };
+  };
+
+  /**
    * The host renders this component via `*ngComponentOutlet`, wrapping our element in an
    * `<ng-component>` that is a flex item of the host's `.responsive-availability-layout` container.
    * When we render nothing, that empty wrapper still triggers the container's `gap`, leaving a blank

@@ -32,6 +32,7 @@ const createAvailabilityDomFake = (): AvailabilityDomFake =>
     isObserving: false,
     observeAvailability: undefined,
     disconnect: undefined,
+    describeNativeButtons: { count: 0, labels: [] },
   });
 
 @Component({

@@ -53,5 +53,59 @@ export const getPrimoViewModelMeta = (
     directLink: viewModel?.directLink ?? null,
     onlineLinksCount: Array.isArray(viewModel?.onlineLinks) ? viewModel.onlineLinks.length : 0,
     hasConsolidatedCoverage: !!viewModel?.consolidatedCoverage,
+    viewModelKeys: viewModel ? Object.keys(viewModel) : [],
+  };
+};
+
+/**
+ * Returns safe debug metadata about the Primo `nde-online-availability` host component: which
+ * members it exposes and the availability state Primo uses to decide what its own button does.
+ * Only key names, primitives, and a small delivery summary are returned (no PNX / record payloads).
+ */
+export const getPrimoAvailabilityHostMeta = (host: any): Record<string, unknown> => {
+  if (!host || typeof host !== 'object') {
+    return { hasHost: false };
+  }
+
+  let protoMethods: string[] = [];
+  try {
+    const proto = Object.getPrototypeOf(host);
+    protoMethods =
+      proto && proto !== Object.prototype
+        ? Object.getOwnPropertyNames(proto).filter(name => name !== 'constructor')
+        : [];
+  } catch {
+    protoMethods = [];
+  }
+
+  let delivery: any = null;
+  try {
+    // `delivery` is a signal input on newer Primo builds and a plain property on older ones.
+    delivery = typeof host.delivery === 'function' ? host.delivery() : host.delivery;
+  } catch {
+    delivery = null;
+  }
+
+  return {
+    hasHost: true,
+    ownKeys: Object.keys(host),
+    protoMethods,
+    hasOnAvailabilityClicked: typeof host.onAvailabilityClicked === 'function',
+    onAvailabilityClickedArity:
+      typeof host.onAvailabilityClicked === 'function' ? host.onAvailabilityClicked.length : null,
+    typeofDelivery: typeof host.delivery,
+    onlineAvailability: host.onlineAvailability ?? null,
+    openLink: host.openLink ?? null,
+    isFullDisplay: host.isFullDisplay ?? null,
+    delivery: delivery
+      ? {
+          deliveryCategory: delivery.deliveryCategory ?? null,
+          displayedAvailability: delivery.displayedAvailability ?? null,
+          electronicServicesCount: Array.isArray(delivery.electronicServices)
+            ? delivery.electronicServices.length
+            : 0,
+          firstServiceHasAccess: delivery.electronicServices?.[0]?.hasAccess ?? null,
+        }
+      : null,
   };
 };

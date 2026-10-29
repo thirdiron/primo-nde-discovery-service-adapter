@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { Injectable, NgZone } from '@angular/core';
 import { isDebugEnabled } from '../debug/debug-controller';
 import { SearchEntity } from '../types/searchEntity.types';
 
@@ -39,6 +39,13 @@ export class DebugLogService {
       name: err?.name,
       message: typeof err?.message === 'string' ? this.redactUrlTokens(err.message) : err?.message,
       status: err?.status,
+    };
+  }
+
+  zoneInfo(): Record<string, unknown> {
+    return {
+      isInAngularZone: NgZone.isInAngularZone(),
+      zoneName: (globalThis as any).Zone?.current?.name ?? null,
     };
   }
 

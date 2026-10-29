@@ -17,7 +17,7 @@ This repo is the **Third Iron LibKey add-on for Ex Libris Primo NDE**. It is an 
 
 1. Clone the repo and install dependencies:
    ```bash
-   npm install
+    npm install
    ```
 2. Review `build-settings.env` at the repo root. This file drives the add-on name and asset base URL used during build. The checked-in defaults are:
    - `ADDON_NAME=LibKey`
@@ -39,9 +39,11 @@ Changes are pushed up to the '/dev-test/' S3 bucket when the feature branch CI p
   Serves on port `4201`.
 
 - **Against a Primo instance** (end-to-end behavior):
+
   ```bash
   npm run start:proxy
   ```
+
   Uses `proxy/proxy.conf.mjs` to proxy Primo and inject local add-on assets. Set the target Primo environment in `proxy/proxy.const.mjs` (`PROXY_TARGET`).
   Note: the drawback of this proxied testing is that all our config values are not loaded. You can hardcode defaults, or just push up a build to the /dev-test S3 directory (described in [CircleCI deployment targets](#circleci-deployment-targets)) and point the Alma backend Add-On url to the /dev-test directory.
 
@@ -124,6 +126,23 @@ Generally you can just use the functions described above in the Console API, but
 
 Once the localStorage value is set to true, either directly or via the exposed functions, log statements will be emitted to the browser console on the next action that would trigger a log message.
 
+**Inspecting Primo host components**
+
+While debug mode is enabled, the add-on keeps the most recent Primo `nde-online-availability` host component for each record (up to 50) in `window.__TI_NDE__.debug.hosts`, keyed by PNX record id. Records seen before debug was enabled aren't captured, so enable debug and then run (or re-run) the search. This is useful for checking which members Primo exposes and for calling Primo's own methods by hand:
+
+```
+const host = window.__TI_NDE__.debug.hosts.get('alma9919299045603746');
+host.onlineAvailability; // e.g. 'not_restricted'
+host.openLink; // whether Primo will open a direct link instead of going to full display
+host.onAvailabilityClicked(); // run Primo's native "Available Online" click behavior (older Primo builds take the direct link as an argument)
+```
+
+Calls typed directly in the console don't count as a user gesture, so a `window.open` inside them may be blocked as a popup. To test with a real gesture, attach the call to the next click on the page:
+
+```
+document.addEventListener('click', () => host.onAvailabilityClicked(), { once: true, capture: true });
+```
+
 **Redaction policy**
 
 - Never log API keys, `access_token` values, or full PNX/record payloads.
@@ -150,27 +169,30 @@ App->>HostPage: console logs gated by debug state
 
 1. Verify existing remotes by running: `git remote -v`. You should see an `origin` remote pointing to your fork on GitHub.
 2. Add the original repository as the 'upstream' remote (if you haven't already).
+
    Specify the URL of the original repository forked.
-   ```
-   git remote add upstream https://github.com/ExLibrisGroup/customModule.git
-   ```
+
    You can then run git remote -v again to confirm the new upstream remote.
+
 3. Fetch the changes from the upstream repository:
    ```
-   git fetch upstream
+    git fetch upstream
    ```
 4. Switch to your local default branch (develop):
    ```
-   git checkout develop
+    git checkout develop
    ```
 5. Merge the changes from the upstream default branch into your local branch:
+
    ```
-   git merge upstream/main
+    git merge upstream/main
    ```
+
    If there are merge conflicts, you will need to resolve them in your local files and commit the changes.
+
 6. Push the updated local branch to your fork (the `origin` remote):
    ```
-   git push origin develop
+    git push origin develop
    ```
 
 ### Adding new icons

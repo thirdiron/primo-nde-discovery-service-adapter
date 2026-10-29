@@ -28,11 +28,13 @@ import { StackedDropdownComponent } from 'src/app/components/stacked-dropdown/st
 import { DebugLogService } from 'src/app/services/debug-log.service';
 import { HostComponentProxy } from 'src/app/shared/host-component-proxy';
 import {
+  getPrimoAvailabilityHostMeta,
   getPrimoHostRecordKey,
   getPrimoHostShape,
   getPrimoViewModelMeta,
   resolvePrimoHostRecord,
 } from 'src/app/shared/primo-host-record.utils';
+import { registerDebugHost } from 'src/app/debug/debug-controller';
 import { TranslationService } from 'src/app/services/translation.service';
 import { PrimoAvailabilityDomController } from 'src/app/shared/primo-availability-dom';
 import { TI_SCOPE_CLASS } from 'src/app/styles/css-scope';
@@ -83,8 +85,10 @@ export class ThirdIronButtonsComponent {
     this.debugLog.debug('ThirdIronButtons.hostProxy.setHostComponent', {
       cycle,
       hostShape: getPrimoHostShape(value),
+      availabilityHost: getPrimoAvailabilityHostMeta(value),
       hostRecord: this.debugLog.safeSearchEntityMeta(resolvePrimoHostRecord(value)),
     });
+    registerDebugHost(getPrimoHostRecordKey(resolvePrimoHostRecord(value)), value);
   }
   get hostComponent(): any {
     return this._hostComponent;
@@ -260,6 +264,14 @@ export class ThirdIronButtonsComponent {
     this.debugLog.debug('ThirdIronButtons.viewModel', {
       ...getPrimoViewModelMeta(viewModel),
       ariaLabel: viewModel?.ariaLabel ?? null,
+    });
+    // Read after the viewModel emits: Primo sets `openLink` as a side effect of building it.
+    this.debugLog.debug('ThirdIronButtons.applyEnhancement.hostState', {
+      recordKey: getPrimoHostRecordKey(resolvePrimoHostRecord(this.hostComponent)),
+      availabilityHost: getPrimoAvailabilityHostMeta(this.hostComponent),
+      nativeButtons: this.availabilityDom.describeNativeButtons(
+        this.elementRef.nativeElement as HTMLElement
+      ),
     });
 
     const viewOption = this.viewOption;

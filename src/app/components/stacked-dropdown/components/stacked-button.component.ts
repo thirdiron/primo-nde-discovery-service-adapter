@@ -5,6 +5,7 @@ import { PrimoPdfIconComponent } from '../../icons/primo-pdf-icon.component';
 import { PrimoHtmlIconComponent } from '../../icons/primo-html-icon.component';
 import { SvgIconComponent } from '../../svg-icon/svg-icon.component';
 import { NavigationService } from '../../../services/navigation.service';
+import { DebugLogService } from '../../../services/debug-log.service';
 
 @Component({
   selector: 'stacked-button',
@@ -23,12 +24,20 @@ export class StackedButtonComponent {
   link = input.required<StackLink>();
   stackType = input.required<'dropdown' | 'main'>();
 
-  constructor(private navigationService: NavigationService) {}
+  constructor(
+    private navigationService: NavigationService,
+    private debugLog: DebugLogService
+  ) {}
 
   openLink() {
     // When in dropdown, parent stacked-dropdown handles navigation from menu item click/keyboard
     // to avoid double navigation from nested buttons.
     if (this.stackType() === 'main' && this.link()?.url) {
+      this.debugLog.debug('StackedButton.openLink.click', {
+        source: this.link().source ?? null,
+        entityType: this.link().entityType,
+        ...this.debugLog.zoneInfo(),
+      });
       this.navigationService.openUrl(this.link().url);
     }
   }
