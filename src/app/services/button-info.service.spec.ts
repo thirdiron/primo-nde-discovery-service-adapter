@@ -1614,6 +1614,52 @@ describe('ButtonInfoService', () => {
       });
     });
 
+    it('should name the record in the Available Online aria label, matching what Primo does', async () => {
+      const testBed = await createTestModule({
+        ...MOCK_MODULE_PARAMETERS,
+        showLinkResolverLink: true,
+      });
+      const testService = testBed.inject(ButtonInfoService);
+      const host = {
+        ...createAvailabilityHost(),
+        searchResult: { pnx: { display: { title: ['Critical care'] } } } as any,
+      };
+
+      const result = testService.buildPrimoLinks(
+        { onlineLinks: [], consolidatedCoverage: '', ariaLabel: '' },
+        { ...DEFAULT_PRIMO_LINK_LABELS, directLinkAriaLabel: 'Opens in a new tab' },
+        EntityType.Journal,
+        host
+      );
+
+      expect(result[0].ariaLabel).toBe('Available Online (Critical care) Opens in a new tab');
+    });
+
+    it('should not name the record in the "Other online options" aria label, matching what Primo does', async () => {
+      const testBed = await createTestModule({
+        ...MOCK_MODULE_PARAMETERS,
+        showLinkResolverLink: true,
+      });
+      const testService = testBed.inject(ButtonInfoService);
+      const host = {
+        ...createAvailabilityHost(),
+        searchResult: { pnx: { display: { title: ['Critical care'] } } } as any,
+      };
+
+      const result = testService.buildPrimoLinks(
+        {
+          onlineLinks: [{ type: 'PDF', url: 'https://example.com/pdf', source: 'quicklink' }],
+          consolidatedCoverage: '',
+          ariaLabel: '',
+        },
+        { ...DEFAULT_PRIMO_LINK_LABELS, directLinkAriaLabel: 'Opens in a new tab' },
+        EntityType.Journal,
+        host
+      );
+
+      expect(result[1].ariaLabel).toBe('Other online options Opens in a new tab');
+    });
+
     it('should not build the Primo availability link when showLinkResolverLink is false', async () => {
       const mockConfig = { ...MOCK_MODULE_PARAMETERS };
       mockConfig.showLinkResolverLink = false;

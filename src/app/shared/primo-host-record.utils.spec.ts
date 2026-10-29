@@ -4,6 +4,7 @@ import {
   getPrimoHostShape,
   getPrimoViewModelMeta,
   getPrimoAvailabilityHostMeta,
+  getPrimoAvailabilityCode,
 } from './primo-host-record.utils';
 import { SearchEntity } from '../types/searchEntity.types';
 
@@ -232,6 +233,23 @@ describe('primo-host-record.utils', () => {
       expect(
         getPrimoViewModelMeta({ consolidatedCoverage: '' } as any)['hasConsolidatedCoverage']
       ).toBe(false);
+    });
+  });
+
+  describe('getPrimoAvailabilityCode', () => {
+    it('builds the delivery code key from the status', () => {
+      expect(getPrimoAvailabilityCode('not_restricted')).toBe('delivery.code.not_restricted');
+      expect(getPrimoAvailabilityCode('fulltext')).toBe('delivery.code.fulltext');
+    });
+
+    it("maps Primo's 'Not available' status to the not_available key", () => {
+      expect(getPrimoAvailabilityCode('Not available')).toBe('delivery.code.not_available');
+    });
+
+    it('returns an empty key when there is no status', () => {
+      expect(getPrimoAvailabilityCode(null)).toBe('');
+      expect(getPrimoAvailabilityCode(undefined)).toBe('');
+      expect(getPrimoAvailabilityCode('')).toBe('');
     });
   });
 

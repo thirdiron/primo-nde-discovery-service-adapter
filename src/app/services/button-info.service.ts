@@ -527,11 +527,17 @@ export class ButtonInfoService {
     }
 
     const linkButtonLabel = hasOtherLinks ? labels.otherOptions : labels.availableOnline;
+    // Like Primo's own button, only the "Available Online" label names the record.
+    const title = hasOtherLinks
+      ? ''
+      : (availabilityHost.searchResult?.pnx?.display?.title?.[0] ?? '');
     return {
       entityType: 'primoAvailability',
       url: '',
       action: () => availabilityHost.onAvailabilityClicked!(viewModel?.directLink),
-      ariaLabel: [linkButtonLabel, labels.directLinkAriaLabel].filter(Boolean).join(' '),
+      ariaLabel: [linkButtonLabel, title && `(${title})`, labels.directLinkAriaLabel]
+        .filter(Boolean)
+        .join(' '),
       source: 'primoAvailability',
       label: linkButtonLabel,
     };

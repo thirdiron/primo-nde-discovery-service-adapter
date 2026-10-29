@@ -1245,7 +1245,8 @@ describe('ThirdIronButtonsComponent', () => {
   describe('Primo availability label', () => {
     const getAvailableOnlineLabel = async (
       onlineAvailability: string | null,
-      translations: Record<string, string>
+      translations: Record<string, string>,
+      availabilityPlaceholder?: Record<string, string>
     ): Promise<string> => {
       const buildPrimoLinksSpy = jasmine.createSpy('buildPrimoLinks').and.returnValue([]);
       const buttonInfoMock = {
@@ -1272,7 +1273,15 @@ describe('ThirdIronButtonsComponent', () => {
             { provide: 'MODULE_PARAMETERS', useValue: MOCK_MODULE_PARAMETERS },
             {
               provide: TranslateService,
-              useValue: { stream: (key: string) => of(translations[key] ?? key) },
+              useValue: {
+                stream: (key: string, params?: Record<string, string>) =>
+                  of(
+                    (translations[key] ?? key).replace(
+                      /\{\{(\w+)\}\}/g,
+                      (_, name) => params?.[name] ?? ''
+                    )
+                  ),
+              },
             },
           ],
         })
@@ -1288,6 +1297,7 @@ describe('ThirdIronButtonsComponent', () => {
       component.hostComponent = {
         searchResult: { pnx: { control: { recordid: ['rec-3'] } } },
         onlineAvailability,
+        availabilityPlaceholder,
         viewModel$: of({ onlineLinks: [], ariaLabel: '' }),
       };
 
@@ -1306,6 +1316,25 @@ describe('ThirdIronButtonsComponent', () => {
       });
 
       expect(label).toBe('Online Access Available');
+    });
+
+    it("uses Primo's not_available label for the 'Not available' status", async () => {
+      const label = await getAvailableOnlineLabel('Not available', {
+        'delivery.code.not_available': 'Not available',
+        'delivery.code.fulltext': 'Full text available',
+      });
+
+      expect(label).toBe('Not available');
+    });
+
+    it("fills the label's placeholders from the host's availabilityPlaceholder", async () => {
+      const label = await getAvailableOnlineLabel(
+        'available_in_library',
+        { 'delivery.code.available_in_library': 'Available at {{idx_1}}' },
+        { idx_0: 'Colorado School of Mines', idx_1: 'Main Library' }
+      );
+
+      expect(label).toBe('Available at Main Library');
     });
 
     it('falls back to the fulltext label when the status has no translation', async () => {

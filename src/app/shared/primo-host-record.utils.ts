@@ -58,6 +58,17 @@ export const getPrimoViewModelMeta = (
 };
 
 /**
+ * Returns the translation key Primo uses to label its availability button for the given
+ * `onlineAvailability` status, mirroring the host's `onlineAvailabilityCode()`.
+ */
+export const getPrimoAvailabilityCode = (
+  onlineAvailability: string | null | undefined
+): string => {
+  if (onlineAvailability === 'Not available') return 'delivery.code.not_available';
+  return onlineAvailability ? `delivery.code.${onlineAvailability}` : '';
+};
+
+/**
  * Returns safe debug metadata about the Primo `nde-online-availability` host component: which
  * members it exposes and the availability state Primo uses to decide what its own button does.
  * Only key names, primitives, and a small delivery summary are returned (no PNX / record payloads).

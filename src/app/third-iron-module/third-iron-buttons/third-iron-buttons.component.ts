@@ -28,6 +28,7 @@ import { StackedDropdownComponent } from 'src/app/components/stacked-dropdown/st
 import { DebugLogService } from 'src/app/services/debug-log.service';
 import { HostComponentProxy } from 'src/app/shared/host-component-proxy';
 import {
+  getPrimoAvailabilityCode,
   getPrimoAvailabilityHostMeta,
   getPrimoHostRecordKey,
   getPrimoHostShape,
@@ -142,19 +143,25 @@ export class ThirdIronButtonsComponent {
     shareReplay({ bufferSize: 1, refCount: true })
   );
 
-  // Primo labels its own availability button with `delivery.code.<onlineAvailability>`, so use the
-  // same key. Read after the viewModel emits, since Primo updates the host state while building it.
+  // Primo labels its own availability button with the record's status key (see
+  // `getPrimoAvailabilityCode`) and fills its placeholders from `availabilityPlaceholder`, so we do the
+  // same. Read after the viewModel emits, since Primo updates the host state while building it.
   private readonly availableOnlineLabel$ = this.viewModel$.pipe(
-    map(() => String(this.hostComponent?.onlineAvailability ?? '').trim()),
-    distinctUntilChanged(),
-    switchMap(onlineAvailability => {
+    map(() => ({
+      code: getPrimoAvailabilityCode(this.hostComponent?.onlineAvailability),
+      placeholder: this.hostComponent?.availabilityPlaceholder ?? undefined,
+    })),
+    distinctUntilChanged(
+      (a, b) => a.code === b.code && JSON.stringify(a.placeholder) === JSON.stringify(b.placeholder)
+    ),
+    switchMap(({ code, placeholder }) => {
       const fulltextLabel$ = this.translationService.getTranslatedText$(
         'delivery.code.fulltext',
         'Available Online'
       );
-      if (!onlineAvailability || onlineAvailability === 'fulltext') return fulltextLabel$;
+      if (!code || code === 'delivery.code.fulltext') return fulltextLabel$;
       return combineLatest([
-        this.translationService.getTranslatedText$(`delivery.code.${onlineAvailability}`, ''),
+        this.translationService.getTranslatedText$(code, '', placeholder),
         fulltextLabel$,
       ]).pipe(map(([statusLabel, fulltextLabel]) => statusLabel || fulltextLabel));
     }),

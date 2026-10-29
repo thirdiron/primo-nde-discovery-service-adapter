@@ -1,6 +1,7 @@
 import { ButtonType } from '../shared/button-type.enum';
 import { EntityType } from '../shared/entity-type.enum';
 import { IconType } from '../shared/icon-type.enum';
+import { SearchEntity } from './searchEntity.types';
 
 export interface PrimoViewModel {
   onlineLinks: OnlineLink[];
@@ -12,6 +13,7 @@ export interface PrimoViewModel {
 
 // The members of Primo's `nde-online-availability` host component that we rely on.
 export interface PrimoAvailabilityHost {
+  searchResult?: SearchEntity | null;
   onlineAvailability?: string | null;
   // Builds released before November 2026 take the view model's `directLink`; newer builds take no argument.
   onAvailabilityClicked?: (directLink?: string) => void;
