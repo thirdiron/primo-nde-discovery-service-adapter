@@ -80,8 +80,8 @@ export const getPrimoAvailabilityHostMeta = (host: any): Record<string, unknown>
 
   let delivery: any = null;
   try {
-    // `delivery` is a signal input on newer Primo builds and a plain property on older ones.
-    delivery = typeof host.delivery === 'function' ? host.delivery() : host.delivery;
+    // `delivery` is a signal input on the Primo host component.
+    delivery = host.delivery?.() ?? null;
   } catch {
     delivery = null;
   }

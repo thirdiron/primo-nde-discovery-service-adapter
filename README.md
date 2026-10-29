@@ -17,7 +17,7 @@ This repo is the **Third Iron LibKey add-on for Ex Libris Primo NDE**. It is an 
 
 1. Clone the repo and install dependencies:
    ```bash
-    npm install
+   npm install
    ```
 2. Review `build-settings.env` at the repo root. This file drives the add-on name and asset base URL used during build. The checked-in defaults are:
    - `ADDON_NAME=LibKey`
@@ -39,11 +39,9 @@ Changes are pushed up to the '/dev-test/' S3 bucket when the feature branch CI p
   Serves on port `4201`.
 
 - **Against a Primo instance** (end-to-end behavior):
-
   ```bash
   npm run start:proxy
   ```
-
   Uses `proxy/proxy.conf.mjs` to proxy Primo and inject local add-on assets. Set the target Primo environment in `proxy/proxy.const.mjs` (`PROXY_TARGET`).
   Note: the drawback of this proxied testing is that all our config values are not loaded. You can hardcode defaults, or just push up a build to the /dev-test S3 directory (described in [CircleCI deployment targets](#circleci-deployment-targets)) and point the Alma backend Add-On url to the /dev-test directory.
 
@@ -169,30 +167,27 @@ App->>HostPage: console logs gated by debug state
 
 1. Verify existing remotes by running: `git remote -v`. You should see an `origin` remote pointing to your fork on GitHub.
 2. Add the original repository as the 'upstream' remote (if you haven't already).
-
    Specify the URL of the original repository forked.
-
+   ```
+   git remote add upstream https://github.com/ExLibrisGroup/customModule.git
+   ```
    You can then run git remote -v again to confirm the new upstream remote.
-
 3. Fetch the changes from the upstream repository:
    ```
-    git fetch upstream
+   git fetch upstream
    ```
 4. Switch to your local default branch (develop):
    ```
-    git checkout develop
+   git checkout develop
    ```
 5. Merge the changes from the upstream default branch into your local branch:
-
    ```
-    git merge upstream/main
+   git merge upstream/main
    ```
-
    If there are merge conflicts, you will need to resolve them in your local files and commit the changes.
-
 6. Push the updated local branch to your fork (the `origin` remote):
    ```
-    git push origin develop
+   git push origin develop
    ```
 
 ### Adding new icons

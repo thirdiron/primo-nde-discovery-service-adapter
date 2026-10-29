@@ -27,8 +27,12 @@ describe('primo-host-record.utils', () => {
     });
 
     it('prefers searchResult over item when both exist', () => {
-      const searchRecord = { pnx: { addata: {}, display: { title: ['A'], type: [] } } } as SearchEntity;
-      const itemRecord = { pnx: { addata: {}, display: { title: ['B'], type: [] } } } as SearchEntity;
+      const searchRecord = {
+        pnx: { addata: {}, display: { title: ['A'], type: [] } },
+      } as SearchEntity;
+      const itemRecord = {
+        pnx: { addata: {}, display: { title: ['B'], type: [] } },
+      } as SearchEntity;
       const host = { searchResult: searchRecord, item: itemRecord };
       expect(resolvePrimoHostRecord(host)).toBe(searchRecord);
     });
@@ -249,7 +253,7 @@ describe('primo-host-record.utils', () => {
     class FakeOldBuildHost {
       onlineAvailability = 'not_restricted';
       openLink = true;
-      delivery = { deliveryCategory: ['Alma-E'], electronicServices: [] };
+      delivery = () => ({ deliveryCategory: ['Alma-E'], electronicServices: [] });
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       onAvailabilityClicked(_directLink: string) {}
     }
@@ -281,10 +285,12 @@ describe('primo-host-record.utils', () => {
       });
     });
 
-    it('reads a plain-object delivery and the click handler arity of an old-build host', () => {
+    // with the November 2026 Primo release, the onAvailabilityClicked function dropped its directLink argument
+    // Here we test the pre-November 2026 behavior for clients that may still be using the directLink argument
+    it('reports the click handler arity of an old-build host', () => {
       const meta = getPrimoAvailabilityHostMeta(new FakeOldBuildHost());
       expect(meta['onAvailabilityClickedArity']).toBe(1);
-      expect(meta['typeofDelivery']).toBe('object');
+      expect(meta['typeofDelivery']).toBe('function');
       expect(meta['openLink']).toBe(true);
       expect(meta['delivery']).toEqual({
         deliveryCategory: ['Alma-E'],
@@ -294,6 +300,8 @@ describe('primo-host-record.utils', () => {
       });
     });
 
+    // If Primo renames or removes these members (or hands us a different host component),
+    // the debug log should report them as missing rather than throw.
     it('handles hosts without the click handler or delivery', () => {
       const meta = getPrimoAvailabilityHostMeta({ searchResult: {} });
       expect(meta['protoMethods']).toEqual([]);
