@@ -23,11 +23,11 @@ describe('StackedButtonComponent', () => {
 
   it('openLink should open in same tab for same-origin URLs', () => {
     const link: StackLink = {
-      entityType: 'directLink',
+      entityType: 'HTML',
       // Same-origin URLs should be treated as in-app navigation (same tab).
       // Use a relative path so this stays stable regardless of Karma's origin.
       url: '/record/123',
-      source: 'directLink',
+      source: 'quicklink',
     };
 
     componentRef.setInput('link', link);
@@ -69,6 +69,44 @@ describe('StackedButtonComponent', () => {
     const openSpy = spyOn(window, 'open');
     component.openLink();
     expect(openSpy).not.toHaveBeenCalled();
+  });
+
+  it('openLink runs the link action once instead of navigating', () => {
+    const action = jasmine.createSpy('action');
+    const link: StackLink = {
+      entityType: 'primoAvailability',
+      url: '',
+      action,
+      source: 'primoAvailability',
+      label: 'Available Online',
+    };
+
+    componentRef.setInput('link', link);
+    componentRef.setInput('stackType', 'main');
+    fixture.detectChanges();
+
+    const openSpy = spyOn(window, 'open');
+    (fixture.nativeElement.querySelector('button') as HTMLButtonElement).click();
+
+    expect(action).toHaveBeenCalledTimes(1);
+    expect(openSpy).not.toHaveBeenCalled();
+  });
+
+  it('openLink does not run the link action when stackType is dropdown', () => {
+    const action = jasmine.createSpy('action');
+    const link: StackLink = {
+      entityType: 'primoAvailability',
+      url: '',
+      action,
+      source: 'primoAvailability',
+    };
+
+    componentRef.setInput('link', link);
+    componentRef.setInput('stackType', 'dropdown');
+    fixture.detectChanges();
+
+    component.openLink();
+    expect(action).not.toHaveBeenCalled();
   });
 
   it('uses visible label as aria-label when ariaLabel is empty', () => {

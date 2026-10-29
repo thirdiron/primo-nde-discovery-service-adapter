@@ -32,13 +32,14 @@ export class StackedButtonComponent {
   openLink() {
     // When in dropdown, parent stacked-dropdown handles navigation from menu item click/keyboard
     // to avoid double navigation from nested buttons.
-    if (this.stackType() === 'main' && this.link()?.url) {
+    const link = this.link();
+    if (this.stackType() === 'main' && (link?.action || link?.url)) {
       this.debugLog.debug('StackedButton.openLink.click', {
-        source: this.link().source ?? null,
-        entityType: this.link().entityType,
+        source: link.source ?? null,
+        entityType: link.entityType,
         ...this.debugLog.zoneInfo(),
       });
-      this.navigationService.openUrl(this.link().url);
+      this.navigationService.openStackLink(link);
     }
   }
 }

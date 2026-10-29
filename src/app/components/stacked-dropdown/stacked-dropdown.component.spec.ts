@@ -268,6 +268,71 @@ describe('StackedDropdownComponent', () => {
       expect(openUrlSpy).toHaveBeenCalledWith('https://example.com/pdf');
     });
 
+    it('runs the link action once instead of opening a URL', () => {
+      const action = jasmine.createSpy('action');
+      const link = {
+        source: 'primoAvailability',
+        entityType: 'primoAvailability',
+        url: '',
+        action,
+        label: 'Other online options',
+      };
+      const openUrlSpy = spyOn(component['navigationService'], 'openUrl');
+
+      component.onMenuItemClick(link as any);
+
+      expect(action).toHaveBeenCalledTimes(1);
+      expect(openUrlSpy).not.toHaveBeenCalled();
+    });
+
+    it('runs the link action once when Enter is pressed on a menu item', () => {
+      const action = jasmine.createSpy('action');
+      const link = {
+        source: 'primoAvailability',
+        entityType: 'primoAvailability',
+        url: '',
+        action,
+        label: 'Other online options',
+      };
+      const event = new KeyboardEvent('keydown', { key: 'Enter' });
+
+      component.onMenuItemKeydown(event, link as any);
+
+      expect(action).toHaveBeenCalledTimes(1);
+    });
+
+    it('runs the link action once when its menu item is clicked in the rendered menu', () => {
+      const action = jasmine.createSpy('action');
+      const links = [
+        {
+          source: 'thirdIron',
+          entityType: 'Article',
+          url: 'https://example.com/article',
+          mainButtonType: 'ArticleLink',
+          label: 'Read Article',
+        },
+        {
+          source: 'primoAvailability',
+          entityType: 'primoAvailability',
+          url: '',
+          action,
+          label: 'Other online options',
+        },
+      ];
+      componentRef.setInput('links', links as any);
+      fixture.detectChanges();
+
+      const triggerDe = fixture.debugElement.query(By.directive(MatMenuTrigger));
+      triggerDe.injector.get(MatMenuTrigger).openMenu();
+      fixture.detectChanges();
+
+      const overlayEl = TestBed.inject(OverlayContainer).getContainerElement();
+      const optionButton = overlayEl.querySelector('stacked-button button') as HTMLButtonElement;
+      optionButton.click();
+
+      expect(action).toHaveBeenCalledTimes(1);
+    });
+
     it('does not open when url is missing', () => {
       const link = {
         source: 'quicklink',

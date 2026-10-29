@@ -224,10 +224,11 @@ describe('ThirdIronButtonsComponent', () => {
         ],
         primoLinks: [
           {
-            entityType: 'directLink',
-            url: 'https://example.com',
+            entityType: 'primoAvailability',
+            url: '',
+            action: () => {},
             ariaLabel: '',
-            source: 'directLink',
+            source: 'primoAvailability',
             label: 'Other online options',
           },
         ],
@@ -385,10 +386,11 @@ describe('ThirdIronButtonsComponent', () => {
           combinedLinks: [
             ...baseStackPlusCombinedLinks,
             {
-              entityType: 'directLink',
-              url: '/fulldisplay?docid=123#nui.getit.service_viewit',
+              entityType: 'primoAvailability',
+              url: '',
+              action: () => {},
               ariaLabel: '',
-              source: 'directLink',
+              source: 'primoAvailability',
               label: 'Other online options',
             },
           ],
@@ -897,6 +899,8 @@ describe('ThirdIronButtonsComponent', () => {
 
       expect(getDisplayInfoSpy).toHaveBeenCalled();
       expect(buildCombinedLinksSpy).toHaveBeenCalled();
+      // Primo's host component is passed through so the availability link can hand clicks to it.
+      expect(buildCombinedLinksSpy.calls.mostRecent().args[3]).toBe(component.hostComponent);
       expect(removeSpy).toHaveBeenCalled();
       expect(restoreWrapperSpy).toHaveBeenCalled();
       expect(component.hasThirdIronSourceItems).toBeTrue();
@@ -1147,6 +1151,7 @@ describe('ThirdIronButtonsComponent', () => {
 
     expect(buildPrimoLinksSpy).toHaveBeenCalled();
     const firstArgs = buildPrimoLinksSpy.calls.mostRecent().args;
+    expect(firstArgs[3]).toBe(component.hostComponent);
     expect(firstArgs[1]).toEqual({
       htmlText: 'Read Online',
       pdfText: 'Get PDF',
@@ -1235,5 +1240,94 @@ describe('ThirdIronButtonsComponent', () => {
     expect(args[1].directLinkAriaLabel).toBe('Literal direct link aria label');
 
     sub?.unsubscribe();
+  });
+
+  describe('Primo availability label', () => {
+    const getAvailableOnlineLabel = async (
+      onlineAvailability: string | null,
+      translations: Record<string, string>
+    ): Promise<string> => {
+      const buildPrimoLinksSpy = jasmine.createSpy('buildPrimoLinks').and.returnValue([]);
+      const buttonInfoMock = {
+        getDisplayInfo: () =>
+          of({
+            entityType: EntityType.Article,
+            mainButtonType: ButtonType.ArticleLink,
+            mainUrl: 'https://example.com/article',
+            showSecondaryButton: false,
+            secondaryUrl: '',
+            showBrowzineButton: false,
+            browzineUrl: '',
+          }),
+        buildCombinedLinks: () => [],
+        buildPrimoLinks: buildPrimoLinksSpy,
+      };
+
+      await TestBed.resetTestingModule()
+        .configureTestingModule({
+          imports: [ThirdIronButtonsComponent],
+          providers: [
+            ConfigService,
+            { provide: Store, useValue: mockStore },
+            { provide: 'MODULE_PARAMETERS', useValue: MOCK_MODULE_PARAMETERS },
+            {
+              provide: TranslateService,
+              useValue: { stream: (key: string) => of(translations[key] ?? key) },
+            },
+          ],
+        })
+        .overrideProvider(SearchEntityService, {
+          useValue: { shouldEnhanceButtons: () => true },
+        })
+        .overrideProvider(ButtonInfoService, { useValue: buttonInfoMock })
+        .overrideProvider(PrimoAvailabilityDomController, { useValue: createAvailabilityDomFake() })
+        .compileComponents();
+
+      const fixture = TestBed.createComponent(ThirdIronButtonsComponent);
+      const component = fixture.componentInstance;
+      component.hostComponent = {
+        searchResult: { pnx: { control: { recordid: ['rec-3'] } } },
+        onlineAvailability,
+        viewModel$: of({ onlineLinks: [], ariaLabel: '' }),
+      };
+
+      fixture.detectChanges();
+      const sub = component.displayInfo$?.subscribe();
+      await fixture.whenStable();
+      sub?.unsubscribe();
+
+      return buildPrimoLinksSpy.calls.mostRecent().args[1].availableOnline;
+    };
+
+    it("uses Primo's label for the record's online availability status", async () => {
+      const label = await getAvailableOnlineLabel('not_restricted', {
+        'delivery.code.not_restricted': 'Online Access Available',
+        'delivery.code.fulltext': 'Full text available',
+      });
+
+      expect(label).toBe('Online Access Available');
+    });
+
+    it('falls back to the fulltext label when the status has no translation', async () => {
+      const label = await getAvailableOnlineLabel('not_restricted', {
+        'delivery.code.fulltext': 'Full text available',
+      });
+
+      expect(label).toBe('Full text available');
+    });
+
+    it('uses the fulltext label when the host has no status', async () => {
+      const label = await getAvailableOnlineLabel(null, {
+        'delivery.code.fulltext': 'Full text available',
+      });
+
+      expect(label).toBe('Full text available');
+    });
+
+    it('falls back to the default text when neither key has a translation', async () => {
+      const label = await getAvailableOnlineLabel('not_restricted', {});
+
+      expect(label).toBe('Available Online');
+    });
   });
 });

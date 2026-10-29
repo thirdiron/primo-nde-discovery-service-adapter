@@ -142,6 +142,25 @@ export class ThirdIronButtonsComponent {
     shareReplay({ bufferSize: 1, refCount: true })
   );
 
+  // Primo labels its own availability button with `delivery.code.<onlineAvailability>`, so use the
+  // same key. Read after the viewModel emits, since Primo updates the host state while building it.
+  private readonly availableOnlineLabel$ = this.viewModel$.pipe(
+    map(() => String(this.hostComponent?.onlineAvailability ?? '').trim()),
+    distinctUntilChanged(),
+    switchMap(onlineAvailability => {
+      const fulltextLabel$ = this.translationService.getTranslatedText$(
+        'delivery.code.fulltext',
+        'Available Online'
+      );
+      if (!onlineAvailability || onlineAvailability === 'fulltext') return fulltextLabel$;
+      return combineLatest([
+        this.translationService.getTranslatedText$(`delivery.code.${onlineAvailability}`, ''),
+        fulltextLabel$,
+      ]).pipe(map(([statusLabel, fulltextLabel]) => statusLabel || fulltextLabel));
+    }),
+    shareReplay({ bufferSize: 1, refCount: true })
+  );
+
   // Emits the translated Primo label strings used when building Primo links
   // (HTML/PDF + direct-link labels + direct-link aria-label).
   // Because it uses `translate.stream(...)` under the hood, it re-emits on language changes; `shareReplay(1)`
@@ -153,7 +172,7 @@ export class ThirdIronButtonsComponent {
       'nde.delivery.code.otherOnlineOptions',
       'Other online options'
     ),
-    this.translationService.getTranslatedText$('delivery.code.fulltext', 'Available Online'),
+    this.availableOnlineLabel$,
     this.directLinkAriaLabel$,
   ]).pipe(
     map(([htmlText, pdfText, otherOptions, availableOnline, directLinkAriaLabel]) => ({
@@ -311,7 +330,8 @@ export class ThirdIronButtonsComponent {
       this.combinedLinks = this.buttonInfoService.buildCombinedLinks(
         displayInfo,
         viewModel,
-        primoLinkLabels
+        primoLinkLabels,
+        this.hostComponent
       );
 
       this.debugLog.debug('ThirdIronButtons.combinedLinks', {
@@ -319,13 +339,14 @@ export class ThirdIronButtonsComponent {
       });
     } else {
       // Build array of Primo only links, filter based on TI config settings.
-      // Pass the record's entity type so the link resolver (direct) link can be
+      // Pass the record's entity type so the link resolver (Primo availability) link can be
       // shown/hidden per entity type (article vs journal).
       this.combinedLinks = [];
       this.primoLinks = this.buttonInfoService.buildPrimoLinks(
         viewModel,
         primoLinkLabels,
-        displayInfo.entityType
+        displayInfo.entityType,
+        this.hostComponent
       );
 
       // Primo links are re-rendered via our own `stacked-dropdown` in NoStack mode.

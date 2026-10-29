@@ -5,28 +5,39 @@ import { IconType } from '../shared/icon-type.enum';
 export interface PrimoViewModel {
   onlineLinks: OnlineLink[];
   consolidatedCoverage: string;
-  directLink: string;
+  // Only present on Primo builds released before November 2026.
+  directLink?: string;
   ariaLabel: string;
 }
 
-export interface OnlineLink {
-  type: 'PDF' | 'HTML' | 'directLink';
-  url: string;
-  ariaLabel?: string;
-  source?: string; // quicklink, directLink
-  label?: string; // Get PDF, Read Online, Other online options
+// The members of Primo's `nde-online-availability` host component that we rely on.
+export interface PrimoAvailabilityHost {
+  onlineAvailability?: string | null;
+  // Builds released before November 2026 take the view model's `directLink`; newer builds take no argument.
+  onAvailabilityClicked?: (directLink?: string) => void;
 }
 
-export type LinkEntityType = 'PDF' | 'HTML' | 'directLink' | EntityType;
+export interface OnlineLink {
+  type: 'PDF' | 'HTML';
+  url: string;
+  ariaLabel?: string;
+  source?: string; // quicklink, unpaywall
+  label?: string; // Get PDF, Read Online
+}
+
+export type LinkEntityType = 'PDF' | 'HTML' | 'primoAvailability' | EntityType;
 
 // used for the combined link values from the Primo viewModel and Third Iron display options
 export interface StackLink {
-  entityType: LinkEntityType; // PDF, HTML, directLink, plus TI EntityType (Article, Journal, Unknown)
+  entityType: LinkEntityType; // PDF, HTML, primoAvailability, plus TI EntityType (Article, Journal, Unknown)
   url: string;
+  // When set, clicking the link calls this instead of navigating to `url`. Call it synchronously
+  // from the click handler so any `window.open` inside it keeps the user gesture.
+  action?: () => void;
   ariaLabel?: string;
   icon?: IconType; // Third Iron icons
   label?: string;
   mainButtonType?: ButtonType; // Third Iron button types
   showSecondaryButton?: boolean;
-  source?: string; // quicklink, directLink, thirdIron
+  source?: string; // quicklink, primoAvailability, thirdIron
 }

@@ -37,13 +37,13 @@ export class StackedDropdownComponent {
   ) {}
 
   onMenuItemClick(link: StackLink): void {
-    if (link?.url) {
+    if (link?.action || link?.url) {
       this.debugLog.debug('StackedDropdown.onMenuItemClick', {
         source: link.source ?? null,
         entityType: link.entityType,
         ...this.debugLog.zoneInfo(),
       });
-      this.navigationService.openUrl(link.url);
+      this.navigationService.openStackLink(link);
     }
   }
 
