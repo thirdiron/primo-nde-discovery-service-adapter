@@ -11,6 +11,7 @@ interface SetupOptions {
 
 const setup = (opts: SetupOptions = {}) => {
   const streamedKeys: string[] = [];
+  const streamedParams: unknown[] = [];
   const streamSubjects = new Map<string, BehaviorSubject<string>>();
   const langChange$ = new BehaviorSubject<any>({ lang: 'en', previousLang: 'fr' });
 
@@ -23,8 +24,9 @@ const setup = (opts: SetupOptions = {}) => {
   };
 
   const translateMock = {
-    stream: (key: string) => {
+    stream: (key: string, params?: unknown) => {
       streamedKeys.push(key);
+      streamedParams.push(params);
       return getOrCreateSubject(key).asObservable();
     },
     onLangChange: langChange$.asObservable(),
@@ -44,7 +46,7 @@ const setup = (opts: SetupOptions = {}) => {
   });
 
   const service = TestBed.inject(TranslationService);
-  return { service, streamSubjects, streamedKeys, debugLogMock };
+  return { service, streamSubjects, streamedKeys, streamedParams, debugLogMock };
 };
 
 describe('TranslationService', () => {
@@ -71,6 +73,18 @@ describe('TranslationService', () => {
       lang: 'en',
     });
 
+    sub.unsubscribe();
+  });
+
+  it('passes interpolation params through to the translate stream', () => {
+    const { service, streamedParams } = setup();
+    const params = { idx_1: 'Main Library' };
+
+    const sub = service
+      .getTranslatedText$('delivery.code.available_in_library', '', params)
+      .subscribe();
+
+    expect(streamedParams).toEqual([params]);
     sub.unsubscribe();
   });
 

@@ -1,4 +1,4 @@
-import { fakeAsync, TestBed, tick } from '@angular/core/testing';
+import { TestBed } from '@angular/core/testing';
 import { NgZone } from '@angular/core';
 import { SHELL_ROUTER } from '../injection-tokens';
 import { NavigationService } from './navigation.service';
@@ -59,27 +59,33 @@ describe('NavigationService', () => {
       expect(openSpy).not.toHaveBeenCalled();
     });
 
-    it('re-applies hash after router navigation for fulldisplay links (patch to fix scrolling issue)', fakeAsync(() => {
-      const origin = window.location.origin;
-      const url = `${origin}/fulldisplay?x=1#nui.getit.service_viewit`;
-
-      window.location.hash = '';
-
+    it('openStackLink runs the link action instead of navigating when the link has one', () => {
+      const action = jasmine.createSpy('action');
       const openSpy = spyOn(window, 'open');
-      service.openUrl(url);
 
-      // navigateByUrl should be called immediately
-      expect(routerNavigateByUrl).toHaveBeenCalledWith('/fulldisplay?x=1#nui.getit.service_viewit');
+      service.openStackLink({
+        entityType: 'primoAvailability',
+        url: '',
+        action,
+        source: 'primoAvailability',
+      });
+
+      expect(action).toHaveBeenCalledTimes(1);
+      expect(routerNavigateByUrl).not.toHaveBeenCalled();
       expect(openSpy).not.toHaveBeenCalled();
+    });
 
-      // Hash re-apply scheduled (0ms and 250ms). Tick enough to run the first attempt.
-      tick(0);
-      expect(window.location.hash).toBe('#nui.getit.service_viewit');
+    it('openStackLink opens the link URL when the link has no action', () => {
+      const openSpy = spyOn(window, 'open');
 
-      // Second attempt should not break anything.
-      tick(250);
-      expect(window.location.hash).toBe('#nui.getit.service_viewit');
-    }));
+      service.openStackLink({
+        entityType: 'PDF',
+        url: 'https://example.com/pdf',
+        source: 'quicklink',
+      });
+
+      expect(openSpy).toHaveBeenCalledWith('https://example.com/pdf', '_blank');
+    });
 
     it('does not use router.navigateByUrl for external-origin URLs (opens new tab)', () => {
       const url = 'https://example.com/external/link';

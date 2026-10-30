@@ -5,12 +5,7 @@
     itself only becomes visible once the skeleton-delay has elapsed (showSkeleton), so fast/cached
     responses don't flash a placeholder. aria-hidden/aria-busy keep it out of the accessibility tree.
   -->
-  <span
-    class="ti-buttons-skeleton"
-    [class.is-visible]="showSkeleton"
-    aria-hidden="true"
-    aria-busy="true"
-  >
+  <span class="ti-buttons-skeleton" [class.is-visible]="showSkeleton" aria-hidden="true" aria-busy="true">
     <span class="ti-skeleton-chip"></span>
     <span class="ti-skeleton-chip"></span>
   </span>
@@ -53,7 +48,10 @@
               ></main-button>
             }
             @if (displayInfo.showSecondaryButton && displayInfo.secondaryUrl) {
-              <article-link-button class="ti-single-button" [url]="displayInfo.secondaryUrl || ''"></article-link-button>
+              <article-link-button
+                class="ti-single-button"
+                [url]="displayInfo.secondaryUrl || ''"
+              ></article-link-button>
             }
             @if (primoLinks.length > 0) {
               <stacked-dropdown [links]="primoLinks"></stacked-dropdown>

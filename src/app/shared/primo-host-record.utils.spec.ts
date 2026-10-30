@@ -3,6 +3,8 @@ import {
   getPrimoHostRecordKey,
   getPrimoHostShape,
   getPrimoViewModelMeta,
+  getPrimoAvailabilityHostMeta,
+  getPrimoAvailabilityCode,
 } from './primo-host-record.utils';
 import { SearchEntity } from '../types/searchEntity.types';
 
@@ -26,8 +28,12 @@ describe('primo-host-record.utils', () => {
     });
 
     it('prefers searchResult over item when both exist', () => {
-      const searchRecord = { pnx: { addata: {}, display: { title: ['A'], type: [] } } } as SearchEntity;
-      const itemRecord = { pnx: { addata: {}, display: { title: ['B'], type: [] } } } as SearchEntity;
+      const searchRecord = {
+        pnx: { addata: {}, display: { title: ['A'], type: [] } },
+      } as SearchEntity;
+      const itemRecord = {
+        pnx: { addata: {}, display: { title: ['B'], type: [] } },
+      } as SearchEntity;
       const host = { searchResult: searchRecord, item: itemRecord };
       expect(resolvePrimoHostRecord(host)).toBe(searchRecord);
     });
@@ -180,12 +186,23 @@ describe('primo-host-record.utils', () => {
         directLink: null,
         onlineLinksCount: 0,
         hasConsolidatedCoverage: false,
+        viewModelKeys: [],
       });
       expect(getPrimoViewModelMeta(undefined)).toEqual({
         directLink: null,
         onlineLinksCount: 0,
         hasConsolidatedCoverage: false,
+        viewModelKeys: [],
       });
+    });
+
+    it('lists viewModel keys so renamed or removed fields show up in logs', () => {
+      const vm = { onlineLinks: [], consolidatedCoverage: '', ariaLabel: 'x' } as any;
+      expect(getPrimoViewModelMeta(vm)['viewModelKeys']).toEqual([
+        'onlineLinks',
+        'consolidatedCoverage',
+        'ariaLabel',
+      ]);
     });
 
     it('extracts directLink', () => {
@@ -216,6 +233,110 @@ describe('primo-host-record.utils', () => {
       expect(
         getPrimoViewModelMeta({ consolidatedCoverage: '' } as any)['hasConsolidatedCoverage']
       ).toBe(false);
+    });
+  });
+
+  describe('getPrimoAvailabilityCode', () => {
+    it('builds the delivery code key from the status', () => {
+      expect(getPrimoAvailabilityCode('not_restricted')).toBe('delivery.code.not_restricted');
+      expect(getPrimoAvailabilityCode('fulltext')).toBe('delivery.code.fulltext');
+    });
+
+    it("maps Primo's 'Not available' status to the not_available key", () => {
+      expect(getPrimoAvailabilityCode('Not available')).toBe('delivery.code.not_available');
+    });
+
+    it('returns an empty key when there is no status', () => {
+      expect(getPrimoAvailabilityCode(null)).toBe('');
+      expect(getPrimoAvailabilityCode(undefined)).toBe('');
+      expect(getPrimoAvailabilityCode('')).toBe('');
+    });
+  });
+
+  describe('getPrimoAvailabilityHostMeta', () => {
+    class FakeNewBuildHost {
+      onlineAvailability = 'not_restricted';
+      openLink = false;
+      isFullDisplay = true;
+      searchResult = {};
+      delivery = () => ({
+        deliveryCategory: ['Alma-E'],
+        displayedAvailability: 'not_restricted',
+        electronicServices: [{ hasAccess: false }, { hasAccess: true }],
+      });
+      onAvailabilityClicked() {}
+      openDirectLink() {}
+    }
+
+    class FakeOldBuildHost {
+      onlineAvailability = 'not_restricted';
+      openLink = true;
+      delivery = () => ({ deliveryCategory: ['Alma-E'], electronicServices: [] });
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      onAvailabilityClicked(_directLink: string) {}
+    }
+
+    it('reports no host for null, undefined, or non-object values', () => {
+      expect(getPrimoAvailabilityHostMeta(null)).toEqual({ hasHost: false });
+      expect(getPrimoAvailabilityHostMeta(undefined)).toEqual({ hasHost: false });
+      expect(getPrimoAvailabilityHostMeta('host')).toEqual({ hasHost: false });
+    });
+
+    it('reports members and availability state of a new-build host', () => {
+      const meta = getPrimoAvailabilityHostMeta(new FakeNewBuildHost());
+      expect(meta['hasHost']).toBe(true);
+      expect(meta['ownKeys']).toEqual(
+        jasmine.arrayContaining(['onlineAvailability', 'openLink', 'delivery', 'searchResult'])
+      );
+      expect(meta['protoMethods']).toEqual(['onAvailabilityClicked', 'openDirectLink']);
+      expect(meta['hasOnAvailabilityClicked']).toBe(true);
+      expect(meta['onAvailabilityClickedArity']).toBe(0);
+      expect(meta['typeofDelivery']).toBe('function');
+      expect(meta['onlineAvailability']).toBe('not_restricted');
+      expect(meta['openLink']).toBe(false);
+      expect(meta['isFullDisplay']).toBe(true);
+      expect(meta['delivery']).toEqual({
+        deliveryCategory: ['Alma-E'],
+        displayedAvailability: 'not_restricted',
+        electronicServicesCount: 2,
+        firstServiceHasAccess: false,
+      });
+    });
+
+    // with the November 2026 Primo release, the onAvailabilityClicked function dropped its directLink argument
+    // Here we test the pre-November 2026 behavior for clients that may still be using the directLink argument
+    it('reports the click handler arity of an old-build host', () => {
+      const meta = getPrimoAvailabilityHostMeta(new FakeOldBuildHost());
+      expect(meta['onAvailabilityClickedArity']).toBe(1);
+      expect(meta['typeofDelivery']).toBe('function');
+      expect(meta['openLink']).toBe(true);
+      expect(meta['delivery']).toEqual({
+        deliveryCategory: ['Alma-E'],
+        displayedAvailability: null,
+        electronicServicesCount: 0,
+        firstServiceHasAccess: null,
+      });
+    });
+
+    // If Primo renames or removes these members (or hands us a different host component),
+    // the debug log should report them as missing rather than throw.
+    it('handles hosts without the click handler or delivery', () => {
+      const meta = getPrimoAvailabilityHostMeta({ searchResult: {} });
+      expect(meta['protoMethods']).toEqual([]);
+      expect(meta['hasOnAvailabilityClicked']).toBe(false);
+      expect(meta['onAvailabilityClickedArity']).toBeNull();
+      expect(meta['onlineAvailability']).toBeNull();
+      expect(meta['openLink']).toBeNull();
+      expect(meta['delivery']).toBeNull();
+    });
+
+    it('does not throw when reading delivery throws', () => {
+      const host = {
+        delivery: () => {
+          throw new Error('signal read failed');
+        },
+      };
+      expect(getPrimoAvailabilityHostMeta(host)['delivery']).toBeNull();
     });
   });
 });

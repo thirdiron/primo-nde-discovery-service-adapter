@@ -110,6 +110,12 @@ const validateButton = (
   expect(buttonInfo.browzineUrl).toBe(expectedValues.browzineUrl);
 };
 
+// Stands in for Primo's `nde-online-availability` component.
+const createAvailabilityHost = (onlineAvailability: string | null = 'not_restricted') => ({
+  onlineAvailability,
+  onAvailabilityClicked: jasmine.createSpy('onAvailabilityClicked'),
+});
+
 const createTestModule = async (config: any) => {
   TestBed.resetTestingModule();
   TestBed.configureTestingModule({
@@ -1402,8 +1408,7 @@ describe('ButtonInfoService', () => {
       expect(result[0].source).toBe('thirdIron');
     });
 
-    it('should build direct link when viewModel has directLink and showLinkResolverLink is true', async () => {
-      // Create a new test module with showLinkResolverLink enabled
+    it('should build the Primo availability link when the host has an online availability status and showLinkResolverLink is true', async () => {
       const mockConfig = { ...MOCK_MODULE_PARAMETERS };
       mockConfig.showLinkResolverLink = true;
 
@@ -1420,25 +1425,127 @@ describe('ButtonInfoService', () => {
         browzineUrl: '',
       };
 
-      const viewModel: any = {
-        onlineLinks: [],
-        directLink: 'https://example.com/nde/fulldisplay/some/direct/link',
-        ariaLabel: 'Direct link aria label',
-      };
+      const viewModel: any = { onlineLinks: [], ariaLabel: 'Direct link aria label' };
 
-      const result = testService.buildCombinedLinks(displayInfo, viewModel, {
-        ...DEFAULT_PRIMO_LINK_LABELS,
-        directLinkAriaLabel: 'Open in new tab',
-      });
+      const result = testService.buildCombinedLinks(
+        displayInfo,
+        viewModel,
+        { ...DEFAULT_PRIMO_LINK_LABELS, directLinkAriaLabel: 'Open in new tab' },
+        createAvailabilityHost()
+      );
 
-      expect(result).toHaveSize(2); // 1 Third Iron + 1 direct link
+      expect(result).toHaveSize(2); // 1 Third Iron + 1 Primo availability link
       expect(result[1]).toEqual({
-        source: 'directLink',
-        entityType: 'directLink',
-        url: 'https://example.com/nde/fulldisplay/some/direct/link#nui.getit.service_viewit',
+        source: 'primoAvailability',
+        entityType: 'primoAvailability',
+        url: '',
+        action: jasmine.any(Function),
         ariaLabel: 'Other online options Open in new tab',
-        label: 'Other online options', // From mock translation service, option when more than one item in the stack
+        label: 'Other online options', // option when more than one item in the stack
       });
+    });
+
+    // The November 2026 Primo build removed the direct link from the Primo viewModel
+    it('should hand the click to Primo with no direct link on newer Primo builds', async () => {
+      const testBed = await createTestModule({
+        ...MOCK_MODULE_PARAMETERS,
+        showLinkResolverLink: true,
+      });
+      const testService = testBed.inject(ButtonInfoService);
+      const host = createAvailabilityHost();
+
+      const result = testService.buildPrimoLinks(
+        { onlineLinks: [], consolidatedCoverage: '', ariaLabel: '' },
+        DEFAULT_PRIMO_LINK_LABELS,
+        EntityType.Article,
+        host
+      );
+      result[0].action!();
+
+      expect(host.onAvailabilityClicked).toHaveBeenCalledOnceWith(undefined);
+    });
+
+    it('should pass the view model directLink to Primo on Primo builds released before November 2026', async () => {
+      const testBed = await createTestModule({
+        ...MOCK_MODULE_PARAMETERS,
+        showLinkResolverLink: true,
+      });
+      const testService = testBed.inject(ButtonInfoService);
+      const host = createAvailabilityHost();
+
+      const result = testService.buildPrimoLinks(
+        {
+          onlineLinks: [],
+          consolidatedCoverage: '',
+          directLink: '/nde/fulldisplay?docid=AAA',
+          ariaLabel: '',
+        },
+        DEFAULT_PRIMO_LINK_LABELS,
+        EntityType.Article,
+        host
+      );
+      result[0].action!();
+
+      expect(host.onAvailabilityClicked).toHaveBeenCalledOnceWith('/nde/fulldisplay?docid=AAA');
+    });
+
+    it('should not build the Primo availability link when the host has no online availability status', async () => {
+      const testBed = await createTestModule({
+        ...MOCK_MODULE_PARAMETERS,
+        showLinkResolverLink: true,
+      });
+      const testService = testBed.inject(ButtonInfoService);
+      const viewModel: any = { onlineLinks: [], ariaLabel: '' };
+
+      expect(
+        testService.buildPrimoLinks(
+          viewModel,
+          DEFAULT_PRIMO_LINK_LABELS,
+          EntityType.Article,
+          createAvailabilityHost(null)
+        )
+      ).toEqual([]);
+      expect(
+        testService.buildPrimoLinks(
+          viewModel,
+          DEFAULT_PRIMO_LINK_LABELS,
+          EntityType.Article,
+          createAvailabilityHost('')
+        )
+      ).toEqual([]);
+    });
+
+    it('should not build the Primo availability link when the host has no click handler', async () => {
+      const testBed = await createTestModule({
+        ...MOCK_MODULE_PARAMETERS,
+        showLinkResolverLink: true,
+      });
+      const testService = testBed.inject(ButtonInfoService);
+
+      const result = testService.buildPrimoLinks(
+        { onlineLinks: [], consolidatedCoverage: '', ariaLabel: '' },
+        DEFAULT_PRIMO_LINK_LABELS,
+        EntityType.Article,
+        { onlineAvailability: 'not_restricted' }
+      );
+
+      expect(result).toEqual([]);
+    });
+
+    it('should not build the Primo availability link when no host is passed', async () => {
+      const testBed = await createTestModule({
+        ...MOCK_MODULE_PARAMETERS,
+        showLinkResolverLink: true,
+      });
+      const testService = testBed.inject(ButtonInfoService);
+
+      const result = testService.buildPrimoLinks(
+        { onlineLinks: [], consolidatedCoverage: '', ariaLabel: '' },
+        DEFAULT_PRIMO_LINK_LABELS,
+        EntityType.Article
+      );
+
+      expect(result).toEqual([]);
     });
 
     it('should prefer translated direct-link aria-label from labels bundle when provided', async () => {
@@ -1458,21 +1565,19 @@ describe('ButtonInfoService', () => {
         browzineUrl: '',
       };
 
-      const viewModel: any = {
-        onlineLinks: [],
-        directLink: 'https://example.com/nde/fulldisplay/some/direct/link',
-        ariaLabel: 'primo.directLink.aria',
-      };
+      const viewModel: any = { onlineLinks: [], ariaLabel: 'primo.directLink.aria' };
 
-      const result = testService.buildCombinedLinks(displayInfo, viewModel, {
-        ...DEFAULT_PRIMO_LINK_LABELS,
-        directLinkAriaLabel: 'Translated Open in new tab',
-      });
+      const result = testService.buildCombinedLinks(
+        displayInfo,
+        viewModel,
+        { ...DEFAULT_PRIMO_LINK_LABELS, directLinkAriaLabel: 'Translated Open in new tab' },
+        createAvailabilityHost()
+      );
 
       expect(result[1].ariaLabel).toBe('Other online options Translated Open in new tab');
     });
 
-    it('should label direct link as Available Online when it is the only option', async () => {
+    it('should label the Primo availability link as Available Online when it is the only option', async () => {
       const mockConfig = { ...MOCK_MODULE_PARAMETERS };
       mockConfig.showLinkResolverLink = true;
 
@@ -1489,113 +1594,73 @@ describe('ButtonInfoService', () => {
         browzineUrl: '',
       };
 
-      const viewModel: any = {
-        onlineLinks: [],
-        directLink: 'https://example.com/nde/fulldisplay/some/direct/link',
-        ariaLabel: 'Direct link aria label',
-      };
+      const viewModel: any = { onlineLinks: [], ariaLabel: 'Direct link aria label' };
 
-      const result = testService.buildCombinedLinks(displayInfo, viewModel, {
-        ...DEFAULT_PRIMO_LINK_LABELS,
-        directLinkAriaLabel: 'Open in new tab',
-      });
+      const result = testService.buildCombinedLinks(
+        displayInfo,
+        viewModel,
+        { ...DEFAULT_PRIMO_LINK_LABELS, directLinkAriaLabel: 'Open in new tab' },
+        createAvailabilityHost()
+      );
 
       expect(result).toHaveSize(1);
       expect(result[0]).toEqual({
-        source: 'directLink',
-        entityType: 'directLink',
-        url: 'https://example.com/nde/fulldisplay/some/direct/link#nui.getit.service_viewit',
+        source: 'primoAvailability',
+        entityType: 'primoAvailability',
+        url: '',
+        action: jasmine.any(Function),
         ariaLabel: 'Available Online Open in new tab',
-        label: 'Available Online', // From mock translation service when only one option
+        label: 'Available Online', // only option in the stack
       });
     });
 
-    it('should build direct link without anchor when directLink does not include /fulldisplay', async () => {
-      const mockConfig = { ...MOCK_MODULE_PARAMETERS };
-      mockConfig.showLinkResolverLink = true;
-
-      const testBed = await createTestModule(mockConfig);
+    it('should name the record in the Available Online aria label, matching what Primo does', async () => {
+      const testBed = await createTestModule({
+        ...MOCK_MODULE_PARAMETERS,
+        showLinkResolverLink: true,
+      });
       const testService = testBed.inject(ButtonInfoService);
-
-      const displayInfo: DisplayWaterfallResponse = {
-        entityType: EntityType.Article,
-        mainButtonType: ButtonType.DirectToPDF,
-        mainUrl: 'https://example.com/pdf',
-        secondaryUrl: '',
-        showSecondaryButton: false,
-        showBrowzineButton: false,
-        browzineUrl: '',
+      const host = {
+        ...createAvailabilityHost(),
+        searchResult: { pnx: { display: { title: ['Critical care'] } } } as any,
       };
 
-      const viewModel: any = {
-        onlineLinks: [],
-        directLink: 'https://example.com/some/direct/link',
-        ariaLabel: 'Direct link aria label',
-      };
-
-      const result = testService.buildCombinedLinks(displayInfo, viewModel);
-
-      expect(result[1].url).toBe('https://example.com/some/direct/link');
-    });
-
-    it('should build direct link with anchor when directLink includes /fulldisplay', async () => {
-      const mockConfig = { ...MOCK_MODULE_PARAMETERS };
-      mockConfig.showLinkResolverLink = true;
-
-      const testBed = await createTestModule(mockConfig);
-      const testService = testBed.inject(ButtonInfoService);
-
-      const displayInfo: DisplayWaterfallResponse = {
-        entityType: EntityType.Article,
-        mainButtonType: ButtonType.DirectToPDF,
-        mainUrl: 'https://example.com/pdf',
-        secondaryUrl: '',
-        showSecondaryButton: false,
-        showBrowzineButton: false,
-        browzineUrl: '',
-      };
-
-      const viewModel: any = {
-        onlineLinks: [],
-        directLink: 'https://example.com/nde/fulldisplay/some/direct/link',
-        ariaLabel: 'Direct link aria label',
-      };
-
-      const result = testService.buildCombinedLinks(displayInfo, viewModel);
-
-      expect(result[1].url).toBe(
-        'https://example.com/nde/fulldisplay/some/direct/link#nui.getit.service_viewit'
+      const result = testService.buildPrimoLinks(
+        { onlineLinks: [], consolidatedCoverage: '', ariaLabel: '' },
+        { ...DEFAULT_PRIMO_LINK_LABELS, directLinkAriaLabel: 'Opens in a new tab' },
+        EntityType.Journal,
+        host
       );
+
+      expect(result[0].ariaLabel).toBe('Available Online (Critical care) Opens in a new tab');
     });
 
-    it('should build fulldisplay direct link as a relative URL when Primo provides a relative URL', async () => {
-      const mockConfig = { ...MOCK_MODULE_PARAMETERS };
-      mockConfig.showLinkResolverLink = true;
-
-      const testBed = await createTestModule(mockConfig);
+    it('should not name the record in the "Other online options" aria label, matching what Primo does', async () => {
+      const testBed = await createTestModule({
+        ...MOCK_MODULE_PARAMETERS,
+        showLinkResolverLink: true,
+      });
       const testService = testBed.inject(ButtonInfoService);
-
-      const displayInfo: DisplayWaterfallResponse = {
-        entityType: EntityType.Article,
-        mainButtonType: ButtonType.DirectToPDF,
-        mainUrl: 'https://example.com/pdf',
-        secondaryUrl: '',
-        showSecondaryButton: false,
-        showBrowzineButton: false,
-        browzineUrl: '',
+      const host = {
+        ...createAvailabilityHost(),
+        searchResult: { pnx: { display: { title: ['Critical care'] } } } as any,
       };
 
-      const viewModel: any = {
-        onlineLinks: [],
-        directLink: '/nde/fulldisplay/some/direct/link',
-        ariaLabel: 'Direct link aria label',
-      };
+      const result = testService.buildPrimoLinks(
+        {
+          onlineLinks: [{ type: 'PDF', url: 'https://example.com/pdf', source: 'quicklink' }],
+          consolidatedCoverage: '',
+          ariaLabel: '',
+        },
+        { ...DEFAULT_PRIMO_LINK_LABELS, directLinkAriaLabel: 'Opens in a new tab' },
+        EntityType.Journal,
+        host
+      );
 
-      const result = testService.buildCombinedLinks(displayInfo, viewModel);
-      expect(result[1].url).toBe('/nde/fulldisplay/some/direct/link#nui.getit.service_viewit');
+      expect(result[1].ariaLabel).toBe('Other online options Opens in a new tab');
     });
 
-    it('should not build direct link when showLinkResolverLink is false', async () => {
+    it('should not build the Primo availability link when showLinkResolverLink is false', async () => {
       const mockConfig = { ...MOCK_MODULE_PARAMETERS };
       mockConfig.showLinkResolverLink = false;
 
@@ -1612,19 +1677,20 @@ describe('ButtonInfoService', () => {
         browzineUrl: '',
       };
 
-      const viewModel: any = {
-        onlineLinks: [],
-        directLink: '/some/direct/link',
-        ariaLabel: 'Direct link aria label',
-      };
+      const viewModel: any = { onlineLinks: [], ariaLabel: 'Direct link aria label' };
 
-      const result = testService.buildCombinedLinks(displayInfo, viewModel);
+      const result = testService.buildCombinedLinks(
+        displayInfo,
+        viewModel,
+        DEFAULT_PRIMO_LINK_LABELS,
+        createAvailabilityHost()
+      );
 
-      expect(result).toHaveSize(1); // Only Third Iron button, no direct link
+      expect(result).toHaveSize(1); // Only Third Iron button, no Primo availability link
       expect(result[0].source).toBe('thirdIron');
     });
 
-    it('should handle complete stack with Third Iron, Primo links, and direct link', async () => {
+    it('should handle complete stack with Third Iron, Primo links, and the Primo availability link', async () => {
       const mockConfig = { ...MOCK_MODULE_PARAMETERS };
       mockConfig.enableLinkOptimizer = false;
       mockConfig.showLinkResolverLink = true;
@@ -1651,18 +1717,22 @@ describe('ButtonInfoService', () => {
             ariaLabel: 'Download PDF',
           },
         ],
-        directLink: '/some/direct/link',
         ariaLabel: 'Direct link aria label',
       };
 
-      const result = testService.buildCombinedLinks(displayInfo, viewModel);
+      const result = testService.buildCombinedLinks(
+        displayInfo,
+        viewModel,
+        DEFAULT_PRIMO_LINK_LABELS,
+        createAvailabilityHost()
+      );
 
-      expect(result).toHaveSize(4); // 1 Third Iron main + 1 Third Iron secondary + 1 Primo + 1 direct
+      expect(result).toHaveSize(4); // 1 Third Iron main + 1 Third Iron secondary + 1 Primo + 1 availability
       expect(result[0].source).toBe('thirdIron');
       expect(result[1].source).toBe('thirdIron');
       expect(result[1].showSecondaryButton).toBe(true);
       expect(result[2].source).toBe('quicklink');
-      expect(result[3].source).toBe('directLink');
+      expect(result[3].source).toBe('primoAvailability');
     });
 
     it('should add BrowZine button for SingleStack when enabled and browzineUrl is provided', async () => {
@@ -1755,137 +1825,86 @@ describe('ButtonInfoService', () => {
     });
   });
 
-  describe('#buildPrimoDirectLinkBase', () => {
-    const fullDisplayHash = '#nui.getit.service_viewit';
+  // A journal with BrowZine but no Third Iron main button:
+  // where the Primo availability link lands (and so its label) depends on the view option.
+  describe('Primo availability link position per view option', () => {
+    const journalDisplayInfo: DisplayWaterfallResponse = {
+      entityType: EntityType.Journal,
+      mainButtonType: ButtonType.None,
+      mainUrl: '',
+      secondaryUrl: '',
+      showSecondaryButton: false,
+      showBrowzineButton: true,
+      browzineUrl: 'https://example.com/browzine',
+    };
+    const viewModel: any = { onlineLinks: [], ariaLabel: '' };
 
-    const setPath = (pathWithQueryAndHash: string) => {
-      // Update window.location without triggering a navigation/reload.
-      history.pushState({}, '', pathWithQueryAndHash);
+    const serviceFor = async (viewOption: string) => {
+      const testBed = await createTestModule({
+        ...MOCK_MODULE_PARAMETERS,
+        viewOption,
+        showLinkResolverLink: true,
+      });
+      return testBed.inject(ButtonInfoService);
     };
 
-    let baseEl: HTMLBaseElement | null = null;
-    let createdBaseEl = false;
-    let originalBaseHref: string | null = null;
+    it('stack-plus-browzine: Primo availability link is the main stack button, labeled Available Online', async () => {
+      const testService = await serviceFor('stack-plus-browzine');
+      const host = createAvailabilityHost();
 
-    const setBaseHref = (href: string | null) => {
-      baseEl = document.querySelector('base');
-      if (!baseEl) {
-        if (href == null) return;
-        baseEl = document.createElement('base');
-        baseEl.setAttribute('data-test', 'button-info');
-        document.head.prepend(baseEl);
-        createdBaseEl = true;
-        originalBaseHref = null;
-      } else {
-        createdBaseEl = false;
-        originalBaseHref = baseEl.getAttribute('href');
-      }
-
-      if (href == null) return;
-      baseEl.setAttribute('href', href);
-    };
-
-    afterEach(() => {
-      // Restore base href
-      if (baseEl) {
-        if (createdBaseEl) {
-          baseEl.remove();
-        } else if (originalBaseHref == null) {
-          baseEl.removeAttribute('href');
-        } else {
-          baseEl.setAttribute('href', originalBaseHref);
-        }
-      }
-      baseEl = null;
-      createdBaseEl = false;
-      originalBaseHref = null;
-
-      // Restore URL path
-      setPath('/');
-    });
-
-    const callBuildPrimoDirectLinkBase = async (
-      directLink: string,
-      currentWindowLocationPathWithQueryAndHash: string,
-      baseHref: string | null
-    ) => {
-      const mockConfig = { ...MOCK_MODULE_PARAMETERS, showLinkResolverLink: true };
-      const testBed = await createTestModule(mockConfig);
-      const service = testBed.inject(ButtonInfoService) as any;
-
-      setPath(currentWindowLocationPathWithQueryAndHash);
-      setBaseHref(baseHref);
-
-      const viewModel: any = {
-        onlineLinks: [],
-        directLink,
-        ariaLabel: 'aria',
-      };
-
-      // Test the private method directly.
-      return service.buildPrimoDirectLinkBase(viewModel, true) as any;
-    };
-
-    it('does not strip /nde from an trusted absolute directLink when NOT currently on /fulldisplay', async () => {
-      const link = await callBuildPrimoDirectLinkBase(
-        'https://example.com/nde/fulldisplay?docid=AAA', // direct link
-        '/search?docid=AAA', // window.location
-        '/nde/' // base href
+      const result = testService.buildCombinedLinks(
+        journalDisplayInfo,
+        viewModel,
+        DEFAULT_PRIMO_LINK_LABELS,
+        host
       );
 
-      expect(link.url).toBe(`https://example.com/nde/fulldisplay?docid=AAA${fullDisplayHash}`);
+      expect(result.map(l => l.source)).toEqual(['primoAvailability']);
+      expect(result[0].label).toBe('Available Online');
+      result[0].action!();
+      expect(host.onAvailabilityClicked).toHaveBeenCalledTimes(1);
     });
 
-    it('does not strip /nde from a trusted absolute directLink when on /fulldisplay and docid matches', async () => {
-      const link = await callBuildPrimoDirectLinkBase(
-        'https://example.com/nde/fulldisplay?docid=AAA',
-        '/nde/fulldisplay?docid=AAA',
-        '/nde/'
+    it('single-stack: Primo availability link follows BrowZine in the dropdown, labeled Other online options', async () => {
+      const testService = await serviceFor('single-stack');
+      const host = createAvailabilityHost();
+
+      const result = testService.buildCombinedLinks(
+        journalDisplayInfo,
+        viewModel,
+        DEFAULT_PRIMO_LINK_LABELS,
+        host
       );
 
-      expect(link.url).toBe(`https://example.com/nde/fulldisplay?docid=AAA${fullDisplayHash}`);
+      expect(result.map(l => l.source)).toEqual(['thirdIron', 'primoAvailability']);
+      expect(result[0].mainButtonType).toBe(ButtonType.Browzine);
+      expect(result[1].label).toBe('Other online options');
+      result[1].action!();
+      expect(host.onAvailabilityClicked).toHaveBeenCalledTimes(1);
     });
 
-    it('strips /nde from window.location fallback when on /nde/fulldisplay and docid mismatches', async () => {
-      const link = await callBuildPrimoDirectLinkBase(
-        'https://example.com/view/action/uresolver.do?docid=BBB',
-        '/nde/fulldisplay?docid=AAA',
-        '/nde/'
+    it('no-stack: Primo availability link is the main button of the Primo-only stack, labeled Available Online', async () => {
+      const testService = await serviceFor('no-stack');
+      const host = createAvailabilityHost();
+
+      const result = testService.buildPrimoLinks(
+        viewModel,
+        DEFAULT_PRIMO_LINK_LABELS,
+        EntityType.Journal,
+        host
       );
 
-      // Fallback uses current window.location, but stripped of base href "/nde"
-      expect(link.url).toBe(`/fulldisplay?docid=AAA${fullDisplayHash}`);
-    });
-
-    it('does not strip anything when base href is root (fallback still uses window.location)', async () => {
-      const link = await callBuildPrimoDirectLinkBase(
-        'https://example.com/view/action/uresolver.do?docid=BBB',
-        '/fulldisplay?docid=AAA',
-        '/'
-      );
-
-      expect(link.url).toBe(`/fulldisplay?docid=AAA${fullDisplayHash}`);
-    });
-
-    it('does not strip when window.location pathname does not start with basePath (even in fallback)', async () => {
-      const link = await callBuildPrimoDirectLinkBase(
-        'https://example.com/view/action/uresolver.do?docid=BBB',
-        '/somethingelse/fulldisplay?docid=AAA',
-        '/nde/'
-      );
-
-      expect(link.url).toBe(`/somethingelse/fulldisplay?docid=AAA${fullDisplayHash}`);
+      expect(result.map(l => l.source)).toEqual(['primoAvailability']);
+      expect(result[0].label).toBe('Available Online');
+      result[0].action!();
+      expect(host.onAvailabilityClicked).toHaveBeenCalledTimes(1);
     });
   });
 
   // The newer showLinkResolverLinkOnArticles/showLinkResolverLinkOnJournals elements take
   // priority over the legacy showLinkResolverLink element when present.
   describe('link resolver link per entity type', () => {
-    const directLinkViewModel = (): any => ({
-      onlineLinks: [],
-      directLink: 'https://example.com/nde/fulldisplay/some/direct/link',
-      ariaLabel: 'aria',
-    });
+    const availabilityViewModel = (): any => ({ onlineLinks: [], ariaLabel: 'aria' });
 
     const displayInfoFor = (entityType: EntityType): DisplayWaterfallResponse => ({
       entityType,
@@ -1897,9 +1916,9 @@ describe('ButtonInfoService', () => {
       browzineUrl: '',
     });
 
-    const getDirectLink = (links: any[]) => links.find(l => l.source === 'directLink');
+    const getAvailabilityLink = (links: any[]) => links.find(l => l.source === 'primoAvailability');
 
-    it('hides the article direct link when showLinkResolverLinkOnArticles is false (overriding legacy true)', async () => {
+    it('hides the article availability link when showLinkResolverLinkOnArticles is false (overriding legacy true)', async () => {
       const testBed = await createTestModule({
         ...MOCK_MODULE_PARAMETERS,
         showLinkResolverLink: true,
@@ -1909,13 +1928,15 @@ describe('ButtonInfoService', () => {
 
       const result = testService.buildCombinedLinks(
         displayInfoFor(EntityType.Article),
-        directLinkViewModel()
+        availabilityViewModel(),
+        DEFAULT_PRIMO_LINK_LABELS,
+        createAvailabilityHost()
       );
 
-      expect(getDirectLink(result)).toBeUndefined();
+      expect(getAvailabilityLink(result)).toBeUndefined();
     });
 
-    it('shows the article direct link when showLinkResolverLinkOnArticles is true (overriding legacy false)', async () => {
+    it('shows the article availability link when showLinkResolverLinkOnArticles is true (overriding legacy false)', async () => {
       const testBed = await createTestModule({
         ...MOCK_MODULE_PARAMETERS,
         showLinkResolverLink: false,
@@ -1925,13 +1946,15 @@ describe('ButtonInfoService', () => {
 
       const result = testService.buildCombinedLinks(
         displayInfoFor(EntityType.Article),
-        directLinkViewModel()
+        availabilityViewModel(),
+        DEFAULT_PRIMO_LINK_LABELS,
+        createAvailabilityHost()
       );
 
-      expect(getDirectLink(result)).toBeDefined();
+      expect(getAvailabilityLink(result)).toBeDefined();
     });
 
-    it('hides the journal direct link when showLinkResolverLinkOnJournals is false (overriding legacy true)', async () => {
+    it('hides the journal availability link when showLinkResolverLinkOnJournals is false (overriding legacy true)', async () => {
       const testBed = await createTestModule({
         ...MOCK_MODULE_PARAMETERS,
         showLinkResolverLink: true,
@@ -1941,13 +1964,15 @@ describe('ButtonInfoService', () => {
 
       const result = testService.buildCombinedLinks(
         displayInfoFor(EntityType.Journal),
-        directLinkViewModel()
+        availabilityViewModel(),
+        DEFAULT_PRIMO_LINK_LABELS,
+        createAvailabilityHost()
       );
 
-      expect(getDirectLink(result)).toBeUndefined();
+      expect(getAvailabilityLink(result)).toBeUndefined();
     });
 
-    it('shows the journal direct link when showLinkResolverLinkOnJournals is true (overriding legacy false)', async () => {
+    it('shows the journal availability link when showLinkResolverLinkOnJournals is true (overriding legacy false)', async () => {
       const testBed = await createTestModule({
         ...MOCK_MODULE_PARAMETERS,
         showLinkResolverLink: false,
@@ -1957,13 +1982,15 @@ describe('ButtonInfoService', () => {
 
       const result = testService.buildCombinedLinks(
         displayInfoFor(EntityType.Journal),
-        directLinkViewModel()
+        availabilityViewModel(),
+        DEFAULT_PRIMO_LINK_LABELS,
+        createAvailabilityHost()
       );
 
-      expect(getDirectLink(result)).toBeDefined();
+      expect(getAvailabilityLink(result)).toBeDefined();
     });
 
-    it('allows independent control of article vs journal direct links', async () => {
+    it('allows independent control of article vs journal availability links', async () => {
       const testBed = await createTestModule({
         ...MOCK_MODULE_PARAMETERS,
         showLinkResolverLink: true,
@@ -1974,15 +2001,19 @@ describe('ButtonInfoService', () => {
 
       const articleResult = testService.buildCombinedLinks(
         displayInfoFor(EntityType.Article),
-        directLinkViewModel()
+        availabilityViewModel(),
+        DEFAULT_PRIMO_LINK_LABELS,
+        createAvailabilityHost()
       );
       const journalResult = testService.buildCombinedLinks(
         displayInfoFor(EntityType.Journal),
-        directLinkViewModel()
+        availabilityViewModel(),
+        DEFAULT_PRIMO_LINK_LABELS,
+        createAvailabilityHost()
       );
 
-      expect(getDirectLink(articleResult)).toBeUndefined();
-      expect(getDirectLink(journalResult)).toBeDefined();
+      expect(getAvailabilityLink(articleResult)).toBeUndefined();
+      expect(getAvailabilityLink(journalResult)).toBeDefined();
     });
 
     it('falls back to legacy showLinkResolverLink when the new elements are absent', async () => {
@@ -1994,15 +2025,19 @@ describe('ButtonInfoService', () => {
 
       const articleResult = testService.buildCombinedLinks(
         displayInfoFor(EntityType.Article),
-        directLinkViewModel()
+        availabilityViewModel(),
+        DEFAULT_PRIMO_LINK_LABELS,
+        createAvailabilityHost()
       );
       const journalResult = testService.buildCombinedLinks(
         displayInfoFor(EntityType.Journal),
-        directLinkViewModel()
+        availabilityViewModel(),
+        DEFAULT_PRIMO_LINK_LABELS,
+        createAvailabilityHost()
       );
 
-      expect(getDirectLink(articleResult)).toBeDefined();
-      expect(getDirectLink(journalResult)).toBeDefined();
+      expect(getAvailabilityLink(articleResult)).toBeDefined();
+      expect(getAvailabilityLink(journalResult)).toBeDefined();
     });
 
     it('buildPrimoLinks (NoStack) respects per-entity-type config using the passed entityType', async () => {
@@ -2015,18 +2050,20 @@ describe('ButtonInfoService', () => {
       const testService = testBed.inject(ButtonInfoService);
 
       const articleResult = testService.buildPrimoLinks(
-        directLinkViewModel(),
+        availabilityViewModel(),
         DEFAULT_PRIMO_LINK_LABELS,
-        EntityType.Article
+        EntityType.Article,
+        createAvailabilityHost()
       );
       const journalResult = testService.buildPrimoLinks(
-        directLinkViewModel(),
+        availabilityViewModel(),
         DEFAULT_PRIMO_LINK_LABELS,
-        EntityType.Journal
+        EntityType.Journal,
+        createAvailabilityHost()
       );
 
-      expect(getDirectLink(articleResult)).toBeUndefined();
-      expect(getDirectLink(journalResult)).toBeDefined();
+      expect(getAvailabilityLink(articleResult)).toBeUndefined();
+      expect(getAvailabilityLink(journalResult)).toBeDefined();
     });
   });
 });

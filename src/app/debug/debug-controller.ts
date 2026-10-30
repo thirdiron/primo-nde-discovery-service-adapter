@@ -9,7 +9,12 @@ type DebugApi = {
   toggle: () => void;
   isEnabled: () => boolean;
   help: () => void;
+  // Latest Primo host component per record id, captured only while debug is enabled.
+  hosts?: Map<string, unknown>;
 };
+
+// Keeps long debug sessions (many searches) from holding on to every host component ever seen.
+const MAX_DEBUG_HOSTS = 50;
 
 type NamespaceApi = {
   debug: DebugApi;
@@ -87,6 +92,30 @@ export function setDebugEnabled(next: boolean): void {
   }
 }
 
+/**
+ * Debug-only: remember the Primo host component for a record so it can be inspected (or its
+ * methods invoked) from the browser console via `window.__TI_NDE__.debug.hosts`.
+ * No-op unless debug mode is enabled.
+ */
+export function registerDebugHost(recordId: string | null, host: unknown): void {
+  if (!recordId || !host || !isDebugEnabled()) return;
+  try {
+    const ns = ensureNamespace(globalThis as any);
+    if (!(ns.debug.hosts instanceof Map)) ns.debug.hosts = new Map();
+    const hosts = ns.debug.hosts;
+    // Re-insert so the most recently seen record is last; evict the oldest beyond the cap.
+    hosts.delete(recordId);
+    hosts.set(recordId, host);
+    while (hosts.size > MAX_DEBUG_HOSTS) {
+      const oldest = hosts.keys().next().value;
+      if (oldest === undefined) break;
+      hosts.delete(oldest);
+    }
+  } catch {
+    // debugging aids must never break the app
+  }
+}
+
 export function subscribeToDebugChanges(listener: DebugChangeListener): () => void {
   listeners.add(listener);
   return () => listeners.delete(listener);
@@ -133,6 +162,8 @@ export function installDebugApi(root: any = globalThis): NamespaceApi {
       disable: 'window.__TI_NDE__.debug.disable()',
       toggle: 'window.__TI_NDE__.debug.toggle()',
       isEnabled: 'window.__TI_NDE__.debug.isEnabled()',
+      hosts:
+        'window.__TI_NDE__.debug.hosts (Map of record id -> Primo host component, filled while debug is enabled)',
       persistence: { storageKey: STORAGE_KEY, values: ['1', '0'] },
     });
   };
