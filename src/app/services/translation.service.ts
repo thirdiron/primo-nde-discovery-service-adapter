@@ -29,20 +29,25 @@ export class TranslationService {
    * Gets translated text with fallback support
    * @param translationKey - The translation key to look up
    * @param fallbackText - Fallback text if translation is not found or equals the key
+   * @param interpolateParams - Values for `{{placeholder}}`s in the translation
    * @returns Observable that emits the translated text (and updates on language changes) or fallback text
    */
-  getTranslatedText$(translationKey: string, fallbackText: string): Observable<string> {
+  getTranslatedText$(
+    translationKey: string,
+    fallbackText: string,
+    interpolateParams?: Record<string, unknown>
+  ): Observable<string> {
     const lookupKeys = this.getLookupKeys(translationKey);
 
     if (lookupKeys.length === 1) {
       // no VID value found, so use the single lookup key
       const key = lookupKeys[0];
       return this.translate
-        .stream(key)
+        .stream(key, interpolateParams)
         .pipe(map(value => (this.isResolved(key, value) ? value : fallbackText)));
     }
 
-    return combineLatest(lookupKeys.map(key => this.translate.stream(key))).pipe(
+    return combineLatest(lookupKeys.map(key => this.translate.stream(key, interpolateParams))).pipe(
       map(values => {
         for (let i = 0; i < lookupKeys.length; i++) {
           if (this.isResolved(lookupKeys[i], values[i])) {

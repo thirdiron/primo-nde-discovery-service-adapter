@@ -209,4 +209,27 @@ describe('PrimoAvailabilityDomController', () => {
       expect(controller.isObserving()).toBeFalse();
     });
   });
+
+  describe('describeNativeButtons', () => {
+    it('lists the labels of native buttons, including hidden ones, skipping icon-only buttons', () => {
+      const availability = buildDom()!;
+      availability.innerHTML =
+        '<button> Get PDF </button><button aria-label="expand"></button><button>Available Online</button>';
+      controller.hideAvailability(host);
+
+      expect(controller.describeNativeButtons(host)).toEqual({
+        count: 2,
+        labels: ['Get PDF', 'Available Online'],
+      });
+    });
+
+    it('returns an empty result when Primo has not rendered the native element', () => {
+      buildDom(false);
+      expect(controller.describeNativeButtons(host)).toEqual({ count: 0, labels: [] });
+    });
+
+    it('returns an empty result for a null host', () => {
+      expect(controller.describeNativeButtons(null)).toEqual({ count: 0, labels: [] });
+    });
+  });
 });

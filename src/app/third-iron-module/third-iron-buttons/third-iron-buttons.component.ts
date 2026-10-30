@@ -28,11 +28,14 @@ import { StackedDropdownComponent } from 'src/app/components/stacked-dropdown/st
 import { DebugLogService } from 'src/app/services/debug-log.service';
 import { HostComponentProxy } from 'src/app/shared/host-component-proxy';
 import {
+  getPrimoAvailabilityCode,
+  getPrimoAvailabilityHostMeta,
   getPrimoHostRecordKey,
   getPrimoHostShape,
   getPrimoViewModelMeta,
   resolvePrimoHostRecord,
 } from 'src/app/shared/primo-host-record.utils';
+import { registerDebugHost } from 'src/app/debug/debug-controller';
 import { TranslationService } from 'src/app/services/translation.service';
 import { PrimoAvailabilityDomController } from 'src/app/shared/primo-availability-dom';
 import { TI_SCOPE_CLASS } from 'src/app/styles/css-scope';
@@ -83,8 +86,10 @@ export class ThirdIronButtonsComponent {
     this.debugLog.debug('ThirdIronButtons.hostProxy.setHostComponent', {
       cycle,
       hostShape: getPrimoHostShape(value),
+      availabilityHost: getPrimoAvailabilityHostMeta(value),
       hostRecord: this.debugLog.safeSearchEntityMeta(resolvePrimoHostRecord(value)),
     });
+    registerDebugHost(getPrimoHostRecordKey(resolvePrimoHostRecord(value)), value);
   }
   get hostComponent(): any {
     return this._hostComponent;
@@ -138,6 +143,31 @@ export class ThirdIronButtonsComponent {
     shareReplay({ bufferSize: 1, refCount: true })
   );
 
+  // Primo labels its own availability button with the record's status key (see
+  // `getPrimoAvailabilityCode`) and fills its placeholders from `availabilityPlaceholder`, so we do the
+  // same. Read after the viewModel emits, since Primo updates the host state while building it.
+  private readonly availableOnlineLabel$ = this.viewModel$.pipe(
+    map(() => ({
+      code: getPrimoAvailabilityCode(this.hostComponent?.onlineAvailability),
+      placeholder: this.hostComponent?.availabilityPlaceholder ?? undefined,
+    })),
+    distinctUntilChanged(
+      (a, b) => a.code === b.code && JSON.stringify(a.placeholder) === JSON.stringify(b.placeholder)
+    ),
+    switchMap(({ code, placeholder }) => {
+      const fulltextLabel$ = this.translationService.getTranslatedText$(
+        'delivery.code.fulltext',
+        'Available Online'
+      );
+      if (!code || code === 'delivery.code.fulltext') return fulltextLabel$;
+      return combineLatest([
+        this.translationService.getTranslatedText$(code, '', placeholder),
+        fulltextLabel$,
+      ]).pipe(map(([statusLabel, fulltextLabel]) => statusLabel || fulltextLabel));
+    }),
+    shareReplay({ bufferSize: 1, refCount: true })
+  );
+
   // Emits the translated Primo label strings used when building Primo links
   // (HTML/PDF + direct-link labels + direct-link aria-label).
   // Because it uses `translate.stream(...)` under the hood, it re-emits on language changes; `shareReplay(1)`
@@ -149,7 +179,7 @@ export class ThirdIronButtonsComponent {
       'nde.delivery.code.otherOnlineOptions',
       'Other online options'
     ),
-    this.translationService.getTranslatedText$('delivery.code.fulltext', 'Available Online'),
+    this.availableOnlineLabel$,
     this.directLinkAriaLabel$,
   ]).pipe(
     map(([htmlText, pdfText, otherOptions, availableOnline, directLinkAriaLabel]) => ({
@@ -261,6 +291,14 @@ export class ThirdIronButtonsComponent {
       ...getPrimoViewModelMeta(viewModel),
       ariaLabel: viewModel?.ariaLabel ?? null,
     });
+    // Read after the viewModel emits: Primo sets `openLink` as a side effect of building it.
+    this.debugLog.debug('ThirdIronButtons.applyEnhancement.hostState', {
+      recordKey: getPrimoHostRecordKey(resolvePrimoHostRecord(this.hostComponent)),
+      availabilityHost: getPrimoAvailabilityHostMeta(this.hostComponent),
+      nativeButtons: this.availabilityDom.describeNativeButtons(
+        this.elementRef.nativeElement as HTMLElement
+      ),
+    });
 
     const viewOption = this.viewOption;
 
@@ -299,7 +337,8 @@ export class ThirdIronButtonsComponent {
       this.combinedLinks = this.buttonInfoService.buildCombinedLinks(
         displayInfo,
         viewModel,
-        primoLinkLabels
+        primoLinkLabels,
+        this.hostComponent
       );
 
       this.debugLog.debug('ThirdIronButtons.combinedLinks', {
@@ -307,13 +346,14 @@ export class ThirdIronButtonsComponent {
       });
     } else {
       // Build array of Primo only links, filter based on TI config settings.
-      // Pass the record's entity type so the link resolver (direct) link can be
+      // Pass the record's entity type so the link resolver (Primo availability) link can be
       // shown/hidden per entity type (article vs journal).
       this.combinedLinks = [];
       this.primoLinks = this.buttonInfoService.buildPrimoLinks(
         viewModel,
         primoLinkLabels,
-        displayInfo.entityType
+        displayInfo.entityType,
+        this.hostComponent
       );
 
       // Primo links are re-rendered via our own `stacked-dropdown` in NoStack mode.

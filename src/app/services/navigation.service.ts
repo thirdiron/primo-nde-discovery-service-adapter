@@ -2,6 +2,7 @@ import { Inject, Injectable, Optional, NgZone } from '@angular/core';
 import { SHELL_ROUTER } from '../injection-tokens';
 import { Router } from '@angular/router';
 import { DebugLogService } from './debug-log.service';
+import { StackLink } from '../types/primoViewModel.types';
 
 export type NavigationTarget = '_self' | '_blank';
 
@@ -12,6 +13,21 @@ export class NavigationService {
     @Optional() @Inject(SHELL_ROUTER) private shellRouter: Router | null,
     private debugLog: DebugLogService
   ) {}
+
+  /**
+   * Activates a stack link: runs its action when it has one, otherwise opens its URL.
+   */
+  openStackLink(link: StackLink): void {
+    if (link.action) {
+      this.debugLog.debug('Navigation.openStackLink.action', {
+        source: link.source ?? null,
+        entityType: link.entityType,
+      });
+      link.action();
+      return;
+    }
+    this.openUrl(link.url);
+  }
 
   /**
    * Navigates using the host/shell Angular Router when possible (for same-tab navigation),
@@ -46,23 +62,14 @@ export class NavigationService {
         willAttemptRouter: !!this.shellRouter && !!routerUrl,
       });
       if (this.shellRouter && routerUrl) {
-        const postNavHash = this.getFulldisplayHash(routerUrl);
         // Ensure we run inside Angular zone even if this code is invoked from a custom element.
-        this.debugLog.debug('Navigation.openUrl.router.navigateByUrl', {
-          routerUrl,
-          postNavHash,
-        });
+        this.debugLog.debug('Navigation.openUrl.router.navigateByUrl', { routerUrl });
         this.ngZone.run(() => {
-          void this.shellRouter!.navigateByUrl(routerUrl).then(
-            () => {
-              if (postNavHash) this.reapplyHashForScroll(postNavHash);
-            },
-            err => {
-              this.debugLog.warn('Navigation.openUrl.router.navigateByUrl.error', {
-                err: this.debugLog.safeError(err),
-              });
-            }
-          );
+          void this.shellRouter!.navigateByUrl(routerUrl).catch(err => {
+            this.debugLog.warn('Navigation.openUrl.router.navigateByUrl.error', {
+              err: this.debugLog.safeError(err),
+            });
+          });
         });
         return;
       }
@@ -149,48 +156,5 @@ export class NavigationService {
       locationOrigin: window.location.origin,
     });
     return inferred;
-  }
-
-  /**
-   * When we navigate to fulldisplay via SPA routing, some host apps do not perform anchor scrolling
-   * (or they attempt it before the target element exists). As a best-effort workaround, if the URL
-   * includes a fragment for a fulldisplay link, we re-apply the fragment after navigation completes.
-   */
-  private getFulldisplayHash(routerUrl: string): string | null {
-    let parsed: URL;
-    try {
-      parsed = new URL(routerUrl, window.location.href);
-    } catch {
-      return null;
-    }
-
-    if (!parsed.pathname.includes('/fulldisplay')) return null;
-    if (!parsed.hash) return null;
-    return parsed.hash;
-  }
-
-  private reapplyHashForScroll(hash: string): void {
-    // Normalize to include leading '#'
-    const normalized = hash.startsWith('#') ? hash : `#${hash}`;
-
-    this.debugLog.debug('Navigation.reapplyHashForScroll.schedule', { hash: normalized });
-
-    // Try soon, then once more after a short delay to account for async rendering.
-    const apply = () => {
-      try {
-        // Setting the same hash often won't trigger scrolling; clear first, then set.
-        if (window.location.hash === normalized) {
-          window.location.hash = '';
-        }
-        window.location.hash = normalized;
-      } catch (err) {
-        this.debugLog.warn('Navigation.reapplyHashForScroll.error', {
-          err: this.debugLog.safeError(err),
-        });
-      }
-    };
-
-    setTimeout(apply, 0);
-    setTimeout(apply, 250);
   }
 }

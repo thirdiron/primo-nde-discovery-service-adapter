@@ -53,5 +53,70 @@ export const getPrimoViewModelMeta = (
     directLink: viewModel?.directLink ?? null,
     onlineLinksCount: Array.isArray(viewModel?.onlineLinks) ? viewModel.onlineLinks.length : 0,
     hasConsolidatedCoverage: !!viewModel?.consolidatedCoverage,
+    viewModelKeys: viewModel ? Object.keys(viewModel) : [],
+  };
+};
+
+/**
+ * Returns the translation key Primo uses to label its availability button for the given
+ * `onlineAvailability` status, mirroring the host's `onlineAvailabilityCode()`.
+ */
+export const getPrimoAvailabilityCode = (
+  onlineAvailability: string | null | undefined
+): string => {
+  if (onlineAvailability === 'Not available') return 'delivery.code.not_available';
+  return onlineAvailability ? `delivery.code.${onlineAvailability}` : '';
+};
+
+/**
+ * Returns safe debug metadata about the Primo `nde-online-availability` host component: which
+ * members it exposes and the availability state Primo uses to decide what its own button does.
+ * Only key names, primitives, and a small delivery summary are returned (no PNX / record payloads).
+ */
+export const getPrimoAvailabilityHostMeta = (host: any): Record<string, unknown> => {
+  if (!host || typeof host !== 'object') {
+    return { hasHost: false };
+  }
+
+  let protoMethods: string[] = [];
+  try {
+    const proto = Object.getPrototypeOf(host);
+    protoMethods =
+      proto && proto !== Object.prototype
+        ? Object.getOwnPropertyNames(proto).filter(name => name !== 'constructor')
+        : [];
+  } catch {
+    protoMethods = [];
+  }
+
+  let delivery: any = null;
+  try {
+    // `delivery` is a signal input on the Primo host component.
+    delivery = host.delivery?.() ?? null;
+  } catch {
+    delivery = null;
+  }
+
+  return {
+    hasHost: true,
+    ownKeys: Object.keys(host),
+    protoMethods,
+    hasOnAvailabilityClicked: typeof host.onAvailabilityClicked === 'function',
+    onAvailabilityClickedArity:
+      typeof host.onAvailabilityClicked === 'function' ? host.onAvailabilityClicked.length : null,
+    typeofDelivery: typeof host.delivery,
+    onlineAvailability: host.onlineAvailability ?? null,
+    openLink: host.openLink ?? null,
+    isFullDisplay: host.isFullDisplay ?? null,
+    delivery: delivery
+      ? {
+          deliveryCategory: delivery.deliveryCategory ?? null,
+          displayedAvailability: delivery.displayedAvailability ?? null,
+          electronicServicesCount: Array.isArray(delivery.electronicServices)
+            ? delivery.electronicServices.length
+            : 0,
+          firstServiceHasAccess: delivery.electronicServices?.[0]?.hasAccess ?? null,
+        }
+      : null,
   };
 };

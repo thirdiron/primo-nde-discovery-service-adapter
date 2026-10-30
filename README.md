@@ -124,6 +124,23 @@ Generally you can just use the functions described above in the Console API, but
 
 Once the localStorage value is set to true, either directly or via the exposed functions, log statements will be emitted to the browser console on the next action that would trigger a log message.
 
+**Inspecting Primo host components**
+
+While debug mode is enabled, the add-on keeps the most recent Primo `nde-online-availability` host component for each record (up to 50) in `window.__TI_NDE__.debug.hosts`, keyed by PNX record id. Records seen before debug was enabled aren't captured, so enable debug and then run (or re-run) the search. This is useful for checking which members Primo exposes and for calling Primo's own methods by hand:
+
+```
+const host = window.__TI_NDE__.debug.hosts.get('alma9919299045603746');
+host.onlineAvailability; // e.g. 'not_restricted'
+host.openLink; // whether Primo will open a direct link instead of going to full display
+host.onAvailabilityClicked(); // run Primo's native "Available Online" click behavior (older Primo builds take the direct link as an argument)
+```
+
+Calls typed directly in the console don't count as a user gesture, so a `window.open` inside them may be blocked as a popup. To test with a real gesture, attach the call to the next click on the page:
+
+```
+document.addEventListener('click', () => host.onAvailabilityClicked(), { once: true, capture: true });
+```
+
 **Redaction policy**
 
 - Never log API keys, `access_token` values, or full PNX/record payloads.

@@ -3,6 +3,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatMenuModule } from '@angular/material/menu';
 import { StackLink } from 'src/app/types/primoViewModel.types';
 import { NavigationService } from '../../services/navigation.service';
+import { DebugLogService } from '../../services/debug-log.service';
 import { EntityType } from 'src/app/shared/entity-type.enum';
 import { StackedButtonComponent } from './components/stacked-button.component';
 import { MainButtonComponent } from '../main-button/main-button.component';
@@ -30,11 +31,19 @@ export class StackedDropdownComponent {
   EntityType = EntityType;
   links = input.required<StackLink[]>();
 
-  constructor(private navigationService: NavigationService) {}
+  constructor(
+    private navigationService: NavigationService,
+    private debugLog: DebugLogService
+  ) {}
 
   onMenuItemClick(link: StackLink): void {
-    if (link?.url) {
-      this.navigationService.openUrl(link.url);
+    if (link?.action || link?.url) {
+      this.debugLog.debug('StackedDropdown.onMenuItemClick', {
+        source: link.source ?? null,
+        entityType: link.entityType,
+        ...this.debugLog.zoneInfo(),
+      });
+      this.navigationService.openStackLink(link);
     }
   }
 
