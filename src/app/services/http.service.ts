@@ -1,9 +1,23 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpErrorResponse, HttpResponse } from '@angular/common/http';
-import { catchError, Observable, throwError, tap } from 'rxjs';
+import {
+  catchError,
+  mergeMap,
+  Observable,
+  of,
+  shareReplay,
+  throwError,
+  tap,
+} from 'rxjs';
 import { ApiResult, ArticleData, JournalData } from '../types/tiData.types';
 import { ConfigService } from './config.service';
 import { DebugLogService } from './debug-log.service';
+
+// A 404 is a definitive "not in the TI API" answer (it drives the Unpaywall fallback), so it is
+// cached like a success. Wrapped in a value because `shareReplay` re-subscribes after errors.
+class CachedNotFound {
+  constructor(readonly error: unknown) {}
+}
 
 /**
  * This Service is responsible for all HTTP requests and includes some
@@ -14,6 +28,13 @@ import { DebugLogService } from './debug-log.service';
   providedIn: 'root',
 })
 export class HttpService {
+  static readonly MAX_CACHED_RESPONSES = 200;
+
+  // Article/journal lookups keyed by identifier. The buttons and the journal cover both look up
+  // the same record, and Primo re-creates our components on every list <-> detail navigation, so
+  // without this each visit re-fetches every record twice.
+  private readonly responseCache = new Map<string, Observable<any>>();
+
   constructor(
     private http: HttpClient,
     private configService: ConfigService,
@@ -21,6 +42,14 @@ export class HttpService {
   ) {}
 
   getArticle(doi: string): Observable<any> {
+    return this.cached(`article:${doi}`, () => this.fetchArticle(doi));
+  }
+
+  getJournal(issn: string): Observable<any> {
+    return this.cached(`journal:${issn}`, () => this.fetchJournal(issn));
+  }
+
+  private fetchArticle(doi: string): Observable<any> {
     const apiUrl = this.configService.getApiUrl();
     const endpoint = `${
       apiUrl
@@ -40,7 +69,7 @@ export class HttpService {
     );
   }
 
-  getJournal(issn: string): Observable<any> {
+  private fetchJournal(issn: string): Observable<any> {
     const apiUrl = this.configService.getApiUrl();
     const endpoint = `${apiUrl}/search?issns=${issn}${this.appendAccessToken()}`;
     return this.http.get(endpoint, { observe: 'response' }).pipe(
@@ -102,6 +131,35 @@ export class HttpService {
   }
   isJournal(data: JournalData | ArticleData | {}): data is JournalData {
     return (data as JournalData).issn !== undefined;
+  }
+
+  // Concurrent and later callers share one request. Errors other than 404 are not cached:
+  // `shareReplay` resets on error, so the next subscriber retries.
+  private cached<T>(key: string, request: () => Observable<T>): Observable<T> {
+    let shared$ = this.responseCache.get(key) as Observable<T | CachedNotFound> | undefined;
+    if (shared$) {
+      // Re-insert to mark as most recently used.
+      this.responseCache.delete(key);
+    } else {
+      shared$ = request().pipe(
+        catchError(err =>
+          (err as { status?: number })?.status === 404
+            ? of(new CachedNotFound(err))
+            : throwError(() => err)
+        ),
+        shareReplay({ bufferSize: 1, refCount: false })
+      );
+    }
+    this.responseCache.set(key, shared$);
+    while (this.responseCache.size > HttpService.MAX_CACHED_RESPONSES) {
+      this.responseCache.delete(this.responseCache.keys().next().value as string);
+    }
+
+    return shared$.pipe(
+      mergeMap(value =>
+        value instanceof CachedNotFound ? throwError(() => value.error) : of(value)
+      )
+    );
   }
 
   private appendAccessToken() {
