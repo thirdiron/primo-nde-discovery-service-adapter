@@ -19,6 +19,11 @@ class CachedNotFound {
   constructor(readonly error: unknown) {}
 }
 
+interface CacheEntry {
+  sharedResponse$: Observable<unknown>;
+  createdAt: number;
+}
+
 /**
  * This Service is responsible for all HTTP requests and includes some
  * helper functions for processing the returned response, error handling
@@ -29,11 +34,13 @@ class CachedNotFound {
 })
 export class HttpService {
   static readonly MAX_CACHED_RESPONSES = 200;
+  // Measured from when the request was first made; reads do not extend it.
+  static readonly CACHE_TTL_MS = 60 * 60 * 1000;
 
   // Article/journal lookups keyed by identifier. The buttons and the journal cover both look up
   // the same record, and Primo re-creates our components on every list <-> detail navigation, so
   // without this each visit re-fetches every record twice.
-  private readonly responseCache = new Map<string, Observable<any>>();
+  private readonly responseCache = new Map<string, CacheEntry>();
 
   constructor(
     private http: HttpClient,
@@ -134,28 +141,33 @@ export class HttpService {
   }
 
   // Concurrent and later callers share one request. Errors other than 404 are not cached:
-  // `shareReplay` resets on error, so the next subscriber retries.
+  // `shareReplay` resets on error, so the next subscriber retries. Entries older than
+  // CACHE_TTL_MS are treated as misses and re-fetched.
   private cached<T>(key: string, request: () => Observable<T>): Observable<T> {
-    let shared$ = this.responseCache.get(key) as Observable<T | CachedNotFound> | undefined;
-    if (shared$) {
-      // Re-insert to mark as most recently used.
-      this.responseCache.delete(key);
-    } else {
-      shared$ = request().pipe(
-        catchError(err =>
-          (err as { status?: number })?.status === 404
-            ? of(new CachedNotFound(err))
-            : throwError(() => err)
+    const now = Date.now();
+    let entry = this.responseCache.get(key);
+    // Delete either way: a hit is re-inserted to mark it most recently used, a miss is replaced.
+    this.responseCache.delete(key);
+    if (!entry || now - entry.createdAt >= HttpService.CACHE_TTL_MS) {
+      entry = {
+        sharedResponse$: request().pipe(
+          catchError(err =>
+            (err as { status?: number })?.status === 404
+              ? of(new CachedNotFound(err))
+              : throwError(() => err)
+          ),
+          shareReplay({ bufferSize: 1, refCount: false })
         ),
-        shareReplay({ bufferSize: 1, refCount: false })
-      );
+        createdAt: now,
+      };
     }
-    this.responseCache.set(key, shared$);
+    this.responseCache.set(key, entry);
+    const sharedResponse$ = entry.sharedResponse$ as Observable<T | CachedNotFound>;
     while (this.responseCache.size > HttpService.MAX_CACHED_RESPONSES) {
       this.responseCache.delete(this.responseCache.keys().next().value as string);
     }
 
-    return shared$.pipe(
+    return sharedResponse$.pipe(
       mergeMap(value =>
         value instanceof CachedNotFound ? throwError(() => value.error) : of(value)
       )
