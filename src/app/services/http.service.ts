@@ -1,9 +1,28 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpErrorResponse, HttpResponse } from '@angular/common/http';
-import { catchError, Observable, throwError, tap } from 'rxjs';
+import {
+  catchError,
+  mergeMap,
+  Observable,
+  of,
+  shareReplay,
+  throwError,
+  tap,
+} from 'rxjs';
 import { ApiResult, ArticleData, JournalData } from '../types/tiData.types';
 import { ConfigService } from './config.service';
 import { DebugLogService } from './debug-log.service';
+
+// A 404 is a definitive "not in the TI API" answer (it drives the Unpaywall fallback), so it is
+// cached like a success. Wrapped in a value because `shareReplay` re-subscribes after errors.
+class CachedNotFound {
+  constructor(readonly error: unknown) {}
+}
+
+interface CacheEntry {
+  sharedResponse$: Observable<unknown>;
+  createdAt: number;
+}
 
 /**
  * This Service is responsible for all HTTP requests and includes some
@@ -14,6 +33,15 @@ import { DebugLogService } from './debug-log.service';
   providedIn: 'root',
 })
 export class HttpService {
+  static readonly MAX_CACHED_RESPONSES = 200;
+  // Measured from when the request was first made; reads do not extend it.
+  static readonly CACHE_TTL_MS = 60 * 60 * 1000;
+
+  // Article/journal lookups keyed by identifier. The buttons and the journal cover both look up
+  // the same record, and Primo re-creates our components on every list <-> detail navigation, so
+  // without this each visit re-fetches every record twice.
+  private readonly responseCache = new Map<string, CacheEntry>();
+
   constructor(
     private http: HttpClient,
     private configService: ConfigService,
@@ -21,6 +49,14 @@ export class HttpService {
   ) {}
 
   getArticle(doi: string): Observable<any> {
+    return this.cached(`article:${doi}`, () => this.fetchArticle(doi));
+  }
+
+  getJournal(issn: string): Observable<any> {
+    return this.cached(`journal:${issn}`, () => this.fetchJournal(issn));
+  }
+
+  private fetchArticle(doi: string): Observable<any> {
     const apiUrl = this.configService.getApiUrl();
     const endpoint = `${
       apiUrl
@@ -40,7 +76,7 @@ export class HttpService {
     );
   }
 
-  getJournal(issn: string): Observable<any> {
+  private fetchJournal(issn: string): Observable<any> {
     const apiUrl = this.configService.getApiUrl();
     const endpoint = `${apiUrl}/search?issns=${issn}${this.appendAccessToken()}`;
     return this.http.get(endpoint, { observe: 'response' }).pipe(
@@ -102,6 +138,40 @@ export class HttpService {
   }
   isJournal(data: JournalData | ArticleData | {}): data is JournalData {
     return (data as JournalData).issn !== undefined;
+  }
+
+  // Concurrent and later callers share one request. Errors other than 404 are not cached:
+  // `shareReplay` resets on error, so the next subscriber retries. Entries older than
+  // CACHE_TTL_MS are treated as misses and re-fetched.
+  private cached<T>(key: string, request: () => Observable<T>): Observable<T> {
+    const now = Date.now();
+    let entry = this.responseCache.get(key);
+    // Delete either way: a hit is re-inserted to mark it most recently used, a miss is replaced.
+    this.responseCache.delete(key);
+    if (!entry || now - entry.createdAt >= HttpService.CACHE_TTL_MS) {
+      entry = {
+        sharedResponse$: request().pipe(
+          catchError(err =>
+            (err as { status?: number })?.status === 404
+              ? of(new CachedNotFound(err))
+              : throwError(() => err)
+          ),
+          shareReplay({ bufferSize: 1, refCount: false })
+        ),
+        createdAt: now,
+      };
+    }
+    this.responseCache.set(key, entry);
+    const sharedResponse$ = entry.sharedResponse$ as Observable<T | CachedNotFound>;
+    while (this.responseCache.size > HttpService.MAX_CACHED_RESPONSES) {
+      this.responseCache.delete(this.responseCache.keys().next().value as string);
+    }
+
+    return sharedResponse$.pipe(
+      mergeMap(value =>
+        value instanceof CachedNotFound ? throwError(() => value.error) : of(value)
+      )
+    );
   }
 
   private appendAccessToken() {
