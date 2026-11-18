@@ -5,7 +5,15 @@ import { join } from 'node:path';
 // Settings live in e2e/.env (copy e2e/.env.example). Keep URLs out of the command line:
 // zsh adds a backslash before ?, & and = when a URL is pasted there, which breaks the URL.
 const envFile = join(__dirname, '.env');
-if (existsSync(envFile)) process.loadEnvFile(envFile);
+if (existsSync(envFile)) {
+  // process.loadEnvFile arrived in Node 20.12. Fail clearly instead of with a TypeError.
+  if (typeof process.loadEnvFile !== 'function') {
+    throw new Error(
+      `The e2e tests need Node 20.12 or newer; this is Node ${process.versions.node}.`
+    );
+  }
+  process.loadEnvFile(envFile);
+}
 
 const isCI = !!process.env['CI'];
 

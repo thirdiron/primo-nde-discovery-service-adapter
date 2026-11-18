@@ -6,6 +6,8 @@ Most tests replace the add-on config that Primo delivers with a fixture and mock
 
 ## Setup
 
+The e2e tests need Node 20.12 or newer, because the config reads `e2e/.env` with `process.loadEnvFile`.
+
 1. Install dependencies and the Playwright browser:
    ```bash
    npm install

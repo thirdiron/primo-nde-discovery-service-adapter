@@ -94,14 +94,28 @@ test('find the request that carries the add-on parameters', async ({ page }) => 
           `    saved: ${relative(process.cwd(), file)}`,
         ];
         if (type.includes('json')) {
-          const locations = locateParams(JSON.parse(body));
-          for (const loc of locations) {
+          // A body labelled JSON may still not parse, e.g. with an XSSI prefix like )]}',
+          // Report it instead of throwing, which would lose the whole report.
+          let parsed: unknown;
+          try {
+            parsed = JSON.parse(body);
+          } catch {
             lines.push(
-              `    parameters at ${loc.path} (${loc.encoding}); articlePDFDownloadLinkEnabled = ${loc.pdfFlag}`
+              '    labelled JSON but not strict JSON (prefix or wrapper?); inspect the saved body'
             );
           }
-          if (!locations.length) {
-            lines.push('    keys present, but no single object holds them; inspect the saved body');
+          if (parsed !== undefined) {
+            const locations = locateParams(parsed);
+            for (const loc of locations) {
+              lines.push(
+                `    parameters at ${loc.path} (${loc.encoding}); articlePDFDownloadLinkEnabled = ${loc.pdfFlag}`
+              );
+            }
+            if (!locations.length) {
+              lines.push(
+                '    keys present, but no single object holds them; inspect the saved body'
+              );
+            }
           }
         } else {
           lines.push(
