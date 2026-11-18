@@ -91,10 +91,22 @@ describe('StackedButtonComponent styling', () => {
       expect(styles.color).withContext('label should be primary').toBe(PRIMO_PRIMARY);
     });
 
+    // Measures where the label lands instead of reading `justify-content`, because browsers
+    // serialize that keyword differently (Chrome 158 reports `flex-start` as `flow-start`).
     it('is left-aligned rather than centred like a Material button', () => {
-      const styles = getComputedStyle(render('dropdown'));
+      const button = render('dropdown');
+      const styles = getComputedStyle(button);
+      const label = button.querySelector('.mdc-button__label') as HTMLElement;
 
-      expect(styles.justifyContent).toBe('flex-start');
+      const buttonRect = button.getBoundingClientRect();
+      const labelRect = label.getBoundingClientRect();
+      const contentStart =
+        buttonRect.left + parseFloat(styles.borderLeftWidth) + parseFloat(styles.paddingLeft);
+
+      expect(buttonRect.width - labelRect.width)
+        .withContext('button must be wider than its label, or centred and left-aligned look the same')
+        .toBeGreaterThan(50);
+      expect(labelRect.left).withContext('label should start at the button’s leading padding').toBeCloseTo(contentStart, 0);
       expect(styles.minHeight).toBe('48px');
     });
   });
