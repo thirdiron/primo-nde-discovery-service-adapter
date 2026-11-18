@@ -51,6 +51,7 @@ Changes are pushed up to the '/dev-test/' S3 bucket when the feature branch CI p
 npm test          # unit tests (Karma/Jasmine)
 npm run test:ci   # headless CI-style test run
 npm run build     # production build to dist/
+npm run e2e       # Playwright E2E tests against a Primo view (see e2e/README.md)
 ```
 
 ### Where to start in the code
@@ -63,6 +64,7 @@ npm run build     # production build to dist/
 | Button logic           | `src/app/services/button-info.service.ts`              | Calls TI API and runs the display waterfall          |
 | Config flags           | `src/app/services/config.service.ts`                   | Reads add-on module parameters from Primo            |
 | Local proxy setup      | `proxy/`                                               | Primo proxy rules and customization overrides        |
+| E2E tests              | `e2e/`                                                 | Playwright tests run inside a real Primo NDE view    |
 
 For runtime troubleshooting, enable debug mode in the browser console (`window.__TI_NDE__.debug.enable()`). See [Debug mode](#debug-mode) below.
 
